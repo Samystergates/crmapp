@@ -158,7 +158,7 @@ public class OrderTRAServiceImp implements OrderTRAService {
 				Document document = new Document();
 				PdfWriter.getInstance(document, outputStream);
 				document.open();
-				this.addHeadingAndAddress(document, "Dagrapport");
+				this.addHeadingAndAddress(document, "Dagrapport", orderTRADto);
 				this.addAdditionalInformation(document, orderTRADto);
 				this.addOrdersTable(document, objects);
 				System.out.println("Closing Document");
@@ -182,7 +182,7 @@ public class OrderTRAServiceImp implements OrderTRAService {
 		}
 	}
 
-	private void addHeadingAndAddress(Document document, String heading) throws DocumentException {
+	private void addHeadingAndAddress(Document document, String heading, OrderTRADto orderTRADto) throws DocumentException {
 		Font font = new Font(FontFamily.HELVETICA, 18.0F, 1);
 		Font font2 = new Font(FontFamily.HELVETICA, 10.0F);
 		Font font3 = new Font(FontFamily.HELVETICA, 10.0F, 1);
@@ -197,7 +197,7 @@ public class OrderTRAServiceImp implements OrderTRAService {
 		mainTable.addCell(cell1);
 		PdfPCell cell2 = new PdfPCell();
 		Paragraph paragraph2 = new Paragraph(heading, font);
-		Paragraph paragraph22 = new Paragraph("Divers", font2);
+		Paragraph paragraph22 = new Paragraph(orderTRADto.getRoute(), font2);
 		paragraph2.setAlignment(1);
 		paragraph22.setAlignment(1);
 		cell2.addElement(paragraph2);

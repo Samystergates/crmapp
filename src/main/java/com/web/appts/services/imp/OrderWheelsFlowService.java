@@ -389,11 +389,11 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
 		labelParagraph8.setSpacingAfter(7.0F);
 		Paragraph labelParagraph9 = new Paragraph(String.format("%-39s%-39s", " Afstand Achterzijde:     " + orderSMEDto.getAfstandVA(), "mm"), font4);
 		labelParagraph9.setSpacingAfter(7.0F);
-		Paragraph labelParagraph10 = new Paragraph(String.format("%-43s%-43s", "              Dikte Schijf:     " + orderSMEDto.getDikte(), "mm                   \t                          Doorgezet:                                   Koigaten:  "), font4);
+		Paragraph labelParagraph10 = new Paragraph(String.format("%-43s%-43s", "              Dikte Schijf:     " + orderSMEDto.getDikte(), "mm                   \t                          Doorgezet:                                  Koelgaten:  "), font4);
 		labelParagraph10.setSpacingAfter(5.0F);
 		Paragraph labelParagraph11 = new Paragraph(String.format("%-43s%-43s", "                                                                                        Verstevigingsringen:     ", "          Nippel (D/W systeem):  "), font4);
 		labelParagraph11.setSpacingAfter(5.0F);
-		Paragraph labelParagraph12 = new Paragraph(String.format("%-43s%-43s", "                                                                                           Vientieleschermer:     ", " "), font4);
+		Paragraph labelParagraph12 = new Paragraph(String.format("%-43s%-43s", "                                                                                          Ventielbeschermer:     ", " "), font4);
 		PdfContentByte cb = writer.getDirectContent();
 		cb.rectangle(380.0F, 383.0F, 10.0F, 10.0F);
 		cb.stroke();
