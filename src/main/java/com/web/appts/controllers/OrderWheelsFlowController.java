@@ -155,7 +155,7 @@ public class OrderWheelsFlowController {
 	}
 
 	private void sortUsingDate(List<OrderDto> orderDto) {
-		DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
+		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
 		orderDto.sort(Comparator.comparing((order) -> {
 			String deliveryDate = order.getDeliveryDate();
 			return deliveryDate.isEmpty() ? order.getCreationDate() : deliveryDate;
