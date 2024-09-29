@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class JwtTokenHelper {
-    public static final long JWT_TOKEN_VALIDITY = 18000L;
+    public static final long JWT_TOKEN_VALIDITY = Long.MAX_VALUE;
     private String secret = "jwtTokenKey";
 
     public JwtTokenHelper() {
