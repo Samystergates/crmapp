@@ -187,7 +187,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
 				Document document = new Document();
 				PdfWriter writer = PdfWriter.getInstance(document, outputStream);
 				document.open();
-				this.addSMEHeadingAndAddress(document, "Smederij Order");
+				this.addSMEHeadingAndAddress(document, "Smederij Order - DM241"+ orderSMEDto.getId());
 				this.addSMEBloeHeadingAndInfo(writer, document, "", orderSMEDto);
 				this.addSMEOptions(writer, document, orderSMEDto);
 				this.addSMESections(writer, document);
