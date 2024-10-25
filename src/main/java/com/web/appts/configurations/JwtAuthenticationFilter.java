@@ -9,7 +9,10 @@ import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
+import io.jsonwebtoken.SignatureException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -24,6 +27,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private UserDetailsService userDetailsService;
     @Autowired
     private JwtTokenHelper jwtTokenHelper;
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     public JwtAuthenticationFilter() {
     }
@@ -32,11 +37,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String requestToken = request.getHeader("Authorization");
         Enumeration<String> headerNames = request.getHeaderNames();
 
-        while(headerNames.hasMoreElements()) {
-            System.out.println((String)headerNames.nextElement());
-        }
-
-        System.out.println(requestToken);
         String username = null;
         String token = null;
         if (requestToken != null && requestToken.startsWith("Bearer")) {
@@ -46,10 +46,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 username = this.jwtTokenHelper.getUsernameFromToken(token);
             } catch (IllegalArgumentException var10) {
                 System.out.println("Unable to get Jwt token");
+                this.messagingTemplate.convertAndSend("/topic/jwtExc", "logout");
             } catch (ExpiredJwtException var11) {
                 System.out.println("Jwt token has expired");
+                this.messagingTemplate.convertAndSend("/topic/jwtExc", "logout");
             } catch (MalformedJwtException var12) {
                 System.out.println("Invalid jwt");
+                this.messagingTemplate.convertAndSend("/topic/jwtExc", "logout");
+            } catch (SignatureException signatureException) {
+                System.out.println("Invalid jwt signature");
+                this.messagingTemplate.convertAndSend("/topic/jwtExc", "logout");
             }
         } else {
             System.out.println("Jwt token does not begin with Bearer");
@@ -63,6 +69,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
             } else {
                 System.out.println("Invalid jwt token");
+                this.messagingTemplate.convertAndSend("/topic/jwtExc", "logout");
             }
         } else {
             System.out.println("Username is null or context is not null");

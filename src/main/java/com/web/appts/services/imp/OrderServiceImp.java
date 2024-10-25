@@ -537,22 +537,36 @@ public class OrderServiceImp implements OrderService {
 
     @Transactional
     public List<OrderDto> getCRMOrders() {
+        //{DataDirect 7.1 OpenEdge Wire Protocol};DSN=AGRPROD
         try {
             String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
-            String connectionString = "jdbc:odbc:DRIVER={DataDirect 7.1 OpenEdge Wire Protocol};DSN=AGRPROD;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;Trusted_Connection=Yes;";
+            System.out.println("----------driver----------");
+            System.out.println(driver);
+            String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;Trusted_Connection=Yes;";
+            System.out.println("----------connectionString----------");
+            System.out.println(connectionString);
             String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', \"va-210\".\"cdordsrt\" AS 'Ordersoort', \"va-211\".\"cdborder\" AS 'Backorder', \"va-210\".\"cdgebruiker-init\" AS 'Gebruiker (I)', \"va-210\".\"cddeb\" AS 'Organisatie', \"ba-001\".\"naamorg\" AS 'Naam', \"ba-012\".\"postcode\" AS 'Postcode', \"ba-012\".\"plaats\" AS 'Plaats', \"ba-012\".\"cdland\" AS 'Land', \"va-210\".\"datum-lna\" AS 'Leverdatum', \"va-210\".\"opm-30\" AS 'Referentie', \"va-210\".\"datum-order\" AS 'Datum order', \"va-210\".\"SYS-DATE\" AS 'Datum laatste wijziging', \"va-210\".\"cdgebruiker\" AS 'Gebruiker (L)', \"va-211\".\"nrordrgl\" AS 'Regel', \"va-211\".\"aantbest\" AS 'Aantal besteld', \"va-211\".\"aanttelev\" AS 'Aantal geleverd', \"va-211\".\"cdprodukt\" AS 'Product', \"af-801\".\"tekst\" AS 'Omschrijving', \"va-211\".\"volgorde\" AS 'regelvolgorde', \"bb-043\".\"cdprodgrp\" FROM DATA.PUB.\"af-801\" , DATA.PUB.\"ba-001\" , DATA.PUB.\"ba-012\" , DATA.PUB.\"bb-043\" , DATA.PUB.\"va-210\" , DATA.PUB.\"va-211\" WHERE \"ba-001\".\"cdorg\" = \"va-210\".\"cdorg\" AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" AND \"va-211\".\"cdorder\" = \"va-210\".\"cdorder\" AND \"va-211\".\"cdorg\" = \"ba-001\".\"cdorg\" AND \"va-211\".\"cdprodukt\" = \"af-801\".\"cdsleutel1\" AND \"ba-012\".\"id-cdads\" = \"va-211\".\"id-cdads\" AND \"bb-043\".\"cdprodukt\" = \"va-211\".\"cdprodukt\" AND ((\"af-801\".\"cdtabel\"='bb-062') AND (\"va-210\".\"cdadmin\"='01') AND (\"va-211\".\"cdadmin\"='01') AND (\"va-210\".\"cdvestiging\"='ree') AND (\"va-210\".\"cdstatus\" <> 'Z' And \"va-210\".\"cdstatus\" <> 'B') AND (\"bb-043\".\"cdprodcat\"='pro'))";
-            Connection connection = null;
-            Statement statement = null;
-                try {
-                    Class.forName(driver);
-                    connection = DriverManager.getConnection(connectionString);
-                    statement = connection.createStatement();
+            System.out.println("----------query----------");
+            System.out.println(query);
+            Class.forName(driver);
+            try (Connection connection = DriverManager.getConnection(connectionString);
+                 Statement statement = connection.createStatement();
+                 ResultSet resultSet = statement.executeQuery(query)) {
+                    //Class.forName(driver);
+                    System.out.println("----------connection----------");
+                    System.out.println(connection);
+                    System.out.println("----------statement----------");
+                    System.out.println(statement);
                     if (statement != null) {
-                        ResultSet resultSet = statement.executeQuery(query);
-
+                        System.out.println("----------resultSet----------");
+                        System.out.println(resultSet);
                         String orderNumber = null;
                         while (resultSet.next()) {
                             orderNumber = resultSet.getString("Verkooporder");
+                            if (resultSet.wasNull()) {
+                                System.out.println("no ordernumer");
+                                continue;
+                            }
                             String orderType = resultSet.getString("Ordersoort");
                             String backOrder = resultSet.getString("Backorder");
                             String user = resultSet.getString("Gebruiker (I)");
@@ -630,17 +644,9 @@ public class OrderServiceImp implements OrderService {
                                 this.updateOrder(orderDto, ((OrderDto) this.ordersMap.get(orderNumber + "," + product)).getId(), false);
                             }
                         }
-
-                        resultSet.close();
-                        statement.close();
-                        connection.close();
                     }
                 } catch (SQLException var35) {
                     var35.printStackTrace();
-                    new ResourceNotFoundException("Order", "CRM", "N/A");
-                    return null;
-                } catch (ClassNotFoundException var36) {
-                    var36.printStackTrace();
                     new ResourceNotFoundException("Order", "CRM", "N/A");
                     return null;
                 } catch (Exception var37) {
@@ -648,11 +654,6 @@ public class OrderServiceImp implements OrderService {
                     e.printStackTrace();
                     new ResourceNotFoundException("Order", "CRM", "N/A");
                     return null;
-                } finally {
-                    if (connection != null) {
-                        connection.close();
-                    }
-
                 }
 
             this.ordersMap.clear();
