@@ -19,6 +19,7 @@ import com.web.appts.DTO.OrderDto;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -136,15 +137,15 @@ public class MonPrintingServiceImp {
         cell1.setBorder(0);
         mainTable.addCell(cell1);
         PdfPCell cell2 = new PdfPCell();
-        Paragraph paragraphL1 = new Paragraph(String.format("%-15s%-15s", heading + ":", "De Molen Beheer BV"), font4);
-        Paragraph paragraphL2 = new Paragraph(String.format("%-23s%-23s", "", "Rustvenseweg 2"), font4);
-        Paragraph paragraphL3 = new Paragraph(String.format("%-23s%-23s", "", "5375 KW REEK"), font4);
+        Paragraph paragraphL1 = new Paragraph(String.format("%-15s%-15s", heading + ":", ((OrderDto) list.get(0)).getUser()), font4);
+//        Paragraph paragraphL2 = new Paragraph(String.format("%-23s%-23s", "", "Rustvenseweg 2"), font4);
+//        Paragraph paragraphL3 = new Paragraph(String.format("%-23s%-23s", "", "5375 KW REEK"), font4);
         paragraphL1.setAlignment(0);
-        paragraphL2.setAlignment(0);
-        paragraphL3.setAlignment(0);
+//        paragraphL2.setAlignment(0);
+//        paragraphL3.setAlignment(0);
         cell2.addElement(paragraphL1);
-        cell2.addElement(paragraphL2);
-        cell2.addElement(paragraphL3);
+//        cell2.addElement(paragraphL2);
+//        cell2.addElement(paragraphL3);
         cell2.setBorder(0);
         mainTable.addCell(cell2);
         PdfPCell cell3 = new PdfPCell();
@@ -169,7 +170,7 @@ public class MonPrintingServiceImp {
         float[] columnWidths = new float[]{11.0F, 11.0F, 18.0F, 60.0F};
         table.setWidths(columnWidths);
         table.setSpacingBefore(3.0F);
-        table.setSpacingAfter(150.0F);
+        table.setSpacingAfter(250.0F);
         Font font2 = new Font(FontFamily.HELVETICA, 10.0F);
         Font font3 = new Font(FontFamily.HELVETICA, 10.0F, 1);
         PdfPCell headerCell = this.createHeaderCell("Rgl", font3);
@@ -180,6 +181,8 @@ public class MonPrintingServiceImp {
         table.addCell(headerCell2);
         table.addCell(headerCell3);
         table.addCell(headerCell4);
+
+        orderList.sort(Comparator.comparing(OrderDto::getRegel));
 
         for (int i = 0; i < orderList.size(); ++i) {
             if (i < orderList.size()) {
@@ -238,12 +241,12 @@ public class MonPrintingServiceImp {
         Font font3 = new Font(FontFamily.HELVETICA, 10.0F, 1);
         Font font4 = new Font(FontFamily.HELVETICA, 10.0F);
         PdfContentByte cb = writer.getDirectContent();
-        float cb1Y1 = 411.0F;
-        float cb2Y2 = 351.0F;
-        float cb3Y3 = 441.0F;
-        float cb4Y4 = 411.0F;
-        float cb5Y5 = 381.0F;
-        float cb6Y6 = 351.0F;
+        float cb1Y1 = 311.0F;
+        float cb2Y2 = 251.0F;
+        float cb3Y3 = 341.0F;
+        float cb4Y4 = 311.0F;
+        float cb5Y5 = 281.0F;
+        float cb6Y6 = 251.0F;
 
         if (orderList.size() == 1 && lettrCountForRows > 0) {
             cb1Y1 -= 10.5F;
