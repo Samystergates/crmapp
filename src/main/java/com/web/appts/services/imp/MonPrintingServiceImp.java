@@ -1,13 +1,7 @@
 
 package com.web.appts.services.imp;
 
-import com.itextpdf.text.BaseColor;
-import com.itextpdf.text.Document;
-import com.itextpdf.text.DocumentException;
-import com.itextpdf.text.Font;
-import com.itextpdf.text.Image;
-import com.itextpdf.text.Paragraph;
-import com.itextpdf.text.Phrase;
+import com.itextpdf.text.*;
 import com.itextpdf.text.Font.FontFamily;
 import com.itextpdf.text.pdf.Barcode128;
 import com.itextpdf.text.pdf.BaseFont;
@@ -137,16 +131,18 @@ public class MonPrintingServiceImp {
         cell1.setBorder(0);
         mainTable.addCell(cell1);
         PdfPCell cell2 = new PdfPCell();
-        Paragraph paragraphL1 = new Paragraph(String.format("%-15s%-15s", heading + ":", ((OrderDto) list.get(0)).getUser()), font4);
-//        Paragraph paragraphL2 = new Paragraph(String.format("%-23s%-23s", "", "Rustvenseweg 2"), font4);
-//        Paragraph paragraphL3 = new Paragraph(String.format("%-23s%-23s", "", "5375 KW REEK"), font4);
-        paragraphL1.setAlignment(0);
-//        paragraphL2.setAlignment(0);
-//        paragraphL3.setAlignment(0);
+        Paragraph paragraphL1 = new Paragraph(String.format("%-12s%-12s", heading + ":", ((OrderDto) list.get(0)).getUser()), font4);
+
+        paragraphL1.setAlignment(Element.ALIGN_CENTER);
+        //        Paragraph paragraphL2 = new Paragraph(String.format("%-23s%-23s", "", "Rustvenseweg 2"), font4);
+        //        Paragraph paragraphL3 = new Paragraph(String.format("%-23s%-23s", "", "5375 KW REEK"), font4);
+        //        paragraphL2.setAlignment(0);
+        //        paragraphL3.setAlignment(0);
         cell2.addElement(paragraphL1);
 //        cell2.addElement(paragraphL2);
 //        cell2.addElement(paragraphL3);
         cell2.setBorder(0);
+        cell2.setHorizontalAlignment(Element.ALIGN_CENTER);
         mainTable.addCell(cell2);
         PdfPCell cell3 = new PdfPCell();
         Paragraph paragraphR1 = new Paragraph(String.format("%-10s%-10s", "Oplegger: ", ((OrderDto) list.get(0)).getOrderNumber()), font4);
