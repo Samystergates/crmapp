@@ -25,6 +25,7 @@ public class OrderSMEDto {
 	private String verstevigingsringen;
 	private String ventielbeschermer;
 	private String aansluitnippel;
+	private String optionVentielbeschermer;
 
 	public OrderSMEDto() {
 	}
@@ -211,5 +212,13 @@ public class OrderSMEDto {
 
 	public void setAansluitnippel(String aansluitnippel) {
 		this.aansluitnippel = aansluitnippel;
+	}
+
+	public String getOptionVentielbeschermer() {
+		return optionVentielbeschermer;
+	}
+
+	public void setOptionVentielbeschermer(String optionVentielbeschermer) {
+		this.optionVentielbeschermer = optionVentielbeschermer;
 	}
 }

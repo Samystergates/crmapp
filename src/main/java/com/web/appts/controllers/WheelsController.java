@@ -71,7 +71,7 @@ public class WheelsController {
 	}
 
 	@DeleteMapping({"/wheel-color/delete/{wheelColorId}"})
-	public ResponseEntity<Boolean> deleteAllWheelColor(@PathVariable("wheelColorId") Long wheelColorId) {
+	public ResponseEntity<Boolean> deleteAllWheelColor(@PathVariable("wheelColorId") String wheelColorId) {
 		Boolean isDeleted = this.wheelColorService.deleteWheelColor(wheelColorId);
 		return new ResponseEntity(isDeleted, HttpStatus.OK);
 	}

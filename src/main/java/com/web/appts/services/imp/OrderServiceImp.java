@@ -551,7 +551,7 @@ public class OrderServiceImp implements OrderService {
                     "FROM DATA.PUB.\"va-210\" " +
                     "JOIN DATA.PUB.\"va-211\" ON \"va-210\".\"cdorder\" = \"va-211\".\"cdorder\" " +
                     "AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" " +
-                    "WHERE \"va-210\".\"cdstatus\" <> 'Z' " +
+                    "WHERE (\"va-210\".\"cdstatus\" <> 'Z' And \"va-210\".\"cdstatus\" <> 'B') " +
                     "AND \"va-210\".\"cdadmin\" = '01' " +
                     "AND \"va-210\".\"cdvestiging\" = 'ree'";
 
@@ -583,7 +583,7 @@ public class OrderServiceImp implements OrderService {
                     }
                     Set<String> uniqueones = new HashSet<>(existingOrderNumbers);
                     System.out.print("unique ones: ");
-                    System.out.println(uniqueones);
+                    System.out.println(uniqueones.size());
                     System.out.println(existingOrderNumbers.size());
                     System.out.println(ordersMap.values().size());
                     List<Integer> idList1 = this.ordersMap.values()
