@@ -539,6 +539,95 @@ public class OrderServiceImp implements OrderService {
     @Async
     @Scheduled(fixedRate = 300000)
     public void runQuery() {
+        if (!ordersMap.isEmpty() && !this.archivedOrdersService.getAllArchivedOrders().isEmpty()) {
+            try {
+                String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
+                System.out.println("----------driver----------");
+                System.out.println(driver);
+                String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;Trusted_Connection=Yes;";
+                System.out.println("----------connectionString----------");
+                System.out.println(connectionString);
+                String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', " +
+                        "\"va-211\".\"cdprodukt\" AS 'Product' " +
+                        "FROM DATA.PUB.\"va-210\" " +
+                        "JOIN DATA.PUB.\"va-211\" ON \"va-210\".\"cdorder\" = \"va-211\".\"cdorder\" " +
+                        "AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" " +
+                        "WHERE (\"va-210\".\"cdstatus\" <> 'Z' And \"va-210\".\"cdstatus\" <> 'B') " +
+                        "AND \"va-210\".\"cdadmin\" = '01' " +
+                        "AND \"va-210\".\"cdvestiging\" = 'ree'";
+
+                System.out.println(query);
+                Class.forName(driver);
+                try (Connection connection = DriverManager.getConnection(connectionString);
+                     Statement statement = connection.createStatement();
+                     ResultSet resultSet = statement.executeQuery(query)) {
+                    if (statement != null) {
+                        System.out.println("----------resultSet----------");
+                        System.out.println(resultSet);
+                        System.out.println(resultSet.next());
+                        String orderNumber = null;
+
+                        List<String> existingOrderNumbers = new ArrayList<>();
+                        while (resultSet.next()) {
+                            if (resultSet.wasNull()) {
+                                System.out.println("no ordernumer");
+                                continue;
+                            }
+                            orderNumber = resultSet.getString("Verkooporder");
+                            String product = resultSet.getString("Product");
+                            existingOrderNumbers.add(orderNumber);
+//                            System.out.println("orderNumber");
+//                            System.out.println(orderNumber);
+                        }
+//                        for (String on : existingOrderNumbers) {
+//                            System.out.println(on);
+//                        }
+                        Set<String> uniqueones = new HashSet<>(existingOrderNumbers);
+                        System.out.print("unique ones: ");
+                        System.out.println(uniqueones.size());
+                        System.out.println(existingOrderNumbers.size());
+                        System.out.println(ordersMap.values().size());
+                        List<Integer> idList1 = this.ordersMap.values()
+                                .stream()
+                                .filter((ord) -> {
+                                    return !existingOrderNumbers.contains(ord.getOrderNumber());
+                                })
+                                .map(OrderDto::getId).collect(Collectors.toList());
+//                        for (Integer id : idList1) {
+//                            System.out.println("id1: " + id);
+//                        }
+                        System.out.println(idList1.size());
+                        List<Long> idList2 = this.archivedOrdersService.getAllArchivedOrders()
+                                .stream()
+                                .filter((ord) -> {
+                                    return !existingOrderNumbers.contains(ord.getOrderNumber());
+                                })
+                                .map(ArchivedOrdersDto::getId).collect(Collectors.toList());
+//                        for (Long id : idList2) {
+//                            System.out.println("id2: " + id);
+//                        }
+                        System.out.println(idList2.size());
+                        List<Integer> idList3 = idList1
+                                .stream()
+                                .filter(id -> !idList2.contains(Long.valueOf(id))).collect(Collectors.toList());
+//                        for (Integer id : idList3) {
+//                            System.out.println("id3: " + id);
+//                        }
+                        System.out.println(idList3.size());
+                        this.moveToArchive(idList3);
+                    }
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @Transactional
+    public List<OrderDto> getCRMOrders() {
+        //{DataDirect 7.1 OpenEdge Wire Protocol};DSN=AGRPROD
         try {
             String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
             System.out.println("----------driver----------");
@@ -546,1346 +635,1259 @@ public class OrderServiceImp implements OrderService {
             String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;Trusted_Connection=Yes;";
             System.out.println("----------connectionString----------");
             System.out.println(connectionString);
-            String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', " +
-                    "\"va-211\".\"cdprodukt\" AS 'Product' " +
-                    "FROM DATA.PUB.\"va-210\" " +
-                    "JOIN DATA.PUB.\"va-211\" ON \"va-210\".\"cdorder\" = \"va-211\".\"cdorder\" " +
-                    "AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" " +
-                    "WHERE (\"va-210\".\"cdstatus\" <> 'Z' And \"va-210\".\"cdstatus\" <> 'B') " +
-                    "AND \"va-210\".\"cdadmin\" = '01' " +
-                    "AND \"va-210\".\"cdvestiging\" = 'ree'";
-
+            String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', \"va-210\".\"cdordsrt\" AS 'Ordersoort', \"va-211\".\"cdborder\" AS 'Backorder', \"va-210\".\"cdgebruiker-init\" AS 'Gebruiker (I)', \"va-210\".\"cddeb\" AS 'Organisatie', \"ba-001\".\"naamorg\" AS 'Naam', \"ba-012\".\"postcode\" AS 'Postcode', \"ba-012\".\"plaats\" AS 'Plaats', \"ba-012\".\"cdland\" AS 'Land', \"va-210\".\"datum-lna\" AS 'Leverdatum', \"va-210\".\"opm-30\" AS 'Referentie', \"va-210\".\"datum-order\" AS 'Datum order', \"va-210\".\"SYS-DATE\" AS 'Datum laatste wijziging', \"va-210\".\"cdgebruiker\" AS 'Gebruiker (L)', \"va-211\".\"nrordrgl\" AS 'Regel', \"va-211\".\"aantbest\" AS 'Aantal besteld', \"va-211\".\"aanttelev\" AS 'Aantal geleverd', \"va-211\".\"cdprodukt\" AS 'Product', \"af-801\".\"tekst\" AS 'Omschrijving', \"va-211\".\"volgorde\" AS 'regelvolgorde', \"bb-043\".\"cdprodgrp\" FROM DATA.PUB.\"af-801\" , DATA.PUB.\"ba-001\" , DATA.PUB.\"ba-012\" , DATA.PUB.\"bb-043\" , DATA.PUB.\"va-210\" , DATA.PUB.\"va-211\" WHERE \"ba-001\".\"cdorg\" = \"va-210\".\"cdorg\" AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" AND \"va-211\".\"cdorder\" = \"va-210\".\"cdorder\" AND \"va-211\".\"cdorg\" = \"ba-001\".\"cdorg\" AND \"va-211\".\"cdprodukt\" = \"af-801\".\"cdsleutel1\" AND \"ba-012\".\"id-cdads\" = \"va-211\".\"id-cdads\" AND \"bb-043\".\"cdprodukt\" = \"va-211\".\"cdprodukt\" AND ((\"af-801\".\"cdtabel\"='bb-062') AND (\"va-210\".\"cdadmin\"='01') AND (\"va-211\".\"cdadmin\"='01') AND (\"va-210\".\"cdvestiging\"='ree') AND (\"va-210\".\"cdstatus\" <> 'Z' And \"va-210\".\"cdstatus\" <> 'B') AND (\"bb-043\".\"cdprodcat\"='pro'))";
+            System.out.println("----------query----------");
             System.out.println(query);
             Class.forName(driver);
             try (Connection connection = DriverManager.getConnection(connectionString);
                  Statement statement = connection.createStatement();
                  ResultSet resultSet = statement.executeQuery(query)) {
+                //Class.forName(driver);
+                System.out.println("----------connection----------");
+                System.out.println(connection);
+                System.out.println("----------statement----------");
+                System.out.println(statement);
                 if (statement != null) {
                     System.out.println("----------resultSet----------");
                     System.out.println(resultSet);
-                    System.out.println(resultSet.next());
                     String orderNumber = null;
-
-                    List<String> existingOrderNumbers = new ArrayList<>();
                     while (resultSet.next()) {
+                        orderNumber = resultSet.getString("Verkooporder");
                         if (resultSet.wasNull()) {
                             System.out.println("no ordernumer");
                             continue;
                         }
-                        orderNumber = resultSet.getString("Verkooporder");
+                        String orderType = resultSet.getString("Ordersoort");
+                        String backOrder = resultSet.getString("Backorder");
+                        String user = resultSet.getString("Gebruiker (I)");
+                        String organization = resultSet.getString("Organisatie");
+                        String customerName = resultSet.getString("Naam");
+                        String postCode = resultSet.getString("Postcode");
+                        String city = resultSet.getString("Plaats");
+                        String country = resultSet.getString("Land");
+                        String deliveryDate = resultSet.getString("Leverdatum");
+                        String referenceInfo = resultSet.getString("Referentie");
+                        String creationDate = resultSet.getString("Datum order");
+                        String modificationDate = resultSet.getString("Datum laatste wijziging");
+                        String verifierUser = resultSet.getString("Gebruiker (L)");
+                        String regel = resultSet.getString("Regel");
+                        String aantal = resultSet.getString("Aantal besteld");
                         String product = resultSet.getString("Product");
-                        existingOrderNumbers.add(orderNumber);
-                        System.out.println("orderNumber");
-                        System.out.println(orderNumber);
-                    }
-                    for(String on : existingOrderNumbers){
-                        System.out.println(on);
-                    }
-                    Set<String> uniqueones = new HashSet<>(existingOrderNumbers);
-                    System.out.print("unique ones: ");
-                    System.out.println(uniqueones.size());
-                    System.out.println(existingOrderNumbers.size());
-                    System.out.println(ordersMap.values().size());
-                    List<Integer> idList1 = this.ordersMap.values()
-                            .stream()
-                            .filter((ord) -> {
-                        return !existingOrderNumbers.contains(ord.getOrderNumber());
-                            })
-                            .map(OrderDto::getId).collect(Collectors.toList());
-                    for(Integer id : idList1){
-                        System.out.println("id1: "+id);
-                    }
-                    System.out.println(idList1.size());
-                    List<Long> idList2 = this.archivedOrdersService.getAllArchivedOrders()
-                            .stream()
-                            .filter((ord) -> {
-                                return !existingOrderNumbers.contains(ord.getOrderNumber());
-                            })
-                            .map(ArchivedOrdersDto::getId).collect(Collectors.toList());
-                    for(Long id : idList2){
-                        System.out.println("id2: "+id);
-                    }
-                    System.out.println(idList2.size());
-                    List<Integer> idList3 = idList1
-                            .stream()
-                            .filter(id -> !idList2.contains(Long.valueOf(id))).collect(Collectors.toList());
-                    for(Integer id : idList3){
-                        System.out.println("id3: "+id);
-                    }
-                    System.out.println(idList3.size());
-                    //this.moveToArchive(idList3);
-                }
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-@Transactional
-public List<OrderDto> getCRMOrders() {
-    //{DataDirect 7.1 OpenEdge Wire Protocol};DSN=AGRPROD
-    try {
-        String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
-        System.out.println("----------driver----------");
-        System.out.println(driver);
-        String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;Trusted_Connection=Yes;";
-        System.out.println("----------connectionString----------");
-        System.out.println(connectionString);
-        String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', \"va-210\".\"cdordsrt\" AS 'Ordersoort', \"va-211\".\"cdborder\" AS 'Backorder', \"va-210\".\"cdgebruiker-init\" AS 'Gebruiker (I)', \"va-210\".\"cddeb\" AS 'Organisatie', \"ba-001\".\"naamorg\" AS 'Naam', \"ba-012\".\"postcode\" AS 'Postcode', \"ba-012\".\"plaats\" AS 'Plaats', \"ba-012\".\"cdland\" AS 'Land', \"va-210\".\"datum-lna\" AS 'Leverdatum', \"va-210\".\"opm-30\" AS 'Referentie', \"va-210\".\"datum-order\" AS 'Datum order', \"va-210\".\"SYS-DATE\" AS 'Datum laatste wijziging', \"va-210\".\"cdgebruiker\" AS 'Gebruiker (L)', \"va-211\".\"nrordrgl\" AS 'Regel', \"va-211\".\"aantbest\" AS 'Aantal besteld', \"va-211\".\"aanttelev\" AS 'Aantal geleverd', \"va-211\".\"cdprodukt\" AS 'Product', \"af-801\".\"tekst\" AS 'Omschrijving', \"va-211\".\"volgorde\" AS 'regelvolgorde', \"bb-043\".\"cdprodgrp\" FROM DATA.PUB.\"af-801\" , DATA.PUB.\"ba-001\" , DATA.PUB.\"ba-012\" , DATA.PUB.\"bb-043\" , DATA.PUB.\"va-210\" , DATA.PUB.\"va-211\" WHERE \"ba-001\".\"cdorg\" = \"va-210\".\"cdorg\" AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" AND \"va-211\".\"cdorder\" = \"va-210\".\"cdorder\" AND \"va-211\".\"cdorg\" = \"ba-001\".\"cdorg\" AND \"va-211\".\"cdprodukt\" = \"af-801\".\"cdsleutel1\" AND \"ba-012\".\"id-cdads\" = \"va-211\".\"id-cdads\" AND \"bb-043\".\"cdprodukt\" = \"va-211\".\"cdprodukt\" AND ((\"af-801\".\"cdtabel\"='bb-062') AND (\"va-210\".\"cdadmin\"='01') AND (\"va-211\".\"cdadmin\"='01') AND (\"va-210\".\"cdvestiging\"='ree') AND (\"va-210\".\"cdstatus\" <> 'Z' And \"va-210\".\"cdstatus\" <> 'B') AND (\"bb-043\".\"cdprodcat\"='pro'))";
-        System.out.println("----------query----------");
-        System.out.println(query);
-        Class.forName(driver);
-        try (Connection connection = DriverManager.getConnection(connectionString);
-             Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(query)) {
-            //Class.forName(driver);
-            System.out.println("----------connection----------");
-            System.out.println(connection);
-            System.out.println("----------statement----------");
-            System.out.println(statement);
-            if (statement != null) {
-                System.out.println("----------resultSet----------");
-                System.out.println(resultSet);
-                String orderNumber = null;
-                while (resultSet.next()) {
-                    orderNumber = resultSet.getString("Verkooporder");
-                    if (resultSet.wasNull()) {
-                        System.out.println("no ordernumer");
-                        continue;
-                    }
-                    String orderType = resultSet.getString("Ordersoort");
-                    String backOrder = resultSet.getString("Backorder");
-                    String user = resultSet.getString("Gebruiker (I)");
-                    String organization = resultSet.getString("Organisatie");
-                    String customerName = resultSet.getString("Naam");
-                    String postCode = resultSet.getString("Postcode");
-                    String city = resultSet.getString("Plaats");
-                    String country = resultSet.getString("Land");
-                    String deliveryDate = resultSet.getString("Leverdatum");
-                    String referenceInfo = resultSet.getString("Referentie");
-                    String creationDate = resultSet.getString("Datum order");
-                    String modificationDate = resultSet.getString("Datum laatste wijziging");
-                    String verifierUser = resultSet.getString("Gebruiker (L)");
-                    String regel = resultSet.getString("Regel");
-                    String aantal = resultSet.getString("Aantal besteld");
-                    String product = resultSet.getString("Product");
-                    String omsumin = resultSet.getString("Omschrijving");
-                    String cdProdGrp = resultSet.getString("cdprodgrp");
-                    String deliveryDate2 = "";
-                    OrderDto orderDto;
-                    String finalOrderNumber = orderNumber;
-                    if (!this.ordersMap.containsKey(orderNumber + "," + product) && !this.archivedOrdersService.getAllArchivedOrders().stream().anyMatch((obj) -> {
-                        return obj.getOrderNumber().equals(finalOrderNumber);
-                    })) {
-                        orderDto = new OrderDto();
-                        String finalOrderNumber1 = orderNumber;
-                        if (!this.ordersMap.entrySet().stream().anyMatch((obj) -> {
-                            return ((OrderDto) obj.getValue()).getOrderNumber().equals(finalOrderNumber1);
+                        String omsumin = resultSet.getString("Omschrijving");
+                        String cdProdGrp = resultSet.getString("cdprodgrp");
+                        String deliveryDate2 = "";
+                        OrderDto orderDto;
+                        String finalOrderNumber = orderNumber;
+                        if (!this.ordersMap.containsKey(orderNumber + "," + product) && !this.archivedOrdersService.getAllArchivedOrders().stream().anyMatch((obj) -> {
+                            return obj.getOrderNumber().equals(finalOrderNumber);
                         })) {
-                            orderDto.setIsParent(1);
-                        } else {
-                            orderDto.setIsParent(0);
+                            orderDto = new OrderDto();
+                            String finalOrderNumber1 = orderNumber;
+                            if (!this.ordersMap.entrySet().stream().anyMatch((obj) -> {
+                                return ((OrderDto) obj.getValue()).getOrderNumber().equals(finalOrderNumber1);
+                            })) {
+                                orderDto.setIsParent(1);
+                            } else {
+                                orderDto.setIsParent(0);
+                            }
+
+                            int maxId = this.ordersMap.values().stream().mapToInt(OrderDto::getId).max().orElse(0);
+                            ++maxId;
+                            orderDto.setId(maxId);
+                            orderDto.setOrderNumber(orderNumber);
+                            orderDto.setOrderType(orderType);
+                            orderDto.setBackOrder(backOrder);
+                            orderDto.setCdProdGrp(cdProdGrp);
+                            this.settingUpFlow(orderDto);
+                            orderDto.setUser(user);
+                            orderDto.setOrganization(organization);
+                            orderDto.setCustomerName(customerName);
+                            orderDto.setPostCode(postCode);
+                            orderDto.setCity(city);
+                            orderDto.setCountry(country);
+                            if (deliveryDate == null) {
+                                orderDto.setDeliveryDate("");
+                            } else {
+                                orderDto.setDeliveryDate(deliveryDate);
+                            }
+
+                            orderDto.setReferenceInfo(referenceInfo);
+                            orderDto.setCreationDate(creationDate);
+                            orderDto.setModificationDate(modificationDate);
+                            orderDto.setVerifierUser(verifierUser);
+                            orderDto.setRegel(regel);
+                            orderDto.setAantal(aantal);
+                            orderDto.setProduct(product);
+                            orderDto.setOmsumin(omsumin);
+                            deliveryDate2 = orderDto.getDeliveryDate();
+                            if (!this.createOrder(orderDto)) {
+                                System.out.println("Failed to create record in app");
+                            } else {
+                                this.ordersMap.put(orderNumber + "," + product, orderDto);
+                            }
                         }
 
-                        int maxId = this.ordersMap.values().stream().mapToInt(OrderDto::getId).max().orElse(0);
-                        ++maxId;
-                        orderDto.setId(maxId);
-                        orderDto.setOrderNumber(orderNumber);
-                        orderDto.setOrderType(orderType);
-                        orderDto.setBackOrder(backOrder);
-                        orderDto.setCdProdGrp(cdProdGrp);
-                        this.settingUpFlow(orderDto);
-                        orderDto.setUser(user);
-                        orderDto.setOrganization(organization);
-                        orderDto.setCustomerName(customerName);
-                        orderDto.setPostCode(postCode);
-                        orderDto.setCity(city);
-                        orderDto.setCountry(country);
-                        if (deliveryDate == null) {
-                            orderDto.setDeliveryDate("");
-                        } else {
-                            orderDto.setDeliveryDate(deliveryDate);
+                        if (this.ordersMap.containsKey(orderNumber + "," + product) && !((OrderDto) this.ordersMap.get(orderNumber + "," + product)).getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.equals("")) {
+                            orderDto = (OrderDto) this.ordersMap.get(orderNumber + "," + product);
+                            orderDto.setDeliveryDate(deliveryDate2);
+                            orderDto.setReferenceInfo(referenceInfo);
+                            this.updateOrder(orderDto, ((OrderDto) this.ordersMap.get(orderNumber + "," + product)).getId(), false);
                         }
-
-                        orderDto.setReferenceInfo(referenceInfo);
-                        orderDto.setCreationDate(creationDate);
-                        orderDto.setModificationDate(modificationDate);
-                        orderDto.setVerifierUser(verifierUser);
-                        orderDto.setRegel(regel);
-                        orderDto.setAantal(aantal);
-                        orderDto.setProduct(product);
-                        orderDto.setOmsumin(omsumin);
-                        deliveryDate2 = orderDto.getDeliveryDate();
-                        if (!this.createOrder(orderDto)) {
-                            System.out.println("Failed to create record in app");
-                        } else {
-                            this.ordersMap.put(orderNumber + "," + product, orderDto);
-                        }
-                    }
-
-                    if (this.ordersMap.containsKey(orderNumber + "," + product) && !((OrderDto) this.ordersMap.get(orderNumber + "," + product)).getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.equals("")) {
-                        orderDto = (OrderDto) this.ordersMap.get(orderNumber + "," + product);
-                        orderDto.setDeliveryDate(deliveryDate2);
-                        orderDto.setReferenceInfo(referenceInfo);
-                        this.updateOrder(orderDto, ((OrderDto) this.ordersMap.get(orderNumber + "," + product)).getId(), false);
                     }
                 }
+            } catch (SQLException var35) {
+                var35.printStackTrace();
+                new ResourceNotFoundException("Order", "CRM", "N/A");
+                return null;
+            } catch (Exception var37) {
+                Exception e = var37;
+                e.printStackTrace();
+                new ResourceNotFoundException("Order", "CRM", "N/A");
+                return null;
             }
-        } catch (SQLException var35) {
-            var35.printStackTrace();
-            new ResourceNotFoundException("Order", "CRM", "N/A");
-            return null;
-        } catch (Exception var37) {
-            Exception e = var37;
+
+            this.ordersMap.clear();
+            List<OrderDto> orderList = this.getAllOrders();
+            this.orderDtoList = orderList;
+            return this.orderDtoList;
+        } catch (Exception var39) {
+            Exception e = var39;
             e.printStackTrace();
             new ResourceNotFoundException("Order", "CRM", "N/A");
             return null;
         }
-
-        this.ordersMap.clear();
-        List<OrderDto> orderList = this.getAllOrders();
-        this.orderDtoList = orderList;
-        return this.orderDtoList;
-    } catch (Exception var39) {
-        Exception e = var39;
-        e.printStackTrace();
-        new ResourceNotFoundException("Order", "CRM", "N/A");
-        return null;
-    }
-}
-
-@Transactional
-private void settingUpFlow(OrderDto orderDto) {
-    String orderType = orderDto.getOrderType();
-    List<OrderDepartment> depList = new ArrayList();
-    String wheelOrder = orderDto.getCdProdGrp();
-    String pattern = "(182|183|184|440|820|821|822|823|824|825|826|850|851)";
-    Pattern compiledPattern = Pattern.compile(pattern);
-    Matcher matcher = compiledPattern.matcher(wheelOrder);
-    if (matcher.find()) {
-        orderDto.setSme("");
-        orderDto.setSpu("");
-        depList.add(new OrderDepartment(2, "SME", "", this.dtoToOrder(orderDto)));
-        depList.add(new OrderDepartment(3, "SPU", "", this.dtoToOrder(orderDto)));
     }
 
-    if (orderType.equals("LOS")) {
-        orderDto.setTra("R");
-        depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("LAS")) {
-        orderDto.setExp("R");
-        depList.add(new OrderDepartment(9, "EXP", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("LSO")) {
-        orderDto.setSer("R");
-        depList.add(new OrderDepartment(7, "SER", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("MAO")) {
-        orderDto.setMonLb("R");
-        orderDto.setExp("R");
-        depList.add(new OrderDepartment(4, "MONLB", "R", this.dtoToOrder(orderDto)));
-        depList.add(new OrderDepartment(9, "EXP", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("MLO")) {
-        orderDto.setMonLb("R");
-        orderDto.setTra("R");
-        depList.add(new OrderDepartment(4, "MONLB", "R", this.dtoToOrder(orderDto)));
-        depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("MWO")) {
-        orderDto.setMwe("R");
-        depList.add(new OrderDepartment(6, "MWE", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("MSO")) {
-        orderDto.setMonLb("R");
-        orderDto.setSer("R");
-        depList.add(new OrderDepartment(4, "MONLB", "R", this.dtoToOrder(orderDto)));
-        depList.add(new OrderDepartment(7, "SER", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("MLT")) {
-        orderDto.setMonTr("R");
-        orderDto.setTra("R");
-        depList.add(new OrderDepartment(5, "MONTR", "R", this.dtoToOrder(orderDto)));
-        depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("MST")) {
-        orderDto.setMonTr("R");
-        orderDto.setSer("R");
-        depList.add(new OrderDepartment(5, "MONTR", "R", this.dtoToOrder(orderDto)));
-        depList.add(new OrderDepartment(7, "SER", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("LOP")) {
-        orderDto.setTra("R");
-        depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("LAP")) {
-        orderDto.setExp("R");
-        depList.add(new OrderDepartment(9, "EXP", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("LSP")) {
-        orderDto.setSer("R");
-        depList.add(new OrderDepartment(7, "SER", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("MAP")) {
-        orderDto.setMonLb("R");
-        orderDto.setExp("R");
-        depList.add(new OrderDepartment(4, "MONLB", "R", this.dtoToOrder(orderDto)));
-        depList.add(new OrderDepartment(9, "EXP", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("MLP")) {
-        orderDto.setMonLb("R");
-        orderDto.setTra("R");
-        depList.add(new OrderDepartment(4, "MONLB", "R", this.dtoToOrder(orderDto)));
-        depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("MWP")) {
-        orderDto.setMwe("R");
-        depList.add(new OrderDepartment(6, "MWE", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("MSP")) {
-        orderDto.setMonLb("R");
-        orderDto.setSer("R");
-        depList.add(new OrderDepartment(4, "MONLB", "R", this.dtoToOrder(orderDto)));
-        depList.add(new OrderDepartment(7, "SER", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("MSE")) {
-        orderDto.setMonTr("R");
-        orderDto.setSer("R");
-        depList.add(new OrderDepartment(5, "MONTR", "R", this.dtoToOrder(orderDto)));
-        depList.add(new OrderDepartment(7, "SER", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("MLE")) {
-        orderDto.setMonTr("R");
-        orderDto.setTra("R");
-        depList.add(new OrderDepartment(5, "MONTR", "R", this.dtoToOrder(orderDto)));
-        depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("WEB")) {
-        orderDto.setTra("R");
-        depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
-    }
-
-    if (orderType.equals("BBA")) {
-        orderDto.setTra("R");
-        depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
-    }
-
-    orderDto.setDepartments(depList);
-}
-
-private void updatingFlow(Order order, OrderDto orderDto) {
-    String orderTypeDto = orderDto.getOrderType();
-    String orderType = order.getOrderType();
-    List<OrderDepartment> depList = order.getDepartments();
-    List<OrderDepartment> depListDto = orderDto.getDepartments();
-    if (depList != null) {
-        depList.sort(Comparator.comparingInt(OrderDepartment::getDepId));
-    }
-
-    if (orderDto.getCompleted() == null) {
-        orderDto.setCompleted("");
-    }
-
-    if (orderDto.getCompleted().equals("C")) {
-        order.setCompleted("C");
-    }
-
-    int index;
-    if (orderType.equals(orderTypeDto) && orderType.equals("LOS")) {
-        order.setTra(orderDto.getTra());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 8;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getTra())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getTra());
-            }
+    @Transactional
+    private void settingUpFlow(OrderDto orderDto) {
+        String orderType = orderDto.getOrderType();
+        List<OrderDepartment> depList = new ArrayList();
+        String wheelOrder = orderDto.getCdProdGrp();
+        String pattern = "(182|183|184|440|820|821|822|823|824|825|826|850|851)";
+        Pattern compiledPattern = Pattern.compile(pattern);
+        Matcher matcher = compiledPattern.matcher(wheelOrder);
+        if (matcher.find()) {
+            orderDto.setSme("");
+            orderDto.setSpu("");
+            depList.add(new OrderDepartment(2, "SME", "", this.dtoToOrder(orderDto)));
+            depList.add(new OrderDepartment(3, "SPU", "", this.dtoToOrder(orderDto)));
         }
-    }
 
-    if (orderType.equals(orderTypeDto) && orderType.equals("LAS")) {
-        order.setExp(orderDto.getExp());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 9;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getExp())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getExp());
-            }
+        if (orderType.equals("LOS")) {
+            orderDto.setTra("R");
+            depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
         }
-    }
 
-    if (orderType.equals(orderTypeDto) && orderType.equals("LSO")) {
-        order.setSer(orderDto.getSer());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 7;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getSer())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getSer());
-            }
+        if (orderType.equals("LAS")) {
+            orderDto.setExp("R");
+            depList.add(new OrderDepartment(9, "EXP", "R", this.dtoToOrder(orderDto)));
         }
+
+        if (orderType.equals("LSO")) {
+            orderDto.setSer("R");
+            depList.add(new OrderDepartment(7, "SER", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("MAO")) {
+            orderDto.setMonLb("R");
+            orderDto.setExp("R");
+            depList.add(new OrderDepartment(4, "MONLB", "R", this.dtoToOrder(orderDto)));
+            depList.add(new OrderDepartment(9, "EXP", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("MLO")) {
+            orderDto.setMonLb("R");
+            orderDto.setTra("R");
+            depList.add(new OrderDepartment(4, "MONLB", "R", this.dtoToOrder(orderDto)));
+            depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("MWO")) {
+            orderDto.setMwe("R");
+            depList.add(new OrderDepartment(6, "MWE", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("MSO")) {
+            orderDto.setMonLb("R");
+            orderDto.setSer("R");
+            depList.add(new OrderDepartment(4, "MONLB", "R", this.dtoToOrder(orderDto)));
+            depList.add(new OrderDepartment(7, "SER", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("MLT")) {
+            orderDto.setMonTr("R");
+            orderDto.setTra("R");
+            depList.add(new OrderDepartment(5, "MONTR", "R", this.dtoToOrder(orderDto)));
+            depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("MST")) {
+            orderDto.setMonTr("R");
+            orderDto.setSer("R");
+            depList.add(new OrderDepartment(5, "MONTR", "R", this.dtoToOrder(orderDto)));
+            depList.add(new OrderDepartment(7, "SER", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("LOP")) {
+            orderDto.setTra("R");
+            depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("LAP")) {
+            orderDto.setExp("R");
+            depList.add(new OrderDepartment(9, "EXP", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("LSP")) {
+            orderDto.setSer("R");
+            depList.add(new OrderDepartment(7, "SER", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("MAP")) {
+            orderDto.setMonLb("R");
+            orderDto.setExp("R");
+            depList.add(new OrderDepartment(4, "MONLB", "R", this.dtoToOrder(orderDto)));
+            depList.add(new OrderDepartment(9, "EXP", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("MLP")) {
+            orderDto.setMonLb("R");
+            orderDto.setTra("R");
+            depList.add(new OrderDepartment(4, "MONLB", "R", this.dtoToOrder(orderDto)));
+            depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("MWP")) {
+            orderDto.setMwe("R");
+            depList.add(new OrderDepartment(6, "MWE", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("MSP")) {
+            orderDto.setMonLb("R");
+            orderDto.setSer("R");
+            depList.add(new OrderDepartment(4, "MONLB", "R", this.dtoToOrder(orderDto)));
+            depList.add(new OrderDepartment(7, "SER", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("MSE")) {
+            orderDto.setMonTr("R");
+            orderDto.setSer("R");
+            depList.add(new OrderDepartment(5, "MONTR", "R", this.dtoToOrder(orderDto)));
+            depList.add(new OrderDepartment(7, "SER", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("MLE")) {
+            orderDto.setMonTr("R");
+            orderDto.setTra("R");
+            depList.add(new OrderDepartment(5, "MONTR", "R", this.dtoToOrder(orderDto)));
+            depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("WEB")) {
+            orderDto.setTra("R");
+            depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("BBA")) {
+            orderDto.setTra("R");
+            depList.add(new OrderDepartment(8, "TRA", "R", this.dtoToOrder(orderDto)));
+        }
+
+        orderDto.setDepartments(depList);
     }
 
-    int index2;
-    if (orderType.equals(orderTypeDto) && orderType.equals("MAO")) {
-        order.setMonLb(orderDto.getMonLb());
-        order.setExp(orderDto.getExp());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 4;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
+    private void updatingFlow(Order order, OrderDto orderDto) {
+        String orderTypeDto = orderDto.getOrderType();
+        String orderType = order.getOrderType();
+        List<OrderDepartment> depList = order.getDepartments();
+        List<OrderDepartment> depListDto = orderDto.getDepartments();
+        if (depList != null) {
+            depList.sort(Comparator.comparingInt(OrderDepartment::getDepId));
+        }
 
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
+        if (orderDto.getCompleted() == null) {
+            orderDto.setCompleted("");
+        }
 
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
+        if (orderDto.getCompleted().equals("C")) {
+            order.setCompleted("C");
+        }
 
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonLb())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonLb());
+        int index;
+        if (orderType.equals(orderTypeDto) && orderType.equals("LOS")) {
+            order.setTra(orderDto.getTra());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 8;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getTra())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getTra());
+                }
             }
         }
 
-        index2 = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 9;
-        }).findFirst().orElse(-1);
-        if (index2 != -1) {
-            if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
-            }
+        if (orderType.equals(orderTypeDto) && orderType.equals("LAS")) {
+            order.setExp(orderDto.getExp());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 9;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
 
-            if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
-            }
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
-            }
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getExp())) {
-                ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getExp());
-            }
-        }
-    }
-
-    if (orderType.equals(orderTypeDto) && orderType.equals("MLO")) {
-        order.setMonLb(orderDto.getMonLb());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 4;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonLb())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonLb());
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getExp())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getExp());
+                }
             }
         }
 
-        index2 = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 8;
-        }).findFirst().orElse(-1);
-        if (index2 != -1) {
-            if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
-            }
+        if (orderType.equals(orderTypeDto) && orderType.equals("LSO")) {
+            order.setSer(orderDto.getSer());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 7;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
 
-            if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
-            }
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
-            }
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getTra())) {
-                ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getTra());
-            }
-        }
-    }
-
-    if (orderType.equals(orderTypeDto) && orderType.equals("MWO")) {
-        order.setMwe(orderDto.getMwe());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 6;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMwe())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMwe());
-            }
-        }
-    }
-
-    if (orderType.equals(orderTypeDto) && orderType.equals("MSO")) {
-        order.setMonLb(orderDto.getMonLb());
-        order.setSer(orderDto.getSer());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 4;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonLb())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonLb());
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getSer())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getSer());
+                }
             }
         }
 
-        index2 = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 7;
-        }).findFirst().orElse(-1);
-        if (index2 != -1) {
-            if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
+        int index2;
+        if (orderType.equals(orderTypeDto) && orderType.equals("MAO")) {
+            order.setMonLb(orderDto.getMonLb());
+            order.setExp(orderDto.getExp());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 4;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonLb())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonLb());
+                }
             }
 
-            if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
-            }
+            index2 = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 9;
+            }).findFirst().orElse(-1);
+            if (index2 != -1) {
+                if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
-            }
+                if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getSer())) {
-                ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getSer());
-            }
-        }
-    }
+                if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
+                }
 
-    if (orderType.equals(orderTypeDto) && orderType.equals("MLT")) {
-        order.setMonTr(orderDto.getMonTr());
-        order.setTra(orderDto.getTra());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 5;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonTr())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonTr());
-            }
-        }
-
-        index2 = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 8;
-        }).findFirst().orElse(-1);
-        if (index2 != -1) {
-            if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getTra())) {
-                ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getTra());
-            }
-        }
-    }
-
-    if (orderType.equals(orderTypeDto) && orderType.equals("MST")) {
-        order.setMonTr(orderDto.getMonTr());
-        order.setSer(orderDto.getSer());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 5;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonTr())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonTr());
+                if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getExp())) {
+                    ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getExp());
+                }
             }
         }
 
-        index2 = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 7;
-        }).findFirst().orElse(-1);
-        if (index2 != -1) {
-            if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
+        if (orderType.equals(orderTypeDto) && orderType.equals("MLO")) {
+            order.setMonLb(orderDto.getMonLb());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 4;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonLb())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonLb());
+                }
             }
 
-            if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
-            }
+            index2 = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 8;
+            }).findFirst().orElse(-1);
+            if (index2 != -1) {
+                if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
-            }
+                if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getSer())) {
-                ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getSer());
-            }
-        }
-    }
+                if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
+                }
 
-    if (orderType.equals(orderTypeDto) && orderType.equals("LOP")) {
-        order.setTra(orderDto.getTra());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 8;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getTra())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getTra());
-            }
-        }
-    }
-
-    if (orderType.equals(orderTypeDto) && orderType.equals("LAP")) {
-        order.setExp(orderDto.getExp());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 9;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getExp())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getExp());
-            }
-        }
-    }
-
-    if (orderType.equals(orderTypeDto) && orderType.equals("LSP")) {
-        order.setSer(orderDto.getSer());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 7;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getSer())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getSer());
-            }
-        }
-    }
-
-    if (orderType.equals(orderTypeDto) && orderType.equals("MAP")) {
-        order.setMonLb(orderDto.getMonLb());
-        order.setExp(orderDto.getExp());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 4;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonLb())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonLb());
+                if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getTra())) {
+                    ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getTra());
+                }
             }
         }
 
-        index2 = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 9;
-        }).findFirst().orElse(-1);
-        if (index2 != -1) {
-            if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
-            }
+        if (orderType.equals(orderTypeDto) && orderType.equals("MWO")) {
+            order.setMwe(orderDto.getMwe());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 6;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
 
-            if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
-            }
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
-            }
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getExp())) {
-                ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getExp());
-            }
-        }
-    }
-
-    if (orderType.equals(orderTypeDto) && orderType.equals("MLP")) {
-        order.setMonLb(orderDto.getMonLb());
-        order.setTra(orderDto.getTra());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 4;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonLb())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonLb());
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMwe())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMwe());
+                }
             }
         }
 
-        index2 = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 8;
-        }).findFirst().orElse(-1);
-        if (index2 != -1) {
-            if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
+        if (orderType.equals(orderTypeDto) && orderType.equals("MSO")) {
+            order.setMonLb(orderDto.getMonLb());
+            order.setSer(orderDto.getSer());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 4;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonLb())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonLb());
+                }
             }
 
-            if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
-            }
+            index2 = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 7;
+            }).findFirst().orElse(-1);
+            if (index2 != -1) {
+                if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
-            }
+                if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getTra())) {
-                ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getTra());
-            }
-        }
-    }
+                if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
+                }
 
-    if (orderType.equals(orderTypeDto) && orderType.equals("MWP")) {
-        order.setMwe(orderDto.getMwe());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 6;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMwe())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMwe());
-            }
-        }
-    }
-
-    if (orderType.equals(orderTypeDto) && orderType.equals("MSP")) {
-        order.setMonLb(orderDto.getMonLb());
-        order.setSer(orderDto.getSer());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 4;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonLb())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonLb());
+                if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getSer())) {
+                    ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getSer());
+                }
             }
         }
 
-        index2 = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 7;
-        }).findFirst().orElse(-1);
-        if (index2 != -1) {
-            if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
+        if (orderType.equals(orderTypeDto) && orderType.equals("MLT")) {
+            order.setMonTr(orderDto.getMonTr());
+            order.setTra(orderDto.getTra());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 5;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonTr())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonTr());
+                }
             }
 
-            if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
-            }
+            index2 = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 8;
+            }).findFirst().orElse(-1);
+            if (index2 != -1) {
+                if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
-            }
+                if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getSer())) {
-                ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getSer());
-            }
-        }
-    }
+                if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
+                }
 
-    if (orderType.equals(orderTypeDto) && orderType.equals("MSE")) {
-        order.setMonTr(orderDto.getMonTr());
-        order.setSer(orderDto.getSer());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 5;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonTr())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonTr());
-            }
-        }
-
-        index2 = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 7;
-        }).findFirst().orElse(-1);
-        if (index2 != -1) {
-            if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getSer())) {
-                ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getSer());
-            }
-        }
-    }
-
-    if (orderType.equals(orderTypeDto) && orderType.equals("MLE")) {
-        order.setMonTr(orderDto.getMonTr());
-        order.setTra(orderDto.getTra());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 5;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonTr())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonTr());
+                if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getTra())) {
+                    ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getTra());
+                }
             }
         }
 
-        index2 = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 8;
-        }).findFirst().orElse(-1);
-        if (index2 != -1) {
-            if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
+        if (orderType.equals(orderTypeDto) && orderType.equals("MST")) {
+            order.setMonTr(orderDto.getMonTr());
+            order.setSer(orderDto.getSer());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 5;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonTr())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonTr());
+                }
             }
 
-            if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
-            }
+            index2 = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 7;
+            }).findFirst().orElse(-1);
+            if (index2 != -1) {
+                if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
-            }
+                if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
+                }
 
-            if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getTra())) {
-                ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getTra());
-            }
-        }
-    }
+                if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
+                }
 
-    if (orderType.equals(orderTypeDto) && orderType.equals("WEB")) {
-        order.setTra(orderDto.getTra());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 8;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getTra())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getTra());
-            }
-        }
-    }
-
-    if (orderType.equals(orderTypeDto) && orderType.equals("BBA")) {
-        order.setTra(orderDto.getTra());
-        index = IntStream.range(0, depList.size()).filter((i) -> {
-            return ((OrderDepartment) depList.get(i)).getDepId() == 8;
-        }).findFirst().orElse(-1);
-        if (index != -1) {
-            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-            }
-
-            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-            }
-
-            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getTra())) {
-                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getTra());
+                if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getSer())) {
+                    ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getSer());
+                }
             }
         }
-    }
 
-    if (order.getExclamation() == null) {
-        order.setExclamation("");
-    }
+        if (orderType.equals(orderTypeDto) && orderType.equals("LOP")) {
+            order.setTra(orderDto.getTra());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 8;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
 
-    if (orderDto.getExclamation() == null) {
-        orderDto.setExclamation("");
-    }
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
 
-    if (order.getExcNote() == null) {
-        order.setExcNote("");
-    }
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
 
-    if (orderDto.getExcNote() == null) {
-        orderDto.setExcNote("");
-    }
-
-    if (order.getExclamation().equals("JA") && orderDto.getExclamation().equals("NEE")) {
-        order.setExclamation("NEE");
-        order.setExcNote("");
-    }
-
-    if ((order.getExclamation().equals("NEE") || order.getExclamation().equals("")) && orderDto.getExclamation().equals("JA")) {
-        order.setExclamation("JA");
-        order.setExcNote(orderDto.getExcNote());
-    }
-
-    if (depList != null) {
-        if (orderDto.getBackOrder() == null) {
-            orderDto.setBackOrder("");
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getTra())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getTra());
+                }
+            }
         }
 
-        if (orderDto.getBackOrder() != null && !orderDto.getBackOrder().equals("") && !orderDto.getBackOrder().equals("O")) {
-            order.setBackOrder(orderDto.getBackOrder());
-        } else if ((orderDto.getBackOrder() == null || orderDto.getBackOrder().equals("") || orderDto.getBackOrder().equals("O")) && (order.getBackOrder() != null || !order.getBackOrder().equals("") || !order.getBackOrder().equals("O"))) {
-            order.setBackOrder("O");
+        if (orderType.equals(orderTypeDto) && orderType.equals("LAP")) {
+            order.setExp(orderDto.getExp());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 9;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getExp())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getExp());
+                }
+            }
         }
 
-        if (orderDto.getSme() != null) {
-            if (orderDto.getSme() == null && orderDto.getSme() == "") {
-                if ((orderDto.getSme() == null || orderDto.getSme().equals("")) && (order.getSme() != null || !order.getSme().equals(""))) {
-                    index = IntStream.range(0, depList.size()).filter((i) -> {
-                        return ((OrderDepartment) depList.get(i)).getDepId() == 2;
-                    }).findFirst().orElse(-1);
-                    if (index != -1) {
-                        if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                            ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-                        }
+        if (orderType.equals(orderTypeDto) && orderType.equals("LSP")) {
+            order.setSer(orderDto.getSer());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 7;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
 
-                        if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                            ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-                        }
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
 
-                        if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                            ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-                        }
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
 
-                        if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getSme())) {
-                            ((OrderDepartment) depList.get(index)).setStatus(orderDto.getSme());
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getSer())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getSer());
+                }
+            }
+        }
+
+        if (orderType.equals(orderTypeDto) && orderType.equals("MAP")) {
+            order.setMonLb(orderDto.getMonLb());
+            order.setExp(orderDto.getExp());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 4;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonLb())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonLb());
+                }
+            }
+
+            index2 = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 9;
+            }).findFirst().orElse(-1);
+            if (index2 != -1) {
+                if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getExp())) {
+                    ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getExp());
+                }
+            }
+        }
+
+        if (orderType.equals(orderTypeDto) && orderType.equals("MLP")) {
+            order.setMonLb(orderDto.getMonLb());
+            order.setTra(orderDto.getTra());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 4;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonLb())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonLb());
+                }
+            }
+
+            index2 = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 8;
+            }).findFirst().orElse(-1);
+            if (index2 != -1) {
+                if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getTra())) {
+                    ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getTra());
+                }
+            }
+        }
+
+        if (orderType.equals(orderTypeDto) && orderType.equals("MWP")) {
+            order.setMwe(orderDto.getMwe());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 6;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMwe())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMwe());
+                }
+            }
+        }
+
+        if (orderType.equals(orderTypeDto) && orderType.equals("MSP")) {
+            order.setMonLb(orderDto.getMonLb());
+            order.setSer(orderDto.getSer());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 4;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonLb())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonLb());
+                }
+            }
+
+            index2 = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 7;
+            }).findFirst().orElse(-1);
+            if (index2 != -1) {
+                if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getSer())) {
+                    ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getSer());
+                }
+            }
+        }
+
+        if (orderType.equals(orderTypeDto) && orderType.equals("MSE")) {
+            order.setMonTr(orderDto.getMonTr());
+            order.setSer(orderDto.getSer());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 5;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonTr())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonTr());
+                }
+            }
+
+            index2 = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 7;
+            }).findFirst().orElse(-1);
+            if (index2 != -1) {
+                if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getSer())) {
+                    ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getSer());
+                }
+            }
+        }
+
+        if (orderType.equals(orderTypeDto) && orderType.equals("MLE")) {
+            order.setMonTr(orderDto.getMonTr());
+            order.setTra(orderDto.getTra());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 5;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getMonTr())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getMonTr());
+                }
+            }
+
+            index2 = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 8;
+            }).findFirst().orElse(-1);
+            if (index2 != -1) {
+                if (((OrderDepartment) depList.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index2)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index2)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index2)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index2)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index2)).setPrevStatus(((OrderDepartment) depList.get(index2)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index2)).getStatus().equals(orderDto.getTra())) {
+                    ((OrderDepartment) depList.get(index2)).setStatus(orderDto.getTra());
+                }
+            }
+        }
+
+        if (orderType.equals(orderTypeDto) && orderType.equals("WEB")) {
+            order.setTra(orderDto.getTra());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 8;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getTra())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getTra());
+                }
+            }
+        }
+
+        if (orderType.equals(orderTypeDto) && orderType.equals("BBA")) {
+            order.setTra(orderDto.getTra());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 8;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getTra())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getTra());
+                }
+            }
+        }
+
+        if (order.getExclamation() == null) {
+            order.setExclamation("");
+        }
+
+        if (orderDto.getExclamation() == null) {
+            orderDto.setExclamation("");
+        }
+
+        if (order.getExcNote() == null) {
+            order.setExcNote("");
+        }
+
+        if (orderDto.getExcNote() == null) {
+            orderDto.setExcNote("");
+        }
+
+        if (order.getExclamation().equals("JA") && orderDto.getExclamation().equals("NEE")) {
+            order.setExclamation("NEE");
+            order.setExcNote("");
+        }
+
+        if ((order.getExclamation().equals("NEE") || order.getExclamation().equals("")) && orderDto.getExclamation().equals("JA")) {
+            order.setExclamation("JA");
+            order.setExcNote(orderDto.getExcNote());
+        }
+
+        if (depList != null) {
+            if (orderDto.getBackOrder() == null) {
+                orderDto.setBackOrder("");
+            }
+
+            if (orderDto.getBackOrder() != null && !orderDto.getBackOrder().equals("") && !orderDto.getBackOrder().equals("O")) {
+                order.setBackOrder(orderDto.getBackOrder());
+            } else if ((orderDto.getBackOrder() == null || orderDto.getBackOrder().equals("") || orderDto.getBackOrder().equals("O")) && (order.getBackOrder() != null || !order.getBackOrder().equals("") || !order.getBackOrder().equals("O"))) {
+                order.setBackOrder("O");
+            }
+
+            if (orderDto.getSme() != null) {
+                if (orderDto.getSme() == null && orderDto.getSme() == "") {
+                    if ((orderDto.getSme() == null || orderDto.getSme().equals("")) && (order.getSme() != null || !order.getSme().equals(""))) {
+                        index = IntStream.range(0, depList.size()).filter((i) -> {
+                            return ((OrderDepartment) depList.get(i)).getDepId() == 2;
+                        }).findFirst().orElse(-1);
+                        if (index != -1) {
+                            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                            }
+
+                            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                            }
+
+                            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                            }
+
+                            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getSme())) {
+                                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getSme());
+                            }
                         }
                     }
-                }
-            } else {
-                order.setSme(orderDto.getSme());
-                if (!depList.stream().anyMatch((dep) -> {
-                    return dep.getDepId() == 2;
-                })) {
+                } else {
+                    order.setSme(orderDto.getSme());
                     if (!depList.stream().anyMatch((dep) -> {
-                        return dep.getDepId() == 1;
+                        return dep.getDepId() == 2;
                     })) {
-                        depList.add(0, new OrderDepartment(2, "SME", "R", this.dtoToOrder(orderDto)));
+                        if (!depList.stream().anyMatch((dep) -> {
+                            return dep.getDepId() == 1;
+                        })) {
+                            depList.add(0, new OrderDepartment(2, "SME", "R", this.dtoToOrder(orderDto)));
+                        } else {
+                            depList.add(1, new OrderDepartment(2, "SME", "R", this.dtoToOrder(orderDto)));
+                        }
                     } else {
-                        depList.add(1, new OrderDepartment(2, "SME", "R", this.dtoToOrder(orderDto)));
+                        index = IntStream.range(0, depList.size()).filter((i) -> {
+                            return ((OrderDepartment) depList.get(i)).getDepId() == 2;
+                        }).findFirst().orElse(-1);
+                        if (index != -1) {
+                            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                            }
+
+                            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                            }
+
+                            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                            }
+
+                            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getSme())) {
+                                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getSme());
+                            }
+                        }
+                    }
+                }
+
+                if (orderDto.getSpu() == null) {
+                    orderDto.setSpu("");
+                }
+
+                if (orderDto.getSpu() == null && orderDto.getSpu() == "") {
+                    if ((orderDto.getSpu() == null || orderDto.getSpu().equals("")) && (order.getSme() != null || !order.getSme().equals(""))) {
+                        index = IntStream.range(0, depList.size()).filter((i) -> {
+                            return ((OrderDepartment) depList.get(i)).getDepId() == 3;
+                        }).findFirst().orElse(-1);
+                        if (index != -1) {
+                            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                            }
+
+                            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                            }
+
+                            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                            }
+
+                            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getSpu())) {
+                                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getSpu());
+                            }
+                        }
                     }
                 } else {
-                    index = IntStream.range(0, depList.size()).filter((i) -> {
-                        return ((OrderDepartment) depList.get(i)).getDepId() == 2;
-                    }).findFirst().orElse(-1);
-                    if (index != -1) {
-                        if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                            ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-                        }
-
-                        if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                            ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-                        }
-
-                        if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                            ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-                        }
-
-                        if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getSme())) {
-                            ((OrderDepartment) depList.get(index)).setStatus(orderDto.getSme());
-                        }
-                    }
-                }
-            }
-
-            if (orderDto.getSpu() == null) {
-                orderDto.setSpu("");
-            }
-
-            if (orderDto.getSpu() == null && orderDto.getSpu() == "") {
-                if ((orderDto.getSpu() == null || orderDto.getSpu().equals("")) && (order.getSme() != null || !order.getSme().equals(""))) {
-                    index = IntStream.range(0, depList.size()).filter((i) -> {
-                        return ((OrderDepartment) depList.get(i)).getDepId() == 3;
-                    }).findFirst().orElse(-1);
-                    if (index != -1) {
-                        if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                            ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-                        }
-
-                        if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                            ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-                        }
-
-                        if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                            ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-                        }
-
-                        if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getSpu())) {
-                            ((OrderDepartment) depList.get(index)).setStatus(orderDto.getSpu());
-                        }
-                    }
-                }
-            } else {
-                order.setSpu(orderDto.getSpu());
-                if (!depList.stream().anyMatch((dep) -> {
-                    return dep.getDepId() == 3;
-                })) {
+                    order.setSpu(orderDto.getSpu());
                     if (!depList.stream().anyMatch((dep) -> {
-                        return dep.getDepId() == 1;
-                    }) && !depList.stream().anyMatch((dep) -> {
-                        return dep.getDepId() == 2;
+                        return dep.getDepId() == 3;
                     })) {
-                        depList.add(0, new OrderDepartment(3, "SPU", "R", this.dtoToOrder(orderDto)));
-                    } else if (depList.stream().anyMatch((dep) -> {
-                        return dep.getDepId() == 1;
-                    }) && depList.stream().anyMatch((dep) -> {
-                        return dep.getDepId() == 2;
-                    })) {
-                        depList.add(2, new OrderDepartment(3, "SPU", "R", this.dtoToOrder(orderDto)));
-                    } else if (depList.stream().anyMatch((dep) -> {
-                        return dep.getDepId() == 1;
-                    }) || depList.stream().anyMatch((dep) -> {
-                        return dep.getDepId() == 2;
-                    })) {
-                        depList.add(1, new OrderDepartment(3, "SPU", "R", this.dtoToOrder(orderDto)));
+                        if (!depList.stream().anyMatch((dep) -> {
+                            return dep.getDepId() == 1;
+                        }) && !depList.stream().anyMatch((dep) -> {
+                            return dep.getDepId() == 2;
+                        })) {
+                            depList.add(0, new OrderDepartment(3, "SPU", "R", this.dtoToOrder(orderDto)));
+                        } else if (depList.stream().anyMatch((dep) -> {
+                            return dep.getDepId() == 1;
+                        }) && depList.stream().anyMatch((dep) -> {
+                            return dep.getDepId() == 2;
+                        })) {
+                            depList.add(2, new OrderDepartment(3, "SPU", "R", this.dtoToOrder(orderDto)));
+                        } else if (depList.stream().anyMatch((dep) -> {
+                            return dep.getDepId() == 1;
+                        }) || depList.stream().anyMatch((dep) -> {
+                            return dep.getDepId() == 2;
+                        })) {
+                            depList.add(1, new OrderDepartment(3, "SPU", "R", this.dtoToOrder(orderDto)));
+                        }
+                    } else {
+                        index = IntStream.range(0, depList.size()).filter((i) -> {
+                            return ((OrderDepartment) depList.get(i)).getDepId() == 3;
+                        }).findFirst().orElse(-1);
+                        if (index != -1) {
+                            if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                                ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                            }
+
+                            if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                                ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                            }
+
+                            if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                                ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                            }
+
+                            if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getSpu())) {
+                                ((OrderDepartment) depList.get(index)).setStatus(orderDto.getSpu());
+                            }
+                        }
                     }
-                } else {
-                    index = IntStream.range(0, depList.size()).filter((i) -> {
-                        return ((OrderDepartment) depList.get(i)).getDepId() == 3;
-                    }).findFirst().orElse(-1);
-                    if (index != -1) {
-                        if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
-                            ((OrderDepartment) depList.get(index)).setPrevStatus("n");
-                        }
-
-                        if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
-                            ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
-                        }
-
-                        if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
-                            ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
-                        }
-
-                        if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getSpu())) {
-                            ((OrderDepartment) depList.get(index)).setStatus(orderDto.getSpu());
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    order.setDepartments(depList);
-    boolean allStatusGOrEmpty = orderDto.getDepartments().stream().allMatch((department) -> {
-        return "G".equals(department.getStatus()) || "".equals(department.getStatus());
-    });
-    if (allStatusGOrEmpty) {
-        order.setCompleted("C");
-        orderDto.setCompleted("C");
-    }
-
-}
-
-@Transactional
-public Boolean updateTraColors(String ids, Long entryId) {
-    String color = "";
-    String prev = "";
-    List<Integer> idList = new ArrayList();
-    String[] idArray = ids.split(",");
-    String[] var7 = idArray;
-    int var8 = idArray.length;
-
-    for (int var9 = 0; var9 < var8; ++var9) {
-        String id = var7[var9];
-        String trimmedId = id.trim();
-        if (!trimmedId.isEmpty()) {
-            int parsedId = Integer.parseInt(trimmedId);
-            idList.add(parsedId);
-        }
-    }
-
-    Iterator var13 = this.ordersMap.keySet().iterator();
-
-    while (true) {
-        String key;
-        OrderDto orderDto;
-        do {
-            if (!var13.hasNext()) {
-                if (color.equals("Y")) {
-                    this.orderRepo.updateFieldForRIds(color, idList);
-                    this.orderRepo.updateOrderDepartmentStatusR(color, prev, idList);
-                    return true;
-                }
-
-                if (color.equals("G")) {
-                    this.orderRepo.updateFieldForYIds(color, idList);
-                    this.orderRepo.updateOrderDepartmentStatusY(color, prev, idList);
-                    this.moveToArchive(idList);
-                    return true;
-                }
-
-                return false;
-            }
-
-            key = (String) var13.next();
-            orderDto = (OrderDto) this.ordersMap.get(key);
-        } while (!idList.contains(orderDto.getId()));
-
-        if ("R".equals(orderDto.getTra())) {
-            orderDto.setTra("Y");
-            color = "Y";
-        } else if ("Y".equals(orderDto.getTra())) {
-            orderDto.setTra("G");
-            color = "G";
-        }
-
-        List<OrderDepartment> depList = orderDto.getDepartments();
-        Iterator var17 = depList.iterator();
-
-        while (var17.hasNext()) {
-            OrderDepartment dep = (OrderDepartment) var17.next();
-            if ("TRA".equals(dep.getDepName())) {
-                if ("R".equals(dep.getStatus())) {
-                    dep.setStatus("Y");
-                    dep.setPrevStatus("R");
-                    prev = dep.getPrevStatus();
-                } else if ("Y".equals(dep.getStatus())) {
-                    dep.setStatus("G");
-                    dep.setPrevStatus("Y");
-                    prev = dep.getPrevStatus();
                 }
             }
         }
 
+        order.setDepartments(depList);
         boolean allStatusGOrEmpty = orderDto.getDepartments().stream().allMatch((department) -> {
             return "G".equals(department.getStatus()) || "".equals(department.getStatus());
         });
         if (allStatusGOrEmpty) {
+            order.setCompleted("C");
             orderDto.setCompleted("C");
         }
 
-        this.ordersMap.put(key, orderDto);
     }
-}
 
-public Order dtoToOrder(OrderDto orderDto) {
-    Order order = (Order) this.modelMapper.map(orderDto, Order.class);
-    return order;
-}
+    @Transactional
+    public Boolean updateTraColors(String ids, Long entryId) {
+        String color = "";
+        String prev = "";
+        List<Integer> idList = new ArrayList();
+        String[] idArray = ids.split(",");
+        String[] var7 = idArray;
+        int var8 = idArray.length;
 
-public OrderDto orderToDto(Order order) {
-    OrderDto orderDto = (OrderDto) this.modelMapper.map(order, OrderDto.class);
-    return orderDto;
-}
+        for (int var9 = 0; var9 < var8; ++var9) {
+            String id = var7[var9];
+            String trimmedId = id.trim();
+            if (!trimmedId.isEmpty()) {
+                int parsedId = Integer.parseInt(trimmedId);
+                idList.add(parsedId);
+            }
+        }
+
+        Iterator var13 = this.ordersMap.keySet().iterator();
+
+        while (true) {
+            String key;
+            OrderDto orderDto;
+            do {
+                if (!var13.hasNext()) {
+                    if (color.equals("Y")) {
+                        this.orderRepo.updateFieldForRIds(color, idList);
+                        this.orderRepo.updateOrderDepartmentStatusR(color, prev, idList);
+                        return true;
+                    }
+
+                    if (color.equals("G")) {
+                        this.orderRepo.updateFieldForYIds(color, idList);
+                        this.orderRepo.updateOrderDepartmentStatusY(color, prev, idList);
+                        this.moveToArchive(idList);
+                        return true;
+                    }
+
+                    return false;
+                }
+
+                key = (String) var13.next();
+                orderDto = (OrderDto) this.ordersMap.get(key);
+            } while (!idList.contains(orderDto.getId()));
+
+            if ("R".equals(orderDto.getTra())) {
+                orderDto.setTra("Y");
+                color = "Y";
+            } else if ("Y".equals(orderDto.getTra())) {
+                orderDto.setTra("G");
+                color = "G";
+            }
+
+            List<OrderDepartment> depList = orderDto.getDepartments();
+            Iterator var17 = depList.iterator();
+
+            while (var17.hasNext()) {
+                OrderDepartment dep = (OrderDepartment) var17.next();
+                if ("TRA".equals(dep.getDepName())) {
+                    if ("R".equals(dep.getStatus())) {
+                        dep.setStatus("Y");
+                        dep.setPrevStatus("R");
+                        prev = dep.getPrevStatus();
+                    } else if ("Y".equals(dep.getStatus())) {
+                        dep.setStatus("G");
+                        dep.setPrevStatus("Y");
+                        prev = dep.getPrevStatus();
+                    }
+                }
+            }
+
+            boolean allStatusGOrEmpty = orderDto.getDepartments().stream().allMatch((department) -> {
+                return "G".equals(department.getStatus()) || "".equals(department.getStatus());
+            });
+            if (allStatusGOrEmpty) {
+                orderDto.setCompleted("C");
+            }
+
+            this.ordersMap.put(key, orderDto);
+        }
+    }
+
+    public Order dtoToOrder(OrderDto orderDto) {
+        Order order = (Order) this.modelMapper.map(orderDto, Order.class);
+        return order;
+    }
+
+    public OrderDto orderToDto(Order order) {
+        OrderDto orderDto = (OrderDto) this.modelMapper.map(order, OrderDto.class);
+        return orderDto;
+    }
 }
