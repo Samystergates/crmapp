@@ -131,7 +131,7 @@ public class MonPrintingServiceImp {
         cell1.setBorder(0);
         mainTable.addCell(cell1);
         PdfPCell cell2 = new PdfPCell();
-        Paragraph paragraphL1 = new Paragraph(String.format("%-12s%-12s", heading + ":", ((OrderDto) list.get(0)).getUser()), font4);
+        Paragraph paragraphL1 = new Paragraph(String.format("%-12s%-12s", heading + ":", ((OrderDto) list.get(0)).getCustomerName()), font4);
 
         paragraphL1.setAlignment(Element.ALIGN_CENTER);
         //        Paragraph paragraphL2 = new Paragraph(String.format("%-23s%-23s", "", "Rustvenseweg 2"), font4);

@@ -19,6 +19,8 @@ public interface OrderService {
 
 	List<OrderDto> getAllOrders();
 
+	void removingSameArchivedOrders();
+
 	List<OrderDto> getCRMOrders();
 
 	Boolean updateTraColors(String ids, Long id);

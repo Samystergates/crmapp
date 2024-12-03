@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import javax.transaction.Transactional;
+
 public interface OrderRepo extends JpaRepository<Order, Integer> {
 	List<Order> findByUser(String paramString);
 
@@ -30,10 +32,12 @@ public interface OrderRepo extends JpaRepository<Order, Integer> {
 	int updateOrderDepartmentStatusY(@Param("newValue") String newValue, @Param("newValue2") String newValue2, @Param("ids") List<Integer> ids);
 
 	@Modifying
+	@Transactional
 	@Query("DELETE OrderDepartment od WHERE od.order.id IN :ids")
 	int deleteODForIds(@Param("ids") List<Integer> ids);
 
 	@Modifying
+	@Transactional
 	@Query("DELETE FROM Order o WHERE o.id IN :ids")
 	int deleteOrdersByIds(@Param("ids") List<Integer> ids);
 

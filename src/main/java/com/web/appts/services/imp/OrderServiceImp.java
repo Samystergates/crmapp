@@ -72,11 +72,17 @@ public class OrderServiceImp implements OrderService {
         return savedOrder != null;
     }
 
+    @Transactional
     public Boolean archiveOrder(OrderDto orderDto) {
         return this.archivedOrdersService.createArchivedOrder(orderDto);
     }
 
+    @Transactional
     public void moveToArchive(List<Integer> ids) {
+        System.out.print("removing: ");
+        for(Integer i : ids){
+            System.out.print(i + ",");
+        }
         Boolean isMoved = false;
         Iterator<Map.Entry<String, OrderDto>> iterator = this.ordersMap.entrySet().iterator();
 
@@ -87,6 +93,7 @@ public class OrderServiceImp implements OrderService {
                 isMoved = this.archiveOrder(orderDto);
                 if (isMoved) {
                     iterator.remove();
+                    System.out.println("removed: "+ orderDto.getId());
                 }
             }
         }
@@ -97,9 +104,14 @@ public class OrderServiceImp implements OrderService {
 
     }
 
+    @Transactional
     public void deleteOrderData(List<Integer> ids) {
         this.orderRepo.deleteODForIds(ids);
         this.orderRepo.deleteOrdersByIds(ids);
+        System.out.print("deleted: ");
+        for(Integer i : ids){
+            System.out.print(i + ",");
+        }
     }
 
     @Transactional
@@ -536,6 +548,22 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
+    public void removingSameArchivedOrders(){
+        List<Integer> matchingIds = this.ordersMap.values()
+                .stream()
+                .filter(order ->
+                        this.archivedOrdersService.getAllArchivedOrders()
+                                .stream()
+                                .anyMatch(archivedOrder ->
+                                        archivedOrder.getOrderNumber().equals(order.getOrderNumber())
+                                )
+                )
+                .map(OrderDto::getId)
+                .collect(Collectors.toList());
+        System.out.println("maching ids: " + matchingIds.size());
+        this.deleteOrderData(matchingIds);
+    }
+
     @Async
     @Scheduled(fixedRate = 300000)
     public void runQuery() {
@@ -575,7 +603,7 @@ public class OrderServiceImp implements OrderService {
                             }
                             orderNumber = resultSet.getString("Verkooporder");
                             String product = resultSet.getString("Product");
-                            existingOrderNumbers.add(orderNumber);
+                            existingOrderNumbers.add(orderNumber+","+product);
 //                            System.out.println("orderNumber");
 //                            System.out.println(orderNumber);
                         }
@@ -585,36 +613,45 @@ public class OrderServiceImp implements OrderService {
                         Set<String> uniqueones = new HashSet<>(existingOrderNumbers);
                         System.out.print("unique ones: ");
                         System.out.println(uniqueones.size());
-                        System.out.println(existingOrderNumbers.size());
+                        System.out.println(existingOrderNumbers .size());
                         System.out.println(ordersMap.values().size());
-                        List<Integer> idList1 = this.ordersMap.values()
+                        List<OrderDto> orderList = this.ordersMap.values()
                                 .stream()
-                                .filter((ord) -> {
-                                    return !existingOrderNumbers.contains(ord.getOrderNumber());
+                                .filter(ord -> {
+                                    return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getProduct());
                                 })
-                                .map(OrderDto::getId).collect(Collectors.toList());
+                                .collect(Collectors.toList());
+
 //                        for (Integer id : idList1) {
 //                            System.out.println("id1: " + id);
 //                        }
-                        System.out.println(idList1.size());
-                        List<Long> idList2 = this.archivedOrdersService.getAllArchivedOrders()
+                        System.out.println("list1: " + orderList.size());
+                        List<ArchivedOrdersDto> archivedOrdersList = this.archivedOrdersService.getAllArchivedOrders()
                                 .stream()
-                                .filter((ord) -> {
-                                    return !existingOrderNumbers.contains(ord.getOrderNumber());
+                                .filter(ord -> {
+                                    return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getProduct());
                                 })
-                                .map(ArchivedOrdersDto::getId).collect(Collectors.toList());
+                                .collect(Collectors.toList());
 //                        for (Long id : idList2) {
 //                            System.out.println("id2: " + id);
 //                        }
-                        System.out.println(idList2.size());
-                        List<Integer> idList3 = idList1
+                        System.out.println("list2: " + archivedOrdersList.size());
+                        List<Integer> filteredOrders = orderList
                                 .stream()
-                                .filter(id -> !idList2.contains(Long.valueOf(id))).collect(Collectors.toList());
+                                .filter(order ->
+                                        archivedOrdersList.stream()
+                                                .noneMatch(archivedOrder ->
+                                                        archivedOrder.getOrderNumber().equals(order.getOrderNumber()) &&
+                                                                archivedOrder.getProduct().equals(order.getProduct())
+                                                )
+                                ).map(OrderDto::getId)
+                                .collect(Collectors.toList());
+
 //                        for (Integer id : idList3) {
 //                            System.out.println("id3: " + id);
 //                        }
-                        System.out.println(idList3.size());
-                        this.moveToArchive(idList3);
+                        System.out.println("list3: " + filteredOrders.size());
+                        this.moveToArchive(filteredOrders);
                     }
                 } catch (SQLException e) {
                     throw new RuntimeException(e);
@@ -737,13 +774,19 @@ public class OrderServiceImp implements OrderService {
                 }
             } catch (SQLException var35) {
                 var35.printStackTrace();
-                new ResourceNotFoundException("Order", "CRM", "N/A");
-                return null;
+                List<OrderDto> orderList = this.getAllOrders();
+                this.orderDtoList = orderList;
+                return this.orderDtoList;
+                //new ResourceNotFoundException("Order", "CRM", "N/A");
+                //return null;
             } catch (Exception var37) {
                 Exception e = var37;
                 e.printStackTrace();
-                new ResourceNotFoundException("Order", "CRM", "N/A");
-                return null;
+                List<OrderDto> orderList = this.getAllOrders();
+                this.orderDtoList = orderList;
+                return this.orderDtoList;
+                //new ResourceNotFoundException("Order", "CRM", "N/A");
+                //return null;
             }
 
             this.ordersMap.clear();
@@ -753,8 +796,11 @@ public class OrderServiceImp implements OrderService {
         } catch (Exception var39) {
             Exception e = var39;
             e.printStackTrace();
-            new ResourceNotFoundException("Order", "CRM", "N/A");
-            return null;
+            List<OrderDto> orderList = this.getAllOrders();
+            this.orderDtoList = orderList;
+            return this.orderDtoList;
+            //new ResourceNotFoundException("Order", "CRM", "N/A");
+            //return null;
         }
     }
 

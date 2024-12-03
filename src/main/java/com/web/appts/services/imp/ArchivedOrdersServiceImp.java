@@ -17,6 +17,8 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.transaction.Transactional;
+
 @Service
 public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
   Map<String, ArchivedOrdersDto> archivedOrdersMap = new HashMap();
@@ -30,11 +32,17 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
   public ArchivedOrdersServiceImp() {
   }
 
+  @Transactional
   public Boolean createArchivedOrder(OrderDto orderDto) {
+    if (!this.archivedOrdersMap.isEmpty() && this.archivedOrdersMap.containsKey(orderDto.getOrderNumber() + "," + orderDto.getProduct())){
+      System.out.println("returning true1");
+      return true;
+    }
     ArchivedOrders archivedOrder = this.orderDtoToArchivedOrder(orderDto);
     ArchivedOrders savedArchivedOrder = (ArchivedOrders)this.archivedOrdersRepo.save(archivedOrder);
     ArchivedOrdersDto archivedOrdersDto = this.archivedOrderToDto(archivedOrder);
     this.archivedOrdersMap.put(orderDto.getOrderNumber() + "," + orderDto.getProduct(), archivedOrdersDto);
+    System.out.println("returning true2" + savedArchivedOrder != null);
     return savedArchivedOrder != null;
   }
 
