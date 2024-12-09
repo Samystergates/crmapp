@@ -26,4 +26,6 @@ public interface OrderService {
 	void deleteOrder(Integer paramInteger);
 
 	List<OrderDto> checkMap();
+
+	List<OrderDto> getOrdersByRegel(String regel);
 }

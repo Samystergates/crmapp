@@ -29,12 +29,17 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
 
   public ArchivedOrdersServiceImp() {
   }
+  
+  public List<ArchivedOrdersDto> getArchivedOrdersByRegel(String regel) {
+      List<ArchivedOrders> archivedOrders = archivedOrdersRepo.findByRegel(regel);
+      return archivedOrders.stream().map(this::archivedOrderToDto).collect(Collectors.toList());
+  }
 
   public Boolean createArchivedOrder(OrderDto orderDto) {
     ArchivedOrders archivedOrder = this.orderDtoToArchivedOrder(orderDto);
     ArchivedOrders savedArchivedOrder = (ArchivedOrders)this.archivedOrdersRepo.save(archivedOrder);
     ArchivedOrdersDto archivedOrdersDto = this.archivedOrderToDto(archivedOrder);
-    this.archivedOrdersMap.put(orderDto.getOrderNumber() + "," + orderDto.getProduct(), archivedOrdersDto);
+    this.archivedOrdersMap.put(orderDto.getOrderNumber() + "," + orderDto.getRegel(), archivedOrdersDto);
     return savedArchivedOrder != null;
   }
 
@@ -84,7 +89,7 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
 
       while(var3.hasNext()) {
         ArchivedOrdersDto archivedOrderDto = (ArchivedOrdersDto)var3.next();
-        this.archivedOrdersMap.put(archivedOrderDto.getOrderNumber() + "," + archivedOrderDto.getProduct(), archivedOrderDto);
+        this.archivedOrdersMap.put(archivedOrderDto.getOrderNumber() + "," + archivedOrderDto.getRegel(), archivedOrderDto);
       }
     }
 
@@ -118,7 +123,7 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
 
       while(var6.hasNext()) {
         ArchivedOrdersDto archivedOrderDto = (ArchivedOrdersDto)var6.next();
-        this.archivedOrdersMap.put(archivedOrderDto.getOrderNumber() + "," + archivedOrderDto.getProduct(), archivedOrderDto);
+        this.archivedOrdersMap.put(archivedOrderDto.getOrderNumber() + "," + archivedOrderDto.getRegel(), archivedOrderDto);
       }
     }
 

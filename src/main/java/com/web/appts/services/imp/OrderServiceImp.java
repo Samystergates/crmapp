@@ -58,7 +58,7 @@ public class OrderServiceImp implements OrderService {
 
             while (var3.hasNext()) {
                 OrderDto orderDto = (OrderDto) var3.next();
-                this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getProduct(), orderDto);
+                this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getRegel(), orderDto);
             }
         }
 
@@ -123,7 +123,7 @@ public class OrderServiceImp implements OrderService {
 
         Order updatedOrder = (Order) this.orderRepo.save(order);
         OrderDto updatedOrderDto = this.orderToDto(updatedOrder);
-        this.ordersMap.put(updatedOrderDto.getOrderNumber() + "," + updatedOrderDto.getProduct(), updatedOrderDto);
+        this.ordersMap.put(updatedOrderDto.getOrderNumber() + "," + updatedOrderDto.getRegel(), updatedOrderDto);
         boolean allOrdersComplete = this.ordersMap.values().stream().filter((ord) -> {
             return ord.getOrderNumber().equals(updatedOrderDto.getOrderNumber()) && updatedOrderDto.getId() != ord.getId();
         }).allMatch((ord) -> {
@@ -458,7 +458,7 @@ public class OrderServiceImp implements OrderService {
 
                 while (var7.hasNext()) {
                     OrderDto orderDto = (OrderDto) var7.next();
-                    this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getProduct(), orderDto);
+                    this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getRegel(), orderDto);
                 }
 
                 return orderDtos;
@@ -480,6 +480,11 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
+    public List<OrderDto> getOrdersByRegel(String regel) {
+		List<Order> orders = orderRepo.findByRegel(regel);
+		return orders.stream().map(this::orderToDto).collect(Collectors.toList());
+	}
+
     public List<OrderDto> checkMap() {
         if (this.ordersMap.isEmpty()) {
             List<Order> allOrders = this.orderRepo.findAll();
@@ -493,7 +498,7 @@ public class OrderServiceImp implements OrderService {
 
                 while (var3.hasNext()) {
                     OrderDto orderDto = (OrderDto) var3.next();
-                    this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getProduct(), orderDto);
+                    this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getRegel(), orderDto);
                 }
 
                 return orderDtos;
@@ -517,7 +522,7 @@ public class OrderServiceImp implements OrderService {
 
                 while (var6.hasNext()) {
                     OrderDto orderDto = (OrderDto) var6.next();
-                    this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getProduct(), orderDto);
+                    this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getRegel(), orderDto);
                 }
 
                 this.orderDtoList = new ArrayList();
