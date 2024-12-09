@@ -65,4 +65,14 @@ public class ArchiveOrderController {
             }
         }));
     }
+
+    @GetMapping("/search/regel/{regel}")
+    public ResponseEntity<List<ArchivedOrdersDto>> getArchivedOrdersByRegel(@PathVariable("regel") String regel) {
+        List<ArchivedOrdersDto> archivedOrderDto = archivedOrdersService.getArchivedOrdersByRegel(regel);
+        if (archivedOrderDto != null) {
+            this.sortUsingDate(archivedOrderDto);
+        }
+        return ResponseEntity.ok(archivedOrderDto);
+    }
+
 }

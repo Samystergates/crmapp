@@ -264,10 +264,6 @@ public class OrderDto {
     return this.regel;
   }
 
-  public void setRegel(String regel) {
-    this.regel = regel;
-  }
-
   public String getAantal() {
     return this.aantal;
   }
@@ -278,6 +274,10 @@ public class OrderDto {
 
   public String getProduct() {
     return this.product;
+  }
+
+  public void setRegel(String regel) {
+      this.regel = regel;
   }
 
   public void setProduct(String product) {

@@ -115,11 +115,14 @@ public class ArchivedOrders {
 	@Column(
 			name = "Gebruiker"
 	)
+	private String gebruikerRegel;
+
+	@Column(name = "regel")
 	private String verifierUser;
-	@Column(
-			name = "Regel"
-	)
+
+	@Column(name = "regel", insertable = false, updatable = false)
 	private String regel;
+
 	@Column(
 			name = "Aantal"
 	)

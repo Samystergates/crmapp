@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 public interface OrderRepo extends JpaRepository<Order, Integer> {
 	List<Order> findByUser(String paramString);
@@ -57,7 +59,15 @@ public interface OrderRepo extends JpaRepository<Order, Integer> {
 	@Query("UPDATE Order o SET o.exp = :newValue WHERE o.id IN :ids")
 	int updateFieldForIdsMainexp(@Param("newValue") String newValue, @Param("ids") List<Integer> ids);
 
+	Optional<Order> findByOrderNumberAndRegel(String orderNumber, String regel);
+
 	@Modifying
 	@Query("UPDATE OrderDepartment od SET od.status = :newValue, od.prevStatus = :newValue2 WHERE od.order.id IN :ids AND od.depName = :newValue3")
 	int updateOrderDepartmentStatusMain(@Param("newValue") String newValue, @Param("newValue2") String newValue2, @Param("newValue3") String newValue3, @Param("ids") List<Integer> ids);
+
+	List<Order> findByRegel(String regel);
+
+    @Query("SELECT o FROM Order o WHERE o.regel = :regel")
+    List<Order> findOrdersByRegel(@Param("regel") String regel);
+    
 }

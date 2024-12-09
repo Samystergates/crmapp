@@ -29,6 +29,12 @@ public class Order {
 	@Column(
 			name = "Verkooporder"
 	)
+
+	private String regel;
+	@Column(
+			name = "regel"
+	)
+
 	private String orderNumber;
 	@Column(
 			name = "Ordersoort"
@@ -122,10 +128,6 @@ public class Order {
 			name = "Gebruiker"
 	)
 	private String verifierUser;
-	@Column(
-			name = "Regel"
-	)
-	private String regel;
 	@Column(
 			name = "Aantal"
 	)
