@@ -34,14 +34,14 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
 
   @Transactional
   public Boolean createArchivedOrder(OrderDto orderDto) {
-    if (!this.archivedOrdersMap.isEmpty() && this.archivedOrdersMap.containsKey(orderDto.getOrderNumber() + "," + orderDto.getProduct())){
+    if (!this.archivedOrdersMap.isEmpty() && this.archivedOrdersMap.containsKey(orderDto.getOrderNumber() + "," + orderDto.getRegel())){
       System.out.println("returning true1");
       return true;
     }
     ArchivedOrders archivedOrder = this.orderDtoToArchivedOrder(orderDto);
     ArchivedOrders savedArchivedOrder = (ArchivedOrders)this.archivedOrdersRepo.save(archivedOrder);
     ArchivedOrdersDto archivedOrdersDto = this.archivedOrderToDto(archivedOrder);
-    this.archivedOrdersMap.put(orderDto.getOrderNumber() + "," + orderDto.getProduct(), archivedOrdersDto);
+    this.archivedOrdersMap.put(orderDto.getOrderNumber() + "," + orderDto.getRegel(), archivedOrdersDto);
     System.out.println("returning true2" + savedArchivedOrder != null);
     return savedArchivedOrder != null;
   }
@@ -92,7 +92,7 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
 
       while(var3.hasNext()) {
         ArchivedOrdersDto archivedOrderDto = (ArchivedOrdersDto)var3.next();
-        this.archivedOrdersMap.put(archivedOrderDto.getOrderNumber() + "," + archivedOrderDto.getProduct(), archivedOrderDto);
+        this.archivedOrdersMap.put(archivedOrderDto.getOrderNumber() + "," + archivedOrderDto.getRegel(), archivedOrderDto);
       }
     }
 
@@ -126,7 +126,7 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
 
       while(var6.hasNext()) {
         ArchivedOrdersDto archivedOrderDto = (ArchivedOrdersDto)var6.next();
-        this.archivedOrdersMap.put(archivedOrderDto.getOrderNumber() + "," + archivedOrderDto.getProduct(), archivedOrderDto);
+        this.archivedOrdersMap.put(archivedOrderDto.getOrderNumber() + "," + archivedOrderDto.getRegel(), archivedOrderDto);
       }
     }
 

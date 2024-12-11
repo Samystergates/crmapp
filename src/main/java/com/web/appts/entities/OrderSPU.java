@@ -95,6 +95,11 @@ public class OrderSPU {
 	)
 	private String blankeLak;
 
+	@Column(
+			name = "regel"
+	)
+	private String regel;
+
 	public OrderSPU() {
 	}
 
@@ -240,5 +245,13 @@ public class OrderSPU {
 
 	public void setBlankeLak(String blankeLak) {
 		this.blankeLak = blankeLak;
+	}
+
+	public String getRegel() {
+		return regel;
+	}
+
+	public void setRegel(String regel) {
+		this.regel = regel;
 	}
 }

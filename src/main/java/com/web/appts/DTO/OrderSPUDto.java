@@ -20,6 +20,7 @@ public class OrderSPUDto {
 	private String ontlakken;
 	private String aflakken;
 	private String blankeLak;
+	private String regel;
 
 	public OrderSPUDto() {
 	}
@@ -166,5 +167,13 @@ public class OrderSPUDto {
 
 	public void setBlankeLak(String blankeLak) {
 		this.blankeLak = blankeLak;
+	}
+
+	public String getRegel() {
+		return regel;
+	}
+
+	public void setRegel(String regel) {
+		this.regel = regel;
 	}
 }

@@ -59,7 +59,7 @@ public class OrderServiceImp implements OrderService {
 
             while (var3.hasNext()) {
                 OrderDto orderDto = (OrderDto) var3.next();
-                this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getProduct(), orderDto);
+                this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getRegel(), orderDto);
             }
         }
 
@@ -136,7 +136,7 @@ public class OrderServiceImp implements OrderService {
 
         Order updatedOrder = (Order) this.orderRepo.save(order);
         OrderDto updatedOrderDto = this.orderToDto(updatedOrder);
-        this.ordersMap.put(updatedOrderDto.getOrderNumber() + "," + updatedOrderDto.getProduct(), updatedOrderDto);
+        this.ordersMap.put(updatedOrderDto.getOrderNumber() + "," + updatedOrderDto.getRegel(), updatedOrderDto);
         boolean allOrdersComplete = this.ordersMap.values().stream().filter((ord) -> {
             return ord.getOrderNumber().equals(updatedOrderDto.getOrderNumber()) && updatedOrderDto.getId() != ord.getId();
         }).allMatch((ord) -> {
@@ -471,7 +471,7 @@ public class OrderServiceImp implements OrderService {
 
                 while (var7.hasNext()) {
                     OrderDto orderDto = (OrderDto) var7.next();
-                    this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getProduct(), orderDto);
+                    this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getRegel(), orderDto);
                 }
 
                 return orderDtos;
@@ -506,7 +506,7 @@ public class OrderServiceImp implements OrderService {
 
                 while (var3.hasNext()) {
                     OrderDto orderDto = (OrderDto) var3.next();
-                    this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getProduct(), orderDto);
+                    this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getRegel(), orderDto);
                 }
 
                 return orderDtos;
@@ -530,7 +530,7 @@ public class OrderServiceImp implements OrderService {
 
                 while (var6.hasNext()) {
                     OrderDto orderDto = (OrderDto) var6.next();
-                    this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getProduct(), orderDto);
+                    this.ordersMap.put(orderDto.getOrderNumber() + "," + orderDto.getRegel(), orderDto);
                 }
 
                 this.orderDtoList = new ArrayList();
@@ -576,7 +576,7 @@ public class OrderServiceImp implements OrderService {
                 System.out.println("----------connectionString----------");
                 System.out.println(connectionString);
                 String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', " +
-                        "\"va-211\".\"cdprodukt\" AS 'Product' " +
+                        "\"va-211\".\"cdprodukt\" AS 'Product' , \"va-211\".\"nrordrgl\" AS 'Regel'" +
                         "FROM DATA.PUB.\"va-210\" " +
                         "JOIN DATA.PUB.\"va-211\" ON \"va-210\".\"cdorder\" = \"va-211\".\"cdorder\" " +
                         "AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" " +
@@ -603,7 +603,8 @@ public class OrderServiceImp implements OrderService {
                             }
                             orderNumber = resultSet.getString("Verkooporder");
                             String product = resultSet.getString("Product");
-                            existingOrderNumbers.add(orderNumber+","+product);
+                            String regel = resultSet.getString("Regel");
+                            existingOrderNumbers.add(orderNumber+","+regel);
 //                            System.out.println("orderNumber");
 //                            System.out.println(orderNumber);
                         }
@@ -618,7 +619,7 @@ public class OrderServiceImp implements OrderService {
                         List<OrderDto> orderList = this.ordersMap.values()
                                 .stream()
                                 .filter(ord -> {
-                                    return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getProduct());
+                                    return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getRegel());
                                 })
                                 .collect(Collectors.toList());
 
@@ -629,7 +630,7 @@ public class OrderServiceImp implements OrderService {
                         List<ArchivedOrdersDto> archivedOrdersList = this.archivedOrdersService.getAllArchivedOrders()
                                 .stream()
                                 .filter(ord -> {
-                                    return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getProduct());
+                                    return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getRegel());
                                 })
                                 .collect(Collectors.toList());
 //                        for (Long id : idList2) {
@@ -642,7 +643,7 @@ public class OrderServiceImp implements OrderService {
                                         archivedOrdersList.stream()
                                                 .noneMatch(archivedOrder ->
                                                         archivedOrder.getOrderNumber().equals(order.getOrderNumber()) &&
-                                                                archivedOrder.getProduct().equals(order.getProduct())
+                                                                archivedOrder.getRegel().equals(order.getRegel())
                                                 )
                                 ).map(OrderDto::getId)
                                 .collect(Collectors.toList());
@@ -715,7 +716,7 @@ public class OrderServiceImp implements OrderService {
                         String deliveryDate2 = "";
                         OrderDto orderDto;
                         String finalOrderNumber = orderNumber;
-                        if (!this.ordersMap.containsKey(orderNumber + "," + product) && !this.archivedOrdersService.getAllArchivedOrders().stream().anyMatch((obj) -> {
+                        if (!this.ordersMap.containsKey(orderNumber + "," + regel) && !this.archivedOrdersService.getAllArchivedOrders().stream().anyMatch((obj) -> {
                             return obj.getOrderNumber().equals(finalOrderNumber);
                         })) {
                             orderDto = new OrderDto();
@@ -760,15 +761,15 @@ public class OrderServiceImp implements OrderService {
                             if (!this.createOrder(orderDto)) {
                                 System.out.println("Failed to create record in app");
                             } else {
-                                this.ordersMap.put(orderNumber + "," + product, orderDto);
+                                this.ordersMap.put(orderNumber + "," + regel, orderDto);
                             }
                         }
 
-                        if (this.ordersMap.containsKey(orderNumber + "," + product) && !((OrderDto) this.ordersMap.get(orderNumber + "," + product)).getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.equals("")) {
-                            orderDto = (OrderDto) this.ordersMap.get(orderNumber + "," + product);
+                        if (this.ordersMap.containsKey(orderNumber + "," + regel) && !((OrderDto) this.ordersMap.get(orderNumber + "," + regel)).getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.equals("")) {
+                            orderDto = (OrderDto) this.ordersMap.get(orderNumber + "," + regel);
                             orderDto.setDeliveryDate(deliveryDate2);
                             orderDto.setReferenceInfo(referenceInfo);
-                            this.updateOrder(orderDto, ((OrderDto) this.ordersMap.get(orderNumber + "," + product)).getId(), false);
+                            this.updateOrder(orderDto, ((OrderDto) this.ordersMap.get(orderNumber + "," + regel)).getId(), false);
                         }
                     }
                 }

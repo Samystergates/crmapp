@@ -58,13 +58,13 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
     }
 
     public OrderSPUDto createOrderSPU(OrderSPUDto orderSPUDto) {
-        OrderSPUDto orderSPUDtoMapVal = this.getOrderSPU(orderSPUDto.getOrderNumber(), orderSPUDto.getProdNumber());
+        OrderSPUDto orderSPUDtoMapVal = this.getOrderSPU(orderSPUDto.getOrderNumber(), orderSPUDto.getRegel());
         if (orderSPUDtoMapVal == null) {
-            OrderDto orderDto = (OrderDto) this.orderServiceImp.getMap().get(orderSPUDto.getOrderNumber() + "," + orderSPUDto.getProdNumber());
+            OrderDto orderDto = (OrderDto) this.orderServiceImp.getMap().get(orderSPUDto.getOrderNumber() + "," + orderSPUDto.getRegel());
             orderDto.setSpu("R");
             this.orderServiceImp.updateOrder(orderDto, orderDto.getId(), true);
             OrderSPU orderSPUSaved = (OrderSPU) this.orderSPURepo.save(this.dtoToSPU(orderSPUDto));
-            this.orderSPUMap.put(orderSPUSaved.getOrderNumber() + " - " + orderSPUSaved.getProdNumber(), this.spuToDto(orderSPUSaved));
+            this.orderSPUMap.put(orderSPUSaved.getOrderNumber() + " - " + orderSPUSaved.getRegel(), this.spuToDto(orderSPUSaved));
             return this.spuToDto(orderSPUSaved);
         } else {
             orderSPUDto.setId(orderSPUDtoMapVal.getId());
@@ -74,7 +74,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
 
     public OrderSPUDto updateOrderSPU(OrderSPUDto orderSPUDto) {
         OrderSPU orderSPUUpdated = (OrderSPU) this.orderSPURepo.save(this.dtoToSPU(orderSPUDto));
-        this.orderSPUMap.put(orderSPUUpdated.getOrderNumber() + " - " + orderSPUUpdated.getProdNumber(), orderSPUDto);
+        this.orderSPUMap.put(orderSPUUpdated.getOrderNumber() + " - " + orderSPUUpdated.getRegel(), orderSPUDto);
         return this.spuToDto(orderSPUUpdated);
     }
 
@@ -82,31 +82,31 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         OrderSPU orderSPU = (OrderSPU) this.orderSPURepo.findById(orderSPUId).orElseThrow(() -> {
             return new ResourceNotFoundException("orderSPU", "id", (long) orderSPUId.intValue());
         });
-        OrderDto orderDto = (OrderDto) this.orderServiceImp.getMap().get(orderSPU.getOrderNumber() + "," + orderSPU.getProdNumber());
+        OrderDto orderDto = (OrderDto) this.orderServiceImp.getMap().get(orderSPU.getOrderNumber() + "," + orderSPU.getRegel());
         orderDto.setSpu("");
         this.orderServiceImp.updateOrder(orderDto, orderDto.getId(), true);
-        this.orderSPUMap.remove(orderSPU.getOrderNumber() + " - " + orderSPU.getProdNumber());
+        this.orderSPUMap.remove(orderSPU.getOrderNumber() + " - " + orderSPU.getRegel());
         this.orderSPURepo.delete(orderSPU);
         return true;
     }
 
-    public OrderSPUDto getOrderSPU(String orderNumber, String prodNumber) {
-        if (!this.orderSPUMap.isEmpty() && this.orderSPUMap.containsKey(orderNumber + " - " + prodNumber)) {
-            return (OrderSPUDto) this.orderSPUMap.get(orderNumber + " - " + prodNumber);
+    public OrderSPUDto getOrderSPU(String orderNumber, String regel) {
+        if (!this.orderSPUMap.isEmpty() && this.orderSPUMap.containsKey(orderNumber + " - " + regel)) {
+            return (OrderSPUDto) this.orderSPUMap.get(orderNumber + " - " + regel);
         } else {
-            OrderSPU orderSPU = this.orderSPURepo.findByOrderNumberAndProdNumber(orderNumber, prodNumber);
+            OrderSPU orderSPU = this.orderSPURepo.findByOrderNumberAndRegel(orderNumber, regel);
             return orderSPU == null ? null : this.spuToDto(orderSPU);
         }
     }
 
     public OrderSMEDto createOrderSME(OrderSMEDto orderSMEDto) {
-        OrderSMEDto orderSMEDtoMapVal = this.getOrderSME(orderSMEDto.getOrderNumber(), orderSMEDto.getProdNumber());
+        OrderSMEDto orderSMEDtoMapVal = this.getOrderSME(orderSMEDto.getOrderNumber(), orderSMEDto.getRegel());
         if (orderSMEDtoMapVal == null) {
-            OrderDto orderDto = (OrderDto) this.orderServiceImp.getMap().get(orderSMEDto.getOrderNumber() + "," + orderSMEDto.getProdNumber());
+            OrderDto orderDto = (OrderDto) this.orderServiceImp.getMap().get(orderSMEDto.getOrderNumber() + "," + orderSMEDto.getRegel());
             orderDto.setSme("R");
             this.orderServiceImp.updateOrder(orderDto, orderDto.getId(), true);
             OrderSME orderSMESaved = (OrderSME) this.orderSMERepo.save(this.dtoToSME(orderSMEDto));
-            this.orderSMEMap.put(orderSMESaved.getOrderNumber() + " - " + orderSMESaved.getProdNumber(), this.smeToDto(orderSMESaved));
+            this.orderSMEMap.put(orderSMESaved.getOrderNumber() + " - " + orderSMESaved.getRegel(), this.smeToDto(orderSMESaved));
             return this.smeToDto(orderSMESaved);
         } else {
             orderSMEDto.setId(orderSMEDtoMapVal.getId());
@@ -116,7 +116,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
 
     public OrderSMEDto updateOrderSME(OrderSMEDto orderSMEDto) {
         OrderSME orderSMEUpdated = (OrderSME) this.orderSMERepo.save(this.dtoToSME(orderSMEDto));
-        this.orderSMEMap.put(orderSMEUpdated.getOrderNumber() + " - " + orderSMEUpdated.getProdNumber(), orderSMEDto);
+        this.orderSMEMap.put(orderSMEUpdated.getOrderNumber() + " - " + orderSMEUpdated.getRegel(), orderSMEDto);
         return this.smeToDto(orderSMEUpdated);
     }
 
@@ -126,19 +126,19 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         });
         Map<String, OrderDto> map = this.orderServiceImp.getMap();
         System.out.println(map);
-        OrderDto orderDto = (OrderDto) this.orderServiceImp.getMap().get(orderSME.getOrderNumber() + "," + orderSME.getProdNumber());
+        OrderDto orderDto = (OrderDto) this.orderServiceImp.getMap().get(orderSME.getOrderNumber() + "," + orderSME.getRegel());
         orderDto.setSme("");
         this.orderServiceImp.updateOrder(orderDto, orderDto.getId(), true);
-        this.orderSMEMap.remove(orderSME.getOrderNumber() + " - " + orderSME.getProdNumber());
+        this.orderSMEMap.remove(orderSME.getOrderNumber() + " - " + orderSME.getRegel());
         this.orderSMERepo.delete(orderSME);
         return true;
     }
 
-    public OrderSMEDto getOrderSME(String orderNumber, String prodNumber) {
-        if (!this.orderSMEMap.isEmpty() && this.orderSMEMap.containsKey(orderNumber + " - " + prodNumber)) {
-            return (OrderSMEDto) this.orderSMEMap.get(orderNumber + " - " + prodNumber);
+    public OrderSMEDto getOrderSME(String orderNumber, String regel) {
+        if (!this.orderSMEMap.isEmpty() && this.orderSMEMap.containsKey(orderNumber + " - " + regel)) {
+            return (OrderSMEDto) this.orderSMEMap.get(orderNumber + " - " + regel);
         } else {
-            OrderSME orderSME = this.orderSMERepo.findByOrderNumberAndProdNumber(orderNumber, prodNumber);
+            OrderSME orderSME = this.orderSMERepo.findByOrderNumberAndRegel(orderNumber, regel);
             return orderSME == null ? null : this.smeToDto(orderSME);
         }
     }
@@ -270,7 +270,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         cell1.addElement(image);
         OrderDto oda = orderServiceImp.getAllOrders().stream()
                 .filter(o ->
-                        o.getOrderNumber().equals(orderSMEDto.getOrderNumber()) && o.getProduct().equals(orderSMEDto.getProdNumber())
+                        o.getOrderNumber().equals(orderSMEDto.getOrderNumber()) && o.getRegel().equals(orderSMEDto.getRegel())
                 ).findFirst().get();
         Paragraph labelParagraph = new Paragraph(String.format("%-9s%-9s", " ", orderSMEDto.getOrderNumber()), font2);
         labelParagraph.setAlignment(0);
@@ -374,7 +374,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             orderSMEDto.setVentielbeschermer("");
         }
 
-        OrderDto orders = (OrderDto) this.orderServiceImp.getMap().get(orderSMEDto.getOrderNumber() + "," + orderSMEDto.getProdNumber());
+        OrderDto orders = (OrderDto) this.orderServiceImp.getMap().get(orderSMEDto.getOrderNumber() + "," + orderSMEDto.getRegel());
         if (orders.getOmsumin() == null) {
             orders.setOmsumin("");
         }
@@ -676,7 +676,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             orderSPUDto.setBlankeLak("");
         }
 
-        OrderDto orders = (OrderDto) this.orderServiceImp.getMap().get(orderSPUDto.getOrderNumber() + "," + orderSPUDto.getProdNumber());
+        OrderDto orders = (OrderDto) this.orderServiceImp.getMap().get(orderSPUDto.getOrderNumber() + "," + orderSPUDto.getRegel());
         if (orders.getOmsumin() == null) {
             orders.setOmsumin("");
         }
