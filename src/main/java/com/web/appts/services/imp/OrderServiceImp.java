@@ -1758,9 +1758,9 @@ public class OrderServiceImp implements OrderService {
                     }
                 }
 
-                if (orderDto.getSpu() == null) {
-                    orderDto.setSpu("");
-                }
+//                if (orderDto.getSpu() == null) {
+//                    orderDto.setSpu("");
+//                }
 
                 if (orderDto.getSpu() == null && orderDto.getSpu() == "") {
                     if ((orderDto.getSpu() == null || orderDto.getSpu().equals("")) && (order.getSme() != null || !order.getSme().equals(""))) {

@@ -280,13 +280,10 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         PdfPCell cell2 = new PdfPCell();
         Paragraph paragraphL1 = new Paragraph(String.format("%-13s%-13s", " Naam Klant:", " "+oda.getCustomerName()), font4);
         Paragraph paragraphL2 = new Paragraph(String.format("%-16s%-16s", "\n Verkoop order:   ", orderSMEDto.getOrderNumber()), font4);
-        Paragraph paragraphL3 = new Paragraph(String.format("%-16s%-16s", " ", ""), font4);
         paragraphL1.setAlignment(0);
         paragraphL2.setAlignment(0);
-        paragraphL3.setAlignment(0);
         cell2.addElement(paragraphL1);
         cell2.addElement(paragraphL2);
-        cell2.addElement(paragraphL3);
         cell2.setBorder(0);
         mainTable.addCell(cell2);
         PdfPCell cell3 = new PdfPCell();
@@ -654,6 +651,10 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
 
         if (orderSPUDto.getSchooperen() == null) {
             orderSPUDto.setSchooperen("");
+        }
+
+        if (orderSPUDto.getPoedercoaten() == null) {
+            orderSPUDto.setPoedercoaten("");
         }
 
         if (orderSPUDto.getKitten() == null) {
