@@ -10,6 +10,8 @@ import com.web.appts.repositories.OrderRepo;
 import com.web.appts.services.ArchivedOrdersService;
 import com.web.appts.services.OrderService;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -23,6 +25,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.transaction.Transactional;
 
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -818,6 +822,20 @@ public class OrderServiceImp implements OrderService {
             orderDto.setSpu("");
             depList.add(new OrderDepartment(2, "SME", "", this.dtoToOrder(orderDto)));
             depList.add(new OrderDepartment(3, "SPU", "", this.dtoToOrder(orderDto)));
+        }
+
+        if(orderDto.getCdProdGrp().contains("400") || orderDto.getCdProdGrp().contains("420")){
+            if(orderDto.getSme() == null) {
+                orderDto.setSme("");
+                depList.add(new OrderDepartment(2, "SME", "", this.dtoToOrder(orderDto)));
+            }
+        }
+
+        if(orderDto.getCdProdGrp().equals("262") || orderDto.getCdProdGrp().equals("263")){
+            if(orderDto.getSpu() == null) {
+                orderDto.setSpu("");
+                depList.add(new OrderDepartment(3, "SPU", "", this.dtoToOrder(orderDto)));
+            }
         }
 
         if (orderType.equals("LOS")) {
@@ -1926,6 +1944,60 @@ public class OrderServiceImp implements OrderService {
 
             this.ordersMap.put(key, orderDto);
         }
+    }
+
+    public void generateExcelFile(OutputStream outputStream) {
+        List<OrderDto> orders = getAllOrders();
+
+        // Create a workbook and sheet
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("Orders");
+
+        // Create header row
+        Row headerRow = sheet.createRow(0);
+        String[] headers = {"Order Number", "Product Number", "Regel", "Creation", "Organization", "Delivery"};
+        for (int i = 0; i < headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(getHeaderStyle(workbook));
+        }
+
+        orders.sort(Comparator.comparing(OrderDto::getOrderNumber)
+                .thenComparing(OrderDto::getRegel));
+
+        // Add data rows
+        int rowIdx = 1;
+        for (OrderDto order : orders) {
+            Row row = sheet.createRow(rowIdx++);
+            row.createCell(0).setCellValue(order.getOrderNumber());
+            row.createCell(1).setCellValue(order.getProduct());
+            row.createCell(2).setCellValue(order.getRegel());
+            row.createCell(3).setCellValue(order.getCreationDate());
+            row.createCell(4).setCellValue(order.getOrganization());
+            row.createCell(5).setCellValue(order.getDeliveryDate());
+        }
+
+        // Auto-size columns
+        for (int i = 0; i < headers.length; i++) {
+            sheet.autoSizeColumn(i);
+        }
+
+        // Write to output stream
+        try {
+            workbook.write(outputStream);
+            workbook.close();
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private CellStyle getHeaderStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        style.setFont(font);
+        return style;
     }
 
     public Order dtoToOrder(OrderDto orderDto) {

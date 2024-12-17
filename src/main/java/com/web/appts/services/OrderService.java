@@ -2,6 +2,8 @@
 package com.web.appts.services;
 
 import com.web.appts.DTO.OrderDto;
+
+import java.io.OutputStream;
 import java.util.List;
 
 public interface OrderService {
@@ -26,6 +28,8 @@ public interface OrderService {
 	Boolean updateTraColors(String ids, Long id);
 
 	void deleteOrder(Integer paramInteger);
+
+	public void generateExcelFile(OutputStream outputStream);
 
 	List<OrderDto> checkMap();
 }

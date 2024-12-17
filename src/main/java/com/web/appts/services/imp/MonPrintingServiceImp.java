@@ -178,7 +178,7 @@ public class MonPrintingServiceImp {
         table.addCell(headerCell3);
         table.addCell(headerCell4);
 
-        orderList.sort(Comparator.comparing(OrderDto::getRegel));
+        orderList.sort(Comparator.comparing(order -> Integer.parseInt(order.getRegel())));
 
         for (int i = 0; i < orderList.size(); ++i) {
             if (i < orderList.size()) {
@@ -228,7 +228,7 @@ public class MonPrintingServiceImp {
                 letterCount = order.getOmsumin().chars()
                         .filter(Character::isLetter)
                         .count();
-                if (letterCount > 24) {
+                if (letterCount >= 24) {
                     lettrCountForRows++;
                 }
             }
@@ -414,6 +414,145 @@ public class MonPrintingServiceImp {
             }
         }
 
+        if (orderList.size() == 10) {
+            cb1Y1 -= 155.0F;
+            cb2Y2 -= 155.0F;
+            cb3Y3 -= 155.0F;
+            cb4Y4 -= 155.0F;
+            cb5Y5 -= 155.0F;
+            cb6Y6 -= 155.0F;
+
+            if (lettrCountForRows > 0) {
+                lettrCountForRows *= 10;
+
+                cb1Y1 -= (lettrCountForRows * 0.5F);
+                cb2Y2 -= (lettrCountForRows * 0.5F);
+                cb3Y3 -= (lettrCountForRows * 0.5F);
+                cb4Y4 -= (lettrCountForRows * 0.5F);
+                cb5Y5 -= (lettrCountForRows * 0.5F);
+                cb6Y6 -= (lettrCountForRows * 0.5F);
+            }
+        }
+
+        if (orderList.size() == 11) {
+            cb1Y1 -= 175.0F;
+            cb2Y2 -= 175.0F;
+            cb3Y3 -= 175.0F;
+            cb4Y4 -= 175.0F;
+            cb5Y5 -= 175.0F;
+            cb6Y6 -= 175.0F;
+
+            if (lettrCountForRows > 0) {
+                lettrCountForRows *= 10;
+
+                cb1Y1 -= (lettrCountForRows * 0.5F);
+                cb2Y2 -= (lettrCountForRows * 0.5F);
+                cb3Y3 -= (lettrCountForRows * 0.5F);
+                cb4Y4 -= (lettrCountForRows * 0.5F);
+                cb5Y5 -= (lettrCountForRows * 0.5F);
+                cb6Y6 -= (lettrCountForRows * 0.5F);
+            }
+        }
+
+        if (orderList.size() == 12) {
+            cb1Y1 -= 195.0F;
+            cb2Y2 -= 195.0F;
+            cb3Y3 -= 195.0F;
+            cb4Y4 -= 195.0F;
+            cb5Y5 -= 195.0F;
+            cb6Y6 -= 195.0F;
+
+            if (lettrCountForRows > 0) {
+                lettrCountForRows *= 10;
+
+                cb1Y1 -= (lettrCountForRows * 0.5F);
+                cb2Y2 -= (lettrCountForRows * 0.5F);
+                cb3Y3 -= (lettrCountForRows * 0.5F);
+                cb4Y4 -= (lettrCountForRows * 0.5F);
+                cb5Y5 -= (lettrCountForRows * 0.5F);
+                cb6Y6 -= (lettrCountForRows * 0.5F);
+            }
+        }
+
+        if (orderList.size() == 13) {
+            cb1Y1 -= 215.0F;
+            cb2Y2 -= 215.0F;
+            cb3Y3 -= 215.0F;
+            cb4Y4 -= 215.0F;
+            cb5Y5 -= 215.0F;
+            cb6Y6 -= 215.0F;
+
+            if (lettrCountForRows > 0) {
+                lettrCountForRows *= 10;
+
+                cb1Y1 -= (lettrCountForRows * 0.5F);
+                cb2Y2 -= (lettrCountForRows * 0.5F);
+                cb3Y3 -= (lettrCountForRows * 0.5F);
+                cb4Y4 -= (lettrCountForRows * 0.5F);
+                cb5Y5 -= (lettrCountForRows * 0.5F);
+                cb6Y6 -= (lettrCountForRows * 0.5F);
+            }
+        }
+
+        if (orderList.size() == 14) {
+            cb1Y1 -= 235.0F;
+            cb2Y2 -= 235.0F;
+            cb3Y3 -= 235.0F;
+            cb4Y4 -= 235.0F;
+            cb5Y5 -= 235.0F;
+            cb6Y6 -= 235.0F;
+
+            if (lettrCountForRows > 0) {
+                lettrCountForRows *= 10;
+
+                cb1Y1 -= (lettrCountForRows * 0.5F);
+                cb2Y2 -= (lettrCountForRows * 0.5F);
+                cb3Y3 -= (lettrCountForRows * 0.5F);
+                cb4Y4 -= (lettrCountForRows * 0.5F);
+                cb5Y5 -= (lettrCountForRows * 0.5F);
+                cb6Y6 -= (lettrCountForRows * 0.5F);
+            }
+        }
+
+        if (orderList.size() == 15) {
+            cb1Y1 -= 255.0F;
+            cb2Y2 -= 255.0F;
+            cb3Y3 -= 255.0F;
+            cb4Y4 -= 255.0F;
+            cb5Y5 -= 255.0F;
+            cb6Y6 -= 255.0F;
+
+            if (lettrCountForRows > 0) {
+                lettrCountForRows *= 10;
+
+                cb1Y1 -= (lettrCountForRows * 0.5F);
+                cb2Y2 -= (lettrCountForRows * 0.5F);
+                cb3Y3 -= (lettrCountForRows * 0.5F);
+                cb4Y4 -= (lettrCountForRows * 0.5F);
+                cb5Y5 -= (lettrCountForRows * 0.5F);
+                cb6Y6 -= (lettrCountForRows * 0.5F);
+            }
+        }
+
+        if (orderList.size() == 16) {
+            cb1Y1 -= 275.0F;
+            cb2Y2 -= 275.0F;
+            cb3Y3 -= 275.0F;
+            cb4Y4 -= 275.0F;
+            cb5Y5 -= 275.0F;
+            cb6Y6 -= 275.0F;
+
+            if (lettrCountForRows > 0) {
+                lettrCountForRows *= 10;
+
+                cb1Y1 -= (lettrCountForRows * 0.5F);
+                cb2Y2 -= (lettrCountForRows * 0.5F);
+                cb3Y3 -= (lettrCountForRows * 0.5F);
+                cb4Y4 -= (lettrCountForRows * 0.5F);
+                cb5Y5 -= (lettrCountForRows * 0.5F);
+                cb6Y6 -= (lettrCountForRows * 0.5F);
+            }
+        }
         cb.rectangle(195.0F, cb1Y1, 10.0F, 10.0F);
         cb.stroke();
         PdfContentByte cb2 = writer.getDirectContent();

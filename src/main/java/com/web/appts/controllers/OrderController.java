@@ -3,6 +3,8 @@ package com.web.appts.controllers;
 
 import com.web.appts.DTO.OrderDto;
 import com.web.appts.services.OrderService;
+
+import java.io.ByteArrayOutputStream;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -10,6 +12,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -92,6 +95,22 @@ public class OrderController {
                 }
             }));
         }
+    }
 
+    @GetMapping("/export-orders")
+    public ResponseEntity<byte[]> exportOrders() {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            // Generate Excel file
+            orderService.generateExcelFile(out);
+
+            // Build response with file data
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=orders.xlsx")
+                    .header(HttpHeaders.CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    .body(out.toByteArray());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }
