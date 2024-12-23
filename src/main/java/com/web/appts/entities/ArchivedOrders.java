@@ -36,6 +36,12 @@ public class ArchivedOrders {
 			name = "Backorder"
 	)
 	private String backOrder;
+
+	@Column(
+			name = "cdProdGrp"
+	)
+	private String cdProdGrp;
+
 	@Column(
 			name = "SME"
 	)
@@ -411,5 +417,21 @@ public class ArchivedOrders {
 
 	public void setDepartments(List<OrderDepartment> departments) {
 		this.Departments = departments;
+	}
+
+	public String getCdProdGrp() {
+		return cdProdGrp;
+	}
+
+	public void setCdProdGrp(String cdProdGrp) {
+		this.cdProdGrp = cdProdGrp;
+	}
+
+	public Boolean getExpired() {
+		return isExpired;
+	}
+
+	public void setExpired(Boolean expired) {
+		isExpired = expired;
 	}
 }

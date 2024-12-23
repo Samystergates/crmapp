@@ -12,6 +12,8 @@ import com.web.appts.services.OrderService;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -84,7 +86,7 @@ public class OrderServiceImp implements OrderService {
     @Transactional
     public void moveToArchive(List<Integer> ids) {
         System.out.print("removing: ");
-        for(Integer i : ids){
+        for (Integer i : ids) {
             System.out.print(i + ",");
         }
         Boolean isMoved = false;
@@ -97,7 +99,7 @@ public class OrderServiceImp implements OrderService {
                 isMoved = this.archiveOrder(orderDto);
                 if (isMoved) {
                     iterator.remove();
-                    System.out.println("removed: "+ orderDto.getId());
+                    System.out.println("removed: " + orderDto.getId());
                 }
             }
         }
@@ -113,7 +115,7 @@ public class OrderServiceImp implements OrderService {
         this.orderRepo.deleteODForIds(ids);
         this.orderRepo.deleteOrdersByIds(ids);
         System.out.print("deleted: ");
-        for(Integer i : ids){
+        for (Integer i : ids) {
             System.out.print(i + ",");
         }
     }
@@ -126,6 +128,9 @@ public class OrderServiceImp implements OrderService {
         });
         order.setDeliveryDate(orderDto.getDeliveryDate());
         order.setReferenceInfo(orderDto.getReferenceInfo());
+        order.setAantal(orderDto.getAantal());
+        order.setProduct(orderDto.getProduct());
+        order.setCustomerName(orderDto.getCustomerName());
         if (flowUpdate) {
             if (!order.hasOnlyOneDifference(this.dtoToOrder(orderDto))) {
                 return new ArrayList();
@@ -552,7 +557,7 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
-    public void removingSameArchivedOrders(){
+    public void removingSameArchivedOrders() {
         List<Integer> matchingIds = this.ordersMap.values()
                 .stream()
                 .filter(order ->
@@ -608,7 +613,7 @@ public class OrderServiceImp implements OrderService {
                             orderNumber = resultSet.getString("Verkooporder");
                             String product = resultSet.getString("Product");
                             String regel = resultSet.getString("Regel");
-                            existingOrderNumbers.add(orderNumber+","+regel);
+                            existingOrderNumbers.add(orderNumber + "," + regel);
 //                            System.out.println("orderNumber");
 //                            System.out.println(orderNumber);
                         }
@@ -618,7 +623,7 @@ public class OrderServiceImp implements OrderService {
                         Set<String> uniqueones = new HashSet<>(existingOrderNumbers);
                         System.out.print("unique ones: ");
                         System.out.println(uniqueones.size());
-                        System.out.println(existingOrderNumbers .size());
+                        System.out.println(existingOrderNumbers.size());
                         System.out.println(ordersMap.values().size());
                         List<OrderDto> orderList = this.ordersMap.values()
                                 .stream()
@@ -718,12 +723,11 @@ public class OrderServiceImp implements OrderService {
                         String omsumin = resultSet.getString("Omschrijving");
                         String cdProdGrp = resultSet.getString("cdprodgrp");
                         String deliveryDate2 = "";
-                        OrderDto orderDto;
+                        OrderDto orderDto = new OrderDto();
                         String finalOrderNumber = orderNumber;
                         if (!this.ordersMap.containsKey(orderNumber + "," + regel) && !this.archivedOrdersService.getAllArchivedOrders().stream().anyMatch((obj) -> {
                             return obj.getOrderNumber().equals(finalOrderNumber);
                         })) {
-                            orderDto = new OrderDto();
                             String finalOrderNumber1 = orderNumber;
                             if (!this.ordersMap.entrySet().stream().anyMatch((obj) -> {
                                 return ((OrderDto) obj.getValue()).getOrderNumber().equals(finalOrderNumber1);
@@ -769,11 +773,50 @@ public class OrderServiceImp implements OrderService {
                             }
                         }
 
-                        if (this.ordersMap.containsKey(orderNumber + "," + regel) && !((OrderDto) this.ordersMap.get(orderNumber + "," + regel)).getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.equals("")) {
-                            orderDto = (OrderDto) this.ordersMap.get(orderNumber + "," + regel);
-                            orderDto.setDeliveryDate(deliveryDate2);
+                        if (this.ordersMap.containsKey(orderNumber + "," + regel)) {
+                            OrderDto existingOrderDto = (OrderDto) this.ordersMap.get(orderNumber + "," + regel);
+
+                            orderDto.setId(existingOrderDto.getId());
+                            orderDto.setOrderNumber(orderNumber);
+                            orderDto.setOrderType(orderType);
+                            orderDto.setBackOrder(existingOrderDto.getBackOrder());
+                            orderDto.setCdProdGrp(cdProdGrp);
+                            orderDto.setUser(user);
+                            orderDto.setOrganization(organization);
+                            orderDto.setCustomerName(customerName);
+                            orderDto.setPostCode(postCode);
+                            orderDto.setCity(city);
+                            orderDto.setCountry(country);
+                            if (deliveryDate == null) {
+                                orderDto.setDeliveryDate("");
+                            } else {
+                                orderDto.setDeliveryDate(deliveryDate);
+                            }
+
                             orderDto.setReferenceInfo(referenceInfo);
-                            this.updateOrder(orderDto, ((OrderDto) this.ordersMap.get(orderNumber + "," + regel)).getId(), false);
+                            orderDto.setCreationDate(creationDate);
+                            orderDto.setModificationDate(modificationDate);
+                            orderDto.setVerifierUser(verifierUser);
+                            orderDto.setRegel(existingOrderDto.getRegel());
+                            orderDto.setAantal(aantal);
+                            orderDto.setProduct(product);
+                            orderDto.setOmsumin(omsumin);
+
+                            Map<String,Boolean> fieldsCheckMap = checkForFeildsChange(existingOrderDto, orderDto);
+                            if (fieldsCheckMap.getOrDefault("cdProdGrp",false) || fieldsCheckMap.getOrDefault("orderType",false)) {
+                                this.deleteOrderData(Collections.singletonList(existingOrderDto.getId()));
+                                this.settingUpFlow(orderDto);
+                                this.createOrder(orderDto);
+                                this.ordersMap.put(orderNumber + "," + regel, orderDto);
+                            }
+
+                            else if (fieldsCheckMap.getOrDefault("aantal",false) ||
+                                    fieldsCheckMap.getOrDefault("custName",false) ||
+                                    fieldsCheckMap.getOrDefault("product",false) ||
+                                    fieldsCheckMap.getOrDefault("reference",false) ||
+                                    !(existingOrderDto.getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.equals(""))) {
+                                this.updateOrder(orderDto, orderDto.getId(), false);
+                            }
                         }
                     }
                 }
@@ -809,6 +852,35 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
+    private Map<String,Boolean> checkForFeildsChange(OrderDto existing, OrderDto orderDto) {
+
+        Map<String, Boolean> checkFieldsMap = new HashMap<>();
+        checkFieldsMap.put("cdProdGrp",false);
+        checkFieldsMap.put("orderType",false);
+
+        if (!existing.getOrderType().equals(orderDto.getOrderType())) {
+            checkFieldsMap.put("orderType",true);
+        }
+        if (!existing.getProduct().equals(orderDto.getProduct())) {
+            checkFieldsMap.put("product",true);
+        }
+        if (!existing.getCdProdGrp().equals(orderDto.getCdProdGrp())) {
+            checkFieldsMap.put("cdProdGrp",true);
+        }
+        if (!existing.getCustomerName().equals(orderDto.getCustomerName())) {
+            checkFieldsMap.put("custName",true);
+        }
+        if (!existing.getAantal().equals(orderDto.getAantal())) {
+            checkFieldsMap.put("aantal",true);
+        }
+        if (!existing.getReferenceInfo().equals(orderDto.getReferenceInfo())) {
+            checkFieldsMap.put("reference",true);
+        }
+
+        return checkFieldsMap;
+    }
+
+
     @Transactional
     private void settingUpFlow(OrderDto orderDto) {
         String orderType = orderDto.getOrderType();
@@ -824,15 +896,15 @@ public class OrderServiceImp implements OrderService {
             depList.add(new OrderDepartment(3, "SPU", "", this.dtoToOrder(orderDto)));
         }
 
-        if(orderDto.getCdProdGrp().contains("400") || orderDto.getCdProdGrp().contains("420")){
-            if(orderDto.getSme() == null) {
+        if (orderDto.getCdProdGrp().contains("400") || orderDto.getCdProdGrp().contains("420")) {
+            if (orderDto.getSme() == null) {
                 orderDto.setSme("");
                 depList.add(new OrderDepartment(2, "SME", "", this.dtoToOrder(orderDto)));
             }
         }
 
-        if(orderDto.getCdProdGrp().equals("262") || orderDto.getCdProdGrp().equals("263")){
-            if(orderDto.getSpu() == null) {
+        if (orderDto.getCdProdGrp().equals("262") || orderDto.getCdProdGrp().equals("263")) {
+            if (orderDto.getSpu() == null) {
                 orderDto.setSpu("");
                 depList.add(new OrderDepartment(3, "SPU", "", this.dtoToOrder(orderDto)));
             }
