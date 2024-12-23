@@ -287,12 +287,12 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         cell2.setBorder(0);
         mainTable.addCell(cell2);
         PdfPCell cell3 = new PdfPCell();
-        Paragraph paragraphR1 = new Paragraph(String.format(""), font4);
-        paragraphR1.setAlignment(1);
-        cell3.addElement(paragraphR1);
+        //Paragraph paragraphR1 = new Paragraph(String.format(""), font4);
+        //paragraphR1.setAlignment(1);
+        //cell3.addElement(paragraphR1);
         cell3.setBorder(0);
         mainTable.addCell(cell3);
-        mainTable.setSpacingAfter(30.0F);
+        mainTable.setSpacingAfter(45.0F);
         document.add(mainTable);
     }
 
@@ -410,7 +410,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         PdfContentByte cb2 = writer.getDirectContent();
         cb2.rectangle(380.0F, 363.0F, 10.0F, 10.0F);
         cb2.stroke();
-        if (orderSMEDto.getKoelgaten().equals("JA")) {
+        if (orderSMEDto.getVerstevigingsringen().equals("JA")) {
             cb2.moveTo(380.0F, 363.0F);
             cb2.lineTo(390.0F, 373.0F);
             cb2.moveTo(380.0F, 373.0F);
@@ -420,7 +420,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         PdfContentByte cb3 = writer.getDirectContent();
         cb3.rectangle(380.0F, 343.0F, 10.0F, 10.0F);
         cb3.stroke();
-        if (orderSMEDto.getVerstevigingsringen().equals("JA")) {
+        if (orderSMEDto.getVentielbeschermer().equals("JA")) {
             cb3.moveTo(380.0F, 343.0F);
             cb3.lineTo(390.0F, 353.0F);
             cb3.moveTo(380.0F, 353.0F);
@@ -430,7 +430,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         PdfContentByte cb4 = writer.getDirectContent();
         cb4.rectangle(520.0F, 383.0F, 10.0F, 10.0F);
         cb4.stroke();
-        if (orderSMEDto.getAansluitnippel().equals("JA")) {
+        if (orderSMEDto.getKoelgaten().equals("JA")) {
             cb4.moveTo(520.0F, 383.0F);
             cb4.lineTo(530.0F, 393.0F);
             cb4.moveTo(520.0F, 393.0F);
@@ -440,7 +440,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         PdfContentByte cb5 = writer.getDirectContent();
         cb5.rectangle(520.0F, 363.0F, 10.0F, 10.0F);
         cb5.stroke();
-        if (orderSMEDto.getVentielbeschermer().equals("JA")) {
+        if (orderSMEDto.getAansluitnippel().equals("JA")) {
             cb5.moveTo(520.0F, 363.0F);
             cb5.lineTo(530.0F, 373.0F);
             cb5.moveTo(520.0F, 373.0F);

@@ -130,7 +130,11 @@ public class OrderServiceImp implements OrderService {
         order.setReferenceInfo(orderDto.getReferenceInfo());
         order.setAantal(orderDto.getAantal());
         order.setProduct(orderDto.getProduct());
+        order.setCountry(orderDto.getCountry());
+        order.setCity(orderDto.getCity());
+        order.setOrganization(orderDto.getOrganization());
         order.setCustomerName(orderDto.getCustomerName());
+
         if (flowUpdate) {
             if (!order.hasOnlyOneDifference(this.dtoToOrder(orderDto))) {
                 return new ArrayList();
@@ -786,6 +790,7 @@ public class OrderServiceImp implements OrderService {
                             orderDto.setCustomerName(customerName);
                             orderDto.setPostCode(postCode);
                             orderDto.setCity(city);
+                            orderDto.setIsParent(existingOrderDto.getIsParent());
                             orderDto.setCountry(country);
                             if (deliveryDate == null) {
                                 orderDto.setDeliveryDate("");
@@ -814,6 +819,9 @@ public class OrderServiceImp implements OrderService {
                                     fieldsCheckMap.getOrDefault("custName",false) ||
                                     fieldsCheckMap.getOrDefault("product",false) ||
                                     fieldsCheckMap.getOrDefault("reference",false) ||
+                                    fieldsCheckMap.getOrDefault("organization",false) ||
+                                    fieldsCheckMap.getOrDefault("city",false) ||
+                                    fieldsCheckMap.getOrDefault("country",false) ||
                                     !(existingOrderDto.getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.equals(""))) {
                                 this.updateOrder(orderDto, orderDto.getId(), false);
                             }
@@ -860,6 +868,15 @@ public class OrderServiceImp implements OrderService {
 
         if (!existing.getOrderType().equals(orderDto.getOrderType())) {
             checkFieldsMap.put("orderType",true);
+        }
+        if (!existing.getOrganization().equals(orderDto.getOrganization())) {
+            checkFieldsMap.put("organization",true);
+        }
+        if (!existing.getCity().equals(orderDto.getCity())) {
+            checkFieldsMap.put("city",true);
+        }
+        if (!existing.getCountry().equals(orderDto.getCountry())) {
+            checkFieldsMap.put("country",true);
         }
         if (!existing.getProduct().equals(orderDto.getProduct())) {
             checkFieldsMap.put("product",true);
