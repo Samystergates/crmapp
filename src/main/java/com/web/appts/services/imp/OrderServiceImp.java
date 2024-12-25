@@ -134,6 +134,9 @@ public class OrderServiceImp implements OrderService {
         order.setCity(orderDto.getCity());
         order.setOrganization(orderDto.getOrganization());
         order.setCustomerName(orderDto.getCustomerName());
+        if (orderDto.getIsExpired() != null) {
+            order.setIsExpired(orderDto.getIsExpired());
+        }
 
         if (flowUpdate) {
             if (!order.hasOnlyOneDifference(this.dtoToOrder(orderDto))) {
@@ -585,7 +588,7 @@ public class OrderServiceImp implements OrderService {
                 String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
                 System.out.println("----------driver----------");
                 System.out.println(driver);
-                String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;Trusted_Connection=Yes;";
+                String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;ConnectTimeout=30;MaxBufferSize=1024;SocketTimeout=60;Trusted_Connection=Yes;";
                 System.out.println("----------connectionString----------");
                 System.out.println(connectionString);
                 String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', " +
@@ -627,6 +630,7 @@ public class OrderServiceImp implements OrderService {
                         Set<String> uniqueones = new HashSet<>(existingOrderNumbers);
                         System.out.print("unique ones: ");
                         System.out.println(uniqueones.size());
+                        System.out.print("total: ");
                         System.out.println(existingOrderNumbers.size());
                         System.out.println(ordersMap.values().size());
                         List<OrderDto> orderList = this.ordersMap.values()
@@ -665,7 +669,15 @@ public class OrderServiceImp implements OrderService {
 //                            System.out.println("id3: " + id);
 //                        }
                         System.out.println("list3: " + filteredOrders.size());
-                        this.moveToArchive(filteredOrders);
+                        List<OrderDto> matchingObjects = ordersMap.values().stream()
+                                .filter(obj -> filteredOrders.contains(obj.getId()))
+                                .peek(obj -> obj.setIsExpired(true))
+                                .collect(Collectors.toList());
+
+                        matchingObjects.forEach(obj -> this.updateOrder(obj, obj.getId(), false));
+
+
+                        //this.moveToArchive(filteredOrders);
                     }
                 } catch (SQLException e) {
                     throw new RuntimeException(e);
@@ -676,6 +688,28 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
+    @Async
+    @Scheduled(fixedRate = 380000)
+    public void archiveExpiredOrders() {
+        List<OrderDto> orderList = new ArrayList<>(ordersMap.values());
+
+        // Group by orderNumber
+        Map<String, List<OrderDto>> groupedByOrderNumber = orderList.stream()
+                .collect(Collectors.groupingBy(OrderDto::getOrderNumber));
+
+        // Process each group
+        List<Integer> resultIds = new ArrayList<>();
+        for (Map.Entry<String, List<OrderDto>> entry : groupedByOrderNumber.entrySet()) {
+            List<OrderDto> orders = entry.getValue();
+            boolean allExpired = orders.stream().allMatch(OrderDto::getIsExpired);
+
+            if (allExpired) {
+                resultIds.addAll(orders.stream().map(OrderDto::getId).collect(Collectors.toList()));
+            }
+        }
+        this.moveToArchive(resultIds);
+    }
+
     @Transactional
     public List<OrderDto> getCRMOrders() {
         //{DataDirect 7.1 OpenEdge Wire Protocol};DSN=AGRPROD
@@ -683,10 +717,39 @@ public class OrderServiceImp implements OrderService {
             String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
             System.out.println("----------driver----------");
             System.out.println(driver);
-            String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;Trusted_Connection=Yes;";
+            String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;ConnectTimeout=30;MaxBufferSize=1024;SocketTimeout=60;Trusted_Connection=Yes;";
             System.out.println("----------connectionString----------");
             System.out.println(connectionString);
-            String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', \"va-210\".\"cdordsrt\" AS 'Ordersoort', \"va-211\".\"cdborder\" AS 'Backorder', \"va-210\".\"cdgebruiker-init\" AS 'Gebruiker (I)', \"va-210\".\"cddeb\" AS 'Organisatie', \"ba-001\".\"naamorg\" AS 'Naam', \"ba-012\".\"postcode\" AS 'Postcode', \"ba-012\".\"plaats\" AS 'Plaats', \"ba-012\".\"cdland\" AS 'Land', \"va-210\".\"datum-lna\" AS 'Leverdatum', \"va-210\".\"opm-30\" AS 'Referentie', \"va-210\".\"datum-order\" AS 'Datum order', \"va-210\".\"SYS-DATE\" AS 'Datum laatste wijziging', \"va-210\".\"cdgebruiker\" AS 'Gebruiker (L)', \"va-211\".\"nrordrgl\" AS 'Regel', \"va-211\".\"aantbest\" AS 'Aantal besteld', \"va-211\".\"aanttelev\" AS 'Aantal geleverd', \"va-211\".\"cdprodukt\" AS 'Product', \"af-801\".\"tekst\" AS 'Omschrijving', \"va-211\".\"volgorde\" AS 'regelvolgorde', \"bb-043\".\"cdprodgrp\" FROM DATA.PUB.\"af-801\" , DATA.PUB.\"ba-001\" , DATA.PUB.\"ba-012\" , DATA.PUB.\"bb-043\" , DATA.PUB.\"va-210\" , DATA.PUB.\"va-211\" WHERE \"ba-001\".\"cdorg\" = \"va-210\".\"cdorg\" AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" AND \"va-211\".\"cdorder\" = \"va-210\".\"cdorder\" AND \"va-211\".\"cdorg\" = \"ba-001\".\"cdorg\" AND \"va-211\".\"cdprodukt\" = \"af-801\".\"cdsleutel1\" AND \"ba-012\".\"id-cdads\" = \"va-211\".\"id-cdads\" AND \"bb-043\".\"cdprodukt\" = \"va-211\".\"cdprodukt\" AND ((\"af-801\".\"cdtabel\"='bb-062') AND (\"va-210\".\"cdadmin\"='01') AND (\"va-211\".\"cdadmin\"='01') AND (\"va-210\".\"cdvestiging\"='ree') AND (\"va-210\".\"cdstatus\" <> 'Z' And \"va-210\".\"cdstatus\" <> 'B') AND (\"bb-043\".\"cdprodcat\"='pro'))";
+//            String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', \"va-210\".\"cdordsrt\" AS 'Ordersoort'," +
+//                    " \"va-211\".\"cdborder\" AS 'Backorder', \"va-210\".\"cdgebruiker-init\" AS 'Gebruiker (I)', \"va-210\".\"cddeb\" AS 'Organisatie'," +
+//                    " \"ba-001\".\"naamorg\" AS 'Naam', \"ba-012\".\"postcode\" AS 'Postcode', \"ba-012\".\"plaats\" AS 'Plaats'," +
+//                    " \"ba-012\".\"cdland\" AS 'Land', \"va-210\".\"datum-lna\" AS 'Leverdatum', \"va-210\".\"opm-30\" AS 'Referentie'," +
+//                    " \"va-210\".\"datum-order\" AS 'Datum order', \"va-210\".\"SYS-DATE\" AS 'Datum laatste wijziging'," +
+//                    " \"va-210\".\"cdgebruiker\" AS 'Gebruiker (L)', \"va-211\".\"nrordrgl\" AS 'Regel', \"va-211\".\"aantbest\" AS 'Aantal besteld'," +
+//                    " \"va-211\".\"aanttelev\" AS 'Aantal geleverd', \"va-211\".\"cdprodukt\" AS 'Product', \"af-801\".\"tekst\" AS 'Omschrijving'," +
+//                    " \"va-211\".\"volgorde\" AS 'regelvolgorde', \"bb-043\".\"cdprodgrp\" FROM DATA.PUB.\"af-801\" , DATA.PUB.\"ba-001\" ," +
+//                    " DATA.PUB.\"ba-012\" , DATA.PUB.\"bb-043\" , DATA.PUB.\"va-210\" , DATA.PUB.\"va-211\" " +
+//                    "WHERE \"ba-001\".\"cdorg\" = \"va-210\".\"cdorg\" AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" " +
+//                    "AND \"va-211\".\"cdorder\" = \"va-210\".\"cdorder\" AND \"va-211\".\"cdorg\" = \"ba-001\".\"cdorg\" " +
+//                    "AND \"va-211\".\"cdprodukt\" = \"af-801\".\"cdsleutel1\" AND \"ba-012\".\"id-cdads\" = \"va-211\".\"id-cdads\" " +
+//                    "AND \"bb-043\".\"cdprodukt\" = \"va-211\".\"cdprodukt\" AND ((\"af-801\".\"cdtabel\"='bb-062') AND (\"va-210\".\"cdadmin\"='01') " +
+//                    "AND (\"va-211\".\"cdadmin\"='01') AND (\"va-210\".\"cdvestiging\"='ree') AND (\"va-210\".\"cdstatus\" <> 'Z' " +
+//                    "And \"va-210\".\"cdstatus\" <> 'B') AND (\"bb-043\".\"cdprodcat\"='pro'))";
+            String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', \"va-210\".\"cdordsrt\" AS 'Ordersoort'," +
+                    " \"va-211\".\"cdborder\" AS 'Backorder', \"va-210\".\"cdgebruiker-init\" AS 'Gebruiker (I)', \"va-210\".\"cddeb\" AS 'Organisatie'," +
+                    " \"ba-001\".\"naamorg\" AS 'Naam', \"ba-012\".\"postcode\" AS 'Postcode', \"ba-012\".\"plaats\" AS 'Plaats'," +
+                    " \"ba-012\".\"cdland\" AS 'Land', \"va-210\".\"datum-lna\" AS 'Leverdatum', \"va-210\".\"opm-30\" AS 'Referentie'," +
+                    " \"va-210\".\"datum-order\" AS 'Datum order', \"va-210\".\"SYS-DATE\" AS 'Datum laatste wijziging'," +
+                    " \"va-210\".\"cdgebruiker\" AS 'Gebruiker (L)', \"va-211\".\"nrordrgl\" AS 'Regel', \"va-211\".\"aantbest\" AS 'Aantal besteld'," +
+                    " \"va-211\".\"aanttelev\" AS 'Aantal geleverd', \"va-211\".\"cdprodukt\" AS 'Product', \"af-801\".\"tekst\" AS 'Omschrijving'," +
+                    " \"va-211\".\"volgorde\" AS 'regelvolgorde', \"bb-043\".\"cdprodgrp\" FROM DATA.PUB.\"af-801\" , DATA.PUB.\"ba-001\" ," +
+                    " DATA.PUB.\"ba-012\" , DATA.PUB.\"bb-043\" , DATA.PUB.\"va-210\" , DATA.PUB.\"va-211\" " +
+                    "WHERE \"ba-001\".\"cdorg\" = \"va-210\".\"cdorg\" AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" " +
+                    "AND \"va-211\".\"cdorder\" = \"va-210\".\"cdorder\" " +
+                    "AND \"va-211\".\"cdprodukt\" = \"af-801\".\"cdsleutel1\" AND \"ba-012\".\"id-cdads\" = \"va-211\".\"id-cdads\" " +
+                    "AND \"bb-043\".\"cdprodukt\" = \"va-211\".\"cdprodukt\" AND ((\"af-801\".\"cdtabel\"='bb-062') AND (\"va-210\".\"cdadmin\"='01') " +
+                    "AND (\"va-211\".\"cdadmin\"='01') AND (\"va-210\".\"cdvestiging\"='ree') AND (\"va-210\".\"cdstatus\" <> 'Z' " +
+                    "And \"va-210\".\"cdstatus\" <> 'B') AND (\"bb-043\".\"cdprodcat\"='pro'))";
             System.out.println("----------query----------");
             System.out.println(query);
             Class.forName(driver);
@@ -704,6 +767,7 @@ public class OrderServiceImp implements OrderService {
                     String orderNumber = null;
                     while (resultSet.next()) {
                         orderNumber = resultSet.getString("Verkooporder");
+                        System.out.println(orderNumber);
                         if (resultSet.wasNull()) {
                             System.out.println("no ordernumer");
                             continue;
@@ -807,21 +871,19 @@ public class OrderServiceImp implements OrderService {
                             orderDto.setProduct(product);
                             orderDto.setOmsumin(omsumin);
 
-                            Map<String,Boolean> fieldsCheckMap = checkForFeildsChange(existingOrderDto, orderDto);
-                            if (fieldsCheckMap.getOrDefault("cdProdGrp",false) || fieldsCheckMap.getOrDefault("orderType",false)) {
+                            Map<String, Boolean> fieldsCheckMap = checkForFeildsChange(existingOrderDto, orderDto);
+                            if (fieldsCheckMap.getOrDefault("cdProdGrp", false) || fieldsCheckMap.getOrDefault("orderType", false)) {
                                 this.deleteOrderData(Collections.singletonList(existingOrderDto.getId()));
                                 this.settingUpFlow(orderDto);
                                 this.createOrder(orderDto);
                                 this.ordersMap.put(orderNumber + "," + regel, orderDto);
-                            }
-
-                            else if (fieldsCheckMap.getOrDefault("aantal",false) ||
-                                    fieldsCheckMap.getOrDefault("custName",false) ||
-                                    fieldsCheckMap.getOrDefault("product",false) ||
-                                    fieldsCheckMap.getOrDefault("reference",false) ||
-                                    fieldsCheckMap.getOrDefault("organization",false) ||
-                                    fieldsCheckMap.getOrDefault("city",false) ||
-                                    fieldsCheckMap.getOrDefault("country",false) ||
+                            } else if (fieldsCheckMap.getOrDefault("aantal", false) ||
+                                    fieldsCheckMap.getOrDefault("custName", false) ||
+                                    fieldsCheckMap.getOrDefault("product", false) ||
+                                    fieldsCheckMap.getOrDefault("reference", false) ||
+                                    fieldsCheckMap.getOrDefault("organization", false) ||
+                                    fieldsCheckMap.getOrDefault("city", false) ||
+                                    fieldsCheckMap.getOrDefault("country", false) ||
                                     !(existingOrderDto.getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.equals(""))) {
                                 this.updateOrder(orderDto, orderDto.getId(), false);
                             }
@@ -860,38 +922,38 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
-    private Map<String,Boolean> checkForFeildsChange(OrderDto existing, OrderDto orderDto) {
+    private Map<String, Boolean> checkForFeildsChange(OrderDto existing, OrderDto orderDto) {
 
         Map<String, Boolean> checkFieldsMap = new HashMap<>();
-        checkFieldsMap.put("cdProdGrp",false);
-        checkFieldsMap.put("orderType",false);
+        checkFieldsMap.put("cdProdGrp", false);
+        checkFieldsMap.put("orderType", false);
 
         if (!existing.getOrderType().equals(orderDto.getOrderType())) {
-            checkFieldsMap.put("orderType",true);
+            checkFieldsMap.put("orderType", true);
         }
         if (!existing.getOrganization().equals(orderDto.getOrganization())) {
-            checkFieldsMap.put("organization",true);
+            checkFieldsMap.put("organization", true);
         }
         if (!existing.getCity().equals(orderDto.getCity())) {
-            checkFieldsMap.put("city",true);
+            checkFieldsMap.put("city", true);
         }
         if (!existing.getCountry().equals(orderDto.getCountry())) {
-            checkFieldsMap.put("country",true);
+            checkFieldsMap.put("country", true);
         }
         if (!existing.getProduct().equals(orderDto.getProduct())) {
-            checkFieldsMap.put("product",true);
+            checkFieldsMap.put("product", true);
         }
         if (!existing.getCdProdGrp().equals(orderDto.getCdProdGrp())) {
-            checkFieldsMap.put("cdProdGrp",true);
+            checkFieldsMap.put("cdProdGrp", true);
         }
         if (!existing.getCustomerName().equals(orderDto.getCustomerName())) {
-            checkFieldsMap.put("custName",true);
+            checkFieldsMap.put("custName", true);
         }
         if (!existing.getAantal().equals(orderDto.getAantal())) {
-            checkFieldsMap.put("aantal",true);
+            checkFieldsMap.put("aantal", true);
         }
         if (!existing.getReferenceInfo().equals(orderDto.getReferenceInfo())) {
-            checkFieldsMap.put("reference",true);
+            checkFieldsMap.put("reference", true);
         }
 
         return checkFieldsMap;

@@ -21,6 +21,7 @@ public class OrderSPUDto {
 	private String aflakken;
 	private String blankeLak;
 	private String regel;
+	private String aan;
 
 	public OrderSPUDto() {
 	}
@@ -175,5 +176,13 @@ public class OrderSPUDto {
 
 	public void setRegel(String regel) {
 		this.regel = regel;
+	}
+
+	public String getAan() {
+		return aan;
+	}
+
+	public void setAan(String aan) {
+		this.aan = aan;
 	}
 }

@@ -100,6 +100,10 @@ public class OrderSPU {
 	)
 	private String regel;
 
+
+	@Column(name = "aan")
+	private String aan;
+
 	public OrderSPU() {
 	}
 
@@ -253,5 +257,13 @@ public class OrderSPU {
 
 	public void setRegel(String regel) {
 		this.regel = regel;
+	}
+
+	public String getAan() {
+		return aan;
+	}
+
+	public void setAan(String aan) {
+		this.aan = aan;
 	}
 }
