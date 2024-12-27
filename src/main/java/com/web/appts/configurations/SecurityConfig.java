@@ -50,6 +50,28 @@ public class SecurityConfig {
         return (SecurityFilterChain)http.build();
     }
 
+//    @Bean
+//    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+//        http
+//                .csrf().disable()
+//                .requiresChannel(channel -> channel
+//                        .anyRequest().requiresSecure()
+//                )
+//                .authorizeHttpRequests(authorize -> authorize
+//                        .antMatchers(PUBLIC_URLS).permitAll()
+//                        .antMatchers(HttpMethod.GET).permitAll()
+//                        .anyRequest().authenticated()
+//                )
+//                .exceptionHandling().authenticationEntryPoint(this.jwtAuthenticationEntryPoint)
+//                .and()
+//                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+//
+//        http.addFilterBefore(this.jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+//        http.authenticationProvider(this.daoAuthenticationProvider());
+//        return http.build();
+//    }
+
+
     @Bean
     public PasswordEncoder passwordEncode() {
         return new BCryptPasswordEncoder();
@@ -73,8 +95,8 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration corsConfiguration = new CorsConfiguration();
         corsConfiguration.setAllowCredentials(true);
-        corsConfiguration.addAllowedOrigin("http://172.22.250.26:3000");
-//        corsConfiguration.addAllowedOrigin("http://192.168.100.146:3000");
+//        corsConfiguration.addAllowedOrigin("http://172.22.250.26:3000");
+        corsConfiguration.addAllowedOrigin("https://vonk.demolenbanden.nl:3000");
 //        corsConfiguration.addAllowedOrigin("http://192.168.43.233:3000");
         corsConfiguration.addAllowedOriginPattern("*");
         corsConfiguration.addAllowedHeader("Authorization");

@@ -634,23 +634,22 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
                 paragraphL2 = new Paragraph(String.format("%-2s%-2s", "", AanOptions.HURK2), font4);
                 paragraphL3 = new Paragraph(String.format("%-2s%-2s", "", AanOptions.HURK3), font4);
             }
-        }
-        else{
+        } else {
             paragraphL1 = new Paragraph(String.format("%-1s%-1s", "", ""), font3);
-            paragraphL2 = new Paragraph(String.format("%-2s%-2s", "",""), font4);
+            paragraphL2 = new Paragraph(String.format("%-2s%-2s", "", ""), font4);
             paragraphL3 = new Paragraph(String.format("%-2s%-2s", "", ""), font4);
         }
-        Paragraph paragraphL4 = new Paragraph(String.format("%-2s%-2s", "", orderDto.getPostCode() + " " + orderDto.getCity()), font4);
+        //Paragraph paragraphL4 = new Paragraph(String.format("%-2s%-2s", "", orderDto.getPostCode() + " " + orderDto.getCity()), font4);
         paragraphL1.setAlignment(0);
         paragraphL1.setAlignment(0);
         paragraphL2.setAlignment(0);
         paragraphL3.setAlignment(0);
-        paragraphL4.setAlignment(0);
+        //paragraphL4.setAlignment(0);
         cell2.addElement(paragraphL0);
         cell2.addElement(paragraphL1);
         cell2.addElement(paragraphL2);
         cell2.addElement(paragraphL3);
-        cell2.addElement(paragraphL4);
+        //cell2.addElement(paragraphL4);
         cell2.setBorder(0);
         mainTable.addCell(cell2);
         mainTable.setSpacingAfter(30.0F);
@@ -715,84 +714,188 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         Paragraph labelParagraph2 = new Paragraph("Produkt            Aantal            Omschrijving", font5);
         Paragraph labelParagraph3 = new Paragraph(orderSPUDto.getProdNumber() + "          " + orders.getAantal() + "         " + orders.getOmsumin(), font5);
         Paragraph labelParagraph4 = new Paragraph("\n                     Stralen: \n Gedeeltelijk Stralen:  \n          Poedercoaten:                                       Prijscode                 Afdeling  \n                       Kitten: \t\t\t\t\t\t\t      \t    \t\t\t\t  \t\t                  \t\t      \t      " + orderSPUDto.getPrijscode() + "                          " + orderSPUDto.getAfdeling() + " \n                      Primer:  \n                Ontlakken: \n                        Kleur:           RAL:  " + wheelColorDto.getId() + "        Naam Kleur:   " + orderSPUDto.getKleurOmschrijving() + " \n          \t      BlankeLak: \n          Verkoop order:  " + orderSPUDto.getOrderNumber() + " \n              Naam Klant:  " + orders.getCustomerName(), font5);
+
+
+        int lettrCountForRows = 0;
+        long letterCount = 0;
+
+        if (orders.getOmsumin().length() > 55) {
+            letterCount = orders.getOmsumin().chars()
+                    .filter(Character::isLetter)
+                    .count();
+            if (letterCount >= 18) {
+                lettrCountForRows++;
+            }
+        }
+
         PdfContentByte cb = writer.getDirectContent();
-        cb.rectangle(170.0F, 536.0F, 10.0F, 10.0F);
+        if (lettrCountForRows <= 0) {
+            cb.rectangle(170.0F, 570.0F, 10.0F, 10.0F);
+        } else {
+            cb.rectangle(170.0F, 551.0F, 10.0F, 10.0F);
+
+        }
         cb.stroke();
+
         if (orderSPUDto.getStralen().equals("JA")) {
-            cb.moveTo(170.0F, 536.0F);
-            cb.lineTo(180.0F, 546.0F);
-            cb.moveTo(170.0F, 546.0F);
-            cb.lineTo(180.0F, 536.0F);
+            cb.moveTo(170.0F, 570.0F);
+            cb.lineTo(180.0F, 580.0F);
+            cb.moveTo(170.0F, 580.0F);
+            cb.lineTo(180.0F, 570.0F);
+
+            if (lettrCountForRows > 0) {
+                cb.moveTo(170.0F, 551.0F);
+                cb.lineTo(180.0F, 561.0F);
+                cb.moveTo(170.0F, 561.0F);
+                cb.lineTo(180.0F, 551.0F);
+            }
         }
 
         PdfContentByte cb2 = writer.getDirectContent();
-        cb2.rectangle(170.0F, 516.0F, 10.0F, 10.0F);
+        if (lettrCountForRows <= 0) {
+            cb2.rectangle(170.0F, 550.0F, 10.0F, 10.0F);
+        } else {
+            cb2.rectangle(170.0F, 531.0F, 10.0F, 10.0F);
+        }
         cb2.stroke();
         if (orderSPUDto.getStralenGedeeltelijk().equals("JA")) {
-            cb2.moveTo(170.0F, 516.0F);
-            cb2.lineTo(180.0F, 526.0F);
-            cb2.moveTo(170.0F, 526.0F);
-            cb2.lineTo(180.0F, 516.0F);
+            cb2.moveTo(170.0F, 540.0F);
+            cb2.lineTo(180.0F, 550.0F);
+            cb2.moveTo(170.0F, 550.0F);
+            cb2.lineTo(180.0F, 540.0F);
+
+            if (lettrCountForRows > 0) {
+                cb2.moveTo(170.0F, 531.0F);
+                cb2.lineTo(180.0F, 541.0F);
+                cb2.moveTo(170.0F, 541.0F);
+                cb2.lineTo(180.0F, 531.0F);
+            }
         }
 
         PdfContentByte cb3 = writer.getDirectContent();
-        cb3.rectangle(170.0F, 498.0F, 10.0F, 10.0F);
+        if (lettrCountForRows <= 0) {
+            cb3.rectangle(170.0F, 531.0F, 10.0F, 10.0F);
+        } else {
+            cb3.rectangle(170.0F, 512.0F, 10.0F, 10.0F);
+        }
         cb3.stroke();
         if (orderSPUDto.getPoedercoaten().equals("JA")) {
-            cb3.moveTo(170.0F, 498.0F);
-            cb3.lineTo(180.0F, 508.0F);
-            cb3.moveTo(170.0F, 508.0F);
-            cb3.lineTo(180.0F, 498.0F);
+            cb3.moveTo(170.0F, 531.0F);
+            cb3.lineTo(180.0F, 541.0F);
+            cb3.moveTo(170.0F, 541.0F);
+            cb3.lineTo(180.0F, 531.0F);
+
+            if (lettrCountForRows > 0) {
+                cb3.moveTo(170.0F, 512.0F);
+                cb3.lineTo(180.0F, 522.0F);
+                cb3.moveTo(170.0F, 522.0F);
+                cb3.lineTo(180.0F, 512.0F);
+            }
         }
 
         PdfContentByte cb4 = writer.getDirectContent();
-        cb4.rectangle(170.0F, 479.0F, 10.0F, 10.0F);
+        if (lettrCountForRows <= 0) {
+            cb4.rectangle(170.0F, 512.0F, 10.0F, 10.0F);
+        } else {
+            cb4.rectangle(170.0F, 493.0F, 10.0F, 10.0F);
+        }
         cb4.stroke();
         if (orderSPUDto.getKitten().equals("JA")) {
-            cb4.moveTo(170.0F, 479.0F);
-            cb4.lineTo(180.0F, 489.0F);
-            cb4.moveTo(170.0F, 489.0F);
-            cb4.lineTo(180.0F, 479.0F);
+            cb4.moveTo(170.0F, 512.0F);
+            cb4.lineTo(180.0F, 522.0F);
+            cb4.moveTo(170.0F, 522.0F);
+            cb4.lineTo(180.0F, 512.0F);
+
+            if (lettrCountForRows > 0) {
+                cb3.moveTo(170.0F, 493.0F);
+                cb3.lineTo(180.0F, 503.0F);
+                cb3.moveTo(170.0F, 503.0F);
+                cb3.lineTo(180.0F, 493.0F);
+            }
         }
 
         PdfContentByte cb5 = writer.getDirectContent();
-        cb5.rectangle(170.0F, 459.0F, 10.0F, 10.0F);
+        if (lettrCountForRows <= 0) {
+            cb5.rectangle(170.0F, 493.0F, 10.0F, 10.0F);
+        } else {
+            cb5.rectangle(170.0F, 474.0F, 10.0F, 10.0F);
+        }
         cb5.stroke();
         if (orderSPUDto.getPrimer().equals("JA")) {
-            cb5.moveTo(170.0F, 459.0F);
-            cb5.lineTo(180.0F, 469.0F);
-            cb5.moveTo(170.0F, 469.0F);
-            cb5.lineTo(180.0F, 459.0F);
+            cb5.moveTo(170.0F, 493.0F);
+            cb5.lineTo(180.0F, 503.0F);
+            cb5.moveTo(170.0F, 503.0F);
+            cb5.lineTo(180.0F, 493.0F);
+
+            if (lettrCountForRows > 0) {
+                cb3.moveTo(170.0F, 474.0F);
+                cb3.lineTo(180.0F, 484.0F);
+                cb3.moveTo(170.0F, 484.0F);
+                cb3.lineTo(180.0F, 474.0F);
+            }
         }
 
         PdfContentByte cb6 = writer.getDirectContent();
-        cb6.rectangle(170.0F, 440.0F, 10.0F, 10.0F);
+        if (lettrCountForRows <= 0) {
+            cb6.rectangle(170.0F, 474.0F, 10.0F, 10.0F);
+        } else {
+            cb6.rectangle(170.0F, 455.0F, 10.0F, 10.0F);
+        }
         cb6.stroke();
         if (orderSPUDto.getOntlakken().equals("JA")) {
-            cb6.moveTo(170.0F, 440.0F);
-            cb6.lineTo(180.0F, 450.0F);
-            cb6.moveTo(170.0F, 450.0F);
-            cb6.lineTo(180.0F, 440.0F);
+            cb6.moveTo(170.0F, 474.0F);
+            cb6.lineTo(180.0F, 484.0F);
+            cb6.moveTo(170.0F, 484.0F);
+            cb6.lineTo(180.0F, 474.0F);
+
+            if (lettrCountForRows > 0) {
+                cb3.moveTo(170.0F, 455.0F);
+                cb3.lineTo(180.0F, 465.0F);
+                cb3.moveTo(170.0F, 465.0F);
+                cb3.lineTo(180.0F, 455.0F);
+            }
         }
 
         PdfContentByte cb7 = writer.getDirectContent();
-        cb7.rectangle(170.0F, 420.0F, 10.0F, 10.0F);
+        if (lettrCountForRows <= 0) {
+            cb7.rectangle(170.0F, 455.0F, 10.0F, 10.0F);
+        } else {
+            cb7.rectangle(170.0F, 436.0F, 10.0F, 10.0F);
+        }
         cb7.stroke();
         if (orderSPUDto.getKleurOmschrijving() != null) {
-            cb7.moveTo(170.0F, 420.0F);
-            cb7.lineTo(180.0F, 430.0F);
-            cb7.moveTo(170.0F, 430.0F);
-            cb7.lineTo(180.0F, 420.0F);
+            cb7.moveTo(170.0F, 455.0F);
+            cb7.lineTo(180.0F, 465.0F);
+            cb7.moveTo(170.0F, 465.0F);
+            cb7.lineTo(180.0F, 455.0F);
+
+            if (lettrCountForRows > 0) {
+                cb3.moveTo(170.0F, 436.0F);
+                cb3.lineTo(180.0F, 446.0F);
+                cb3.moveTo(170.0F, 446.0F);
+                cb3.lineTo(180.0F, 436.0F);
+            }
         }
 
         PdfContentByte cb8 = writer.getDirectContent();
-        cb8.rectangle(170.0F, 400.0F, 10.0F, 10.0F);
+        if (lettrCountForRows <= 0) {
+            cb8.rectangle(170.0F, 435.0F, 10.0F, 10.0F);
+        } else {
+            cb8.rectangle(170.0F, 416.0F, 10.0F, 10.0F);
+        }
         cb8.stroke();
         if (orderSPUDto.getBlankeLak().equals("JA")) {
-            cb8.moveTo(170.0F, 400.0F);
-            cb8.lineTo(180.0F, 410.0F);
-            cb8.moveTo(170.0F, 410.0F);
-            cb8.lineTo(180.0F, 400.0F);
+            cb8.moveTo(170.0F, 435.0F);
+            cb8.lineTo(180.0F, 445.0F);
+            cb8.moveTo(170.0F, 445.0F);
+            cb8.lineTo(180.0F, 435.0F);
+
+            if (lettrCountForRows > 0) {
+                cb3.moveTo(170.0F, 416.0F);
+                cb3.lineTo(180.0F, 426.0F);
+                cb3.moveTo(170.0F, 426.0F);
+                cb3.lineTo(180.0F, 416.0F);
+            }
         }
 
         labelParagraph4.setSpacingAfter(30.0F);
@@ -809,7 +912,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         cell.setBorder(15);
         cell.setBorderColor(BaseColor.BLACK);
         cell.setBorderWidth(1.0F);
-        cell.setMinimumHeight(130.0F);
+        cell.setMinimumHeight(140.0F);
         Paragraph textParagraph = new Paragraph("               Opmerking:", font4);
         cell.addElement(textParagraph);
         if (orderSPUDto.getOpmerking() != null) {
@@ -824,7 +927,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         cell2.setBorder(15);
         cell2.setBorderColor(BaseColor.BLACK);
         cell2.setBorderWidth(1.0F);
-        cell2.setMinimumHeight(70.0F);
+        cell2.setMinimumHeight(80.0F);
         Paragraph textParagraph2 = new Paragraph("               Een bon is voor uw interne administratie. Als de velg(en) klaar is (zijn) dan 1 bon retour geven aan\n                                                                            De Molen Banden B.V.", font4);
         cell2.addElement(textParagraph2);
         table2.addCell(cell2);

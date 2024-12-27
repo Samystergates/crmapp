@@ -701,7 +701,8 @@ public class OrderServiceImp implements OrderService {
         List<Integer> resultIds = new ArrayList<>();
         for (Map.Entry<String, List<OrderDto>> entry : groupedByOrderNumber.entrySet()) {
             List<OrderDto> orders = entry.getValue();
-            boolean allExpired = orders.stream().allMatch(OrderDto::getIsExpired);
+            boolean allExpired = orders.stream()
+                    .allMatch(order -> Boolean.TRUE.equals(order.getIsExpired()));
 
             if (allExpired) {
                 resultIds.addAll(orders.stream().map(OrderDto::getId).collect(Collectors.toList()));
@@ -975,7 +976,16 @@ public class OrderServiceImp implements OrderService {
             depList.add(new OrderDepartment(3, "SPU", "", this.dtoToOrder(orderDto)));
         }
 
-        if (orderDto.getCdProdGrp().contains("400") || orderDto.getCdProdGrp().contains("420")) {
+        if (orderDto.getCdProdGrp().contains("400") || orderDto.getCdProdGrp().contains("401") ||
+                orderDto.getCdProdGrp().contains("402") || orderDto.getCdProdGrp().contains("403") ||
+                orderDto.getCdProdGrp().contains("404") || orderDto.getCdProdGrp().contains("405") ||
+                orderDto.getCdProdGrp().contains("406") || orderDto.getCdProdGrp().contains("407") ||
+                orderDto.getCdProdGrp().contains("408") || orderDto.getCdProdGrp().contains("409") ||
+                orderDto.getCdProdGrp().contains("410") || orderDto.getCdProdGrp().contains("411") ||
+                orderDto.getCdProdGrp().contains("412") || orderDto.getCdProdGrp().contains("413") ||
+                orderDto.getCdProdGrp().contains("414") || orderDto.getCdProdGrp().contains("415") ||
+                orderDto.getCdProdGrp().contains("416") || orderDto.getCdProdGrp().contains("417") ||
+                orderDto.getCdProdGrp().contains("418") || orderDto.getCdProdGrp().contains("419") || orderDto.getCdProdGrp().contains("420")) {
             if (orderDto.getSme() == null) {
                 orderDto.setSme("");
                 depList.add(new OrderDepartment(2, "SME", "", this.dtoToOrder(orderDto)));
