@@ -101,6 +101,7 @@ public class UserServiceImp implements UserService {
         }
 
         user.getRoles().add(role);
+        user.setActive(true);
         User newUser = (User)this.userRepo.save(user);
         return (UserDto)this.modelMapper.map(newUser, UserDto.class);
     }

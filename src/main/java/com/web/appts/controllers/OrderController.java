@@ -77,25 +77,47 @@ public class OrderController {
         return ResponseEntity.ok(updatedOrders);
     }
 
+//    private void sortUsingDate(List<OrderDto> orderDto) {
+//        if (orderDto != null && !orderDto.isEmpty()) {
+//            DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+//            orderDto.sort(Comparator.comparing((order) -> {
+//                String deliveryDate = order.getDeliveryDate();
+//                return deliveryDate.isEmpty() ? order.getCreationDate() : deliveryDate;
+//            }, (date1, date2) -> {
+//                try {
+//                    Date parsedDate1 = dateFormat.parse(date1);
+//                    Date parsedDate2 = dateFormat.parse(date2);
+//                    return parsedDate2.compareTo(parsedDate1);
+//                } catch (ParseException var5) {
+//                    ParseException e = var5;
+//                    e.printStackTrace();
+//                    return 0;
+//                }
+//            }));
+//        }
+//    }
+
     private void sortUsingDate(List<OrderDto> orderDto) {
         if (orderDto != null && !orderDto.isEmpty()) {
             DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            orderDto.sort(Comparator.comparing((order) -> {
+            orderDto.sort(Comparator.comparing((OrderDto order) -> {
+                if (order == null) return null; // Handle null orders
                 String deliveryDate = order.getDeliveryDate();
-                return deliveryDate.isEmpty() ? order.getCreationDate() : deliveryDate;
+                String dateToParse = (deliveryDate != null && !deliveryDate.isEmpty()) ? deliveryDate : order.getCreationDate();
+                return dateToParse; // Return the date string for parsing
             }, (date1, date2) -> {
                 try {
-                    Date parsedDate1 = dateFormat.parse(date1);
-                    Date parsedDate2 = dateFormat.parse(date2);
-                    return parsedDate2.compareTo(parsedDate1);
-                } catch (ParseException var5) {
-                    ParseException e = var5;
+                    Date parsedDate1 = (date1 != null) ? dateFormat.parse(date1) : null;
+                    Date parsedDate2 = (date2 != null) ? dateFormat.parse(date2) : null;
+                    return Comparator.nullsLast(Date::compareTo).compare(parsedDate2, parsedDate1);
+                } catch (ParseException e) {
                     e.printStackTrace();
-                    return 0;
+                    return 0; // Treat parse failures as equal
                 }
             }));
         }
     }
+
 
     @GetMapping("/export-orders")
     public ResponseEntity<byte[]> exportOrders() {

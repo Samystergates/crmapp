@@ -5,6 +5,7 @@ import com.web.appts.DTO.OrderDto;
 
 import java.io.OutputStream;
 import java.util.List;
+import java.util.Map;
 
 public interface OrderService {
 	Boolean createOrder(OrderDto paramOrderDto);
@@ -24,6 +25,16 @@ public interface OrderService {
 	void removingSameArchivedOrders();
 
 	List<OrderDto> getCRMOrders();
+
+	void createMonSubDemo();
+
+	Map<String, OrderDto> createMonSub();
+
+	public void adjustParentOrders();
+
+	Map<String, OrderDto> verifyCrmOrders();
+
+	void markExpired();
 
 	Boolean updateTraColors(String ids, Long id);
 

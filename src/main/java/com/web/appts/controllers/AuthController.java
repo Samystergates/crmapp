@@ -110,4 +110,29 @@ public class AuthController {
         this.orderService.removingSameArchivedOrders();
         return ResponseEntity.ok(1);
     }
+
+    @GetMapping({"/mon-sub-orders"})
+    public ResponseEntity<Integer> getMonSub() {
+        this.orderService.createMonSub();
+        return ResponseEntity.ok(1);
+    }
+
+    @GetMapping({"/verify-crm-orders"})
+    public ResponseEntity<Integer> getCRMVerification() {
+        this.orderService.verifyCrmOrders();
+        return ResponseEntity.ok(1);
+    }
+
+    @GetMapping({"/adjust-parent-orders"})
+    public ResponseEntity<Integer> adjustingParents() {
+        this.orderService.adjustParentOrders();
+        return ResponseEntity.ok(1);
+    }
+
+    @GetMapping({"/mark-orders-expired"})
+    public ResponseEntity<Integer> markOrdersExpired() {
+        this.orderService.markExpired();
+        return ResponseEntity.ok(1);
+    }
+
 }

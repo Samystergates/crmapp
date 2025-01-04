@@ -31,7 +31,7 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
         prePostEnabled = true
 )
 public class SecurityConfig {
-    public static final String[] PUBLIC_URLS = new String[]{"/api/v1/auth/**", "/webjars/**"};
+    public static final String[] PUBLIC_URLS = new String[]{"/api/v1/auth/**", "/webjars/**", "/actuator/**"};
     @Autowired
     private CustomUserDetailService custUserDetailsService;
     @Autowired

@@ -49,20 +49,23 @@ public class ArchiveOrderController {
     }
 
     private void sortUsingDate(List<ArchivedOrdersDto> archivedOrderDto) {
-        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        archivedOrderDto.sort(Comparator.comparing((order) -> {
-            String deliveryDate = order.getDeliveryDate();
-            return deliveryDate.isEmpty() ? order.getCreationDate() : deliveryDate;
-        }, (date1, date2) -> {
-            try {
-                Date parsedDate1 = dateFormat.parse(date1);
-                Date parsedDate2 = dateFormat.parse(date2);
-                return parsedDate2.compareTo(parsedDate1);
-            } catch (ParseException var5) {
-                ParseException e = var5;
-                e.printStackTrace();
-                return 0;
-            }
-        }));
+        if (archivedOrderDto != null && !archivedOrderDto.isEmpty()) {
+            DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            archivedOrderDto.sort(Comparator.comparing((ArchivedOrdersDto order) -> {
+                if (order == null) return null; // Handle null objects
+                String deliveryDate = order.getDeliveryDate();
+                String dateToUse = (deliveryDate != null && !deliveryDate.isEmpty()) ? deliveryDate : order.getCreationDate();
+                return dateToUse; // Return the date string for comparison
+            }, (date1, date2) -> {
+                try {
+                    Date parsedDate1 = (date1 != null) ? dateFormat.parse(date1) : null;
+                    Date parsedDate2 = (date2 != null) ? dateFormat.parse(date2) : null;
+                    return Comparator.nullsLast(Date::compareTo).compare(parsedDate2, parsedDate1);
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                    return 0; // Treat parse errors as equal
+                }
+            }));
+        }
     }
 }

@@ -12,6 +12,8 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 
 @Entity
 @Table(
@@ -147,6 +149,11 @@ public class Order {
 	)
 	private String cdProdGrp;
 	@Column(
+			name = "tekst"
+	)
+	private String tekst;
+
+	@Column(
 			name = "completed"
 	)
 	private String completed;
@@ -159,7 +166,16 @@ public class Order {
 			mappedBy = "order",
 			fetch = FetchType.EAGER
 	)
+	@Fetch(FetchMode.SUBSELECT)
 	private List<OrderDepartment> departments;
+
+	@OneToMany(
+			cascade = {CascadeType.ALL},
+			mappedBy = "order",
+			fetch = FetchType.EAGER
+	)
+	@Fetch(FetchMode.SUBSELECT)
+	private List<MonSubOrders> monSubOrders;
 
 	public Order() {
 	}
@@ -430,6 +446,30 @@ public class Order {
 
 	public void setDepartments(List<OrderDepartment> departments) {
 		this.departments = departments;
+	}
+
+	public Boolean getExpired() {
+		return isExpired;
+	}
+
+	public void setExpired(Boolean expired) {
+		isExpired = expired;
+	}
+
+	public List<MonSubOrders> getMonSubOrders() {
+		return monSubOrders;
+	}
+
+	public void setMonSubOrders(List<MonSubOrders> monSubOrders) {
+		this.monSubOrders = monSubOrders;
+	}
+
+	public String getTekst() {
+		return tekst;
+	}
+
+	public void setTekst(String tekst) {
+		this.tekst = tekst;
 	}
 
 	public String getExcNote() {

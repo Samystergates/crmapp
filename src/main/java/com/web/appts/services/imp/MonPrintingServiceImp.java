@@ -16,8 +16,10 @@ import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Stack;
 import java.util.stream.Collectors;
 
+import com.web.appts.entities.MonSubOrders;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -32,9 +34,11 @@ public class MonPrintingServiceImp {
     public byte[] generateMONPdf(String key) {
         Map<String, OrderDto> ordersMap = this.orderServiceImp.getMap();
         List<OrderDto> orderList = null;
+
         orderList = (List) ordersMap.values().stream().filter((orderDto) -> {
             return key.equals(orderDto.getOrderNumber()) && ("Y".equals(orderDto.getMonLb()) || "Y".equals(orderDto.getMonTr()));
         }).collect(Collectors.toList());
+
         if (orderList == null || orderList.size() == 0) {
             orderList = (List) ordersMap.values().stream().filter((orderDto) -> {
                 return key.equals(orderDto.getOrderNumber());
@@ -160,10 +164,77 @@ public class MonPrintingServiceImp {
         document.add(mainTable);
     }
 
+//    private void addOrdersTable(Document document, List<OrderDto> orderList) throws DocumentException {
+//        PdfPTable table = new PdfPTable(4);
+//        table.setWidthPercentage(100.0F);
+//        float[] columnWidths = new float[]{11.0F, 11.0F, 18.0F, 60.0F};
+//        table.setWidths(columnWidths);
+//        table.setSpacingBefore(3.0F);
+//        table.setSpacingAfter(250.0F);
+//        Font font2 = new Font(FontFamily.HELVETICA, 10.0F);
+//        Font font3 = new Font(FontFamily.HELVETICA, 10.0F, 1);
+//        PdfPCell headerCell = this.createHeaderCell("Rgl", font3);
+//        PdfPCell headerCell2 = this.createHeaderCell("Best", font3);
+//        PdfPCell headerCell3 = this.createHeaderCell("Product", font3);
+//        PdfPCell headerCell4 = this.createHeaderCell("Omschrijving", font3);
+//        table.addCell(headerCell);
+//        table.addCell(headerCell2);
+//        table.addCell(headerCell3);
+//        table.addCell(headerCell4);
+//
+//        orderList.sort(Comparator.comparing(order -> Integer.parseInt(order.getRegel())));
+//
+//        for (int i = 0; i < orderList.size(); ++i) {
+//            if (i < orderList.size()) {
+//                List<MonSubOrders> list = orderList.get(i).getMonSubOrders();
+//
+//                PdfPCell cell1 = this.createCell(((OrderDto) orderList.get(i)).getRegel(), font2);
+//                PdfPCell cell2 = this.createCell(((OrderDto) orderList.get(i)).getAantal(), font2);
+//                PdfPCell cell3 = this.createCell(((OrderDto) orderList.get(i)).getProduct(), font2);
+//
+//                if(list.size() != 0){
+//
+//                }
+//
+//                PdfPCell cell4 = this.createCell(((OrderDto) orderList.get(i)).getOmsumin(), font2);
+//
+//
+//                table.addCell(cell1);
+//                table.addCell(cell2);
+//                table.addCell(cell3);
+//                table.addCell(cell4);
+//                cell1.setFixedHeight(20.0F);
+//                cell2.setFixedHeight(20.0F);
+//                cell3.setFixedHeight(20.0F);
+//                cell4.setFixedHeight(20.0F);
+//            }
+//        }
+//
+//        document.add(table);
+//    }
+//
+//    private PdfPCell createHeaderCell(String text, Font font) {
+//        PdfPCell headerCell = new PdfPCell(new Phrase(text, font));
+//        headerCell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+//        headerCell.setHorizontalAlignment(1);
+//        headerCell.setBorderWidth(0.3F);
+//        headerCell.setPadding(2.0F);
+//        return headerCell;
+//    }
+//
+//    private PdfPCell createCell(String text, Font font) {
+//        PdfPCell cell = new PdfPCell(new Phrase(text, font));
+//        cell.setHorizontalAlignment(1);
+//        cell.setVerticalAlignment(5);
+//        cell.setBorderWidth(0.3F);
+//        cell.setPadding(2.0F);
+//        return cell;
+//    }
+
     private void addOrdersTable(Document document, List<OrderDto> orderList) throws DocumentException {
         PdfPTable table = new PdfPTable(4);
         table.setWidthPercentage(100.0F);
-        float[] columnWidths = new float[]{11.0F, 11.0F, 18.0F, 60.0F};
+        float[] columnWidths = new float[]{8.0F, 10.0F, 16.0F, 76.0F};
         table.setWidths(columnWidths);
         table.setSpacingBefore(3.0F);
         table.setSpacingAfter(250.0F);
@@ -179,17 +250,86 @@ public class MonPrintingServiceImp {
         table.addCell(headerCell4);
 
         orderList.sort(Comparator.comparing(order -> Integer.parseInt(order.getRegel())));
-
+        Stack<Integer> orderTrack = new Stack<>();
         for (int i = 0; i < orderList.size(); ++i) {
+            Boolean isRepeat = false;
+            if (!orderTrack.empty() && orderTrack.peek() == i) {
+                isRepeat = true;
+            } else {
+                orderTrack.add(i);
+            }
             if (i < orderList.size()) {
-                PdfPCell cell1 = this.createCell(((OrderDto) orderList.get(i)).getRegel(), font2);
-                PdfPCell cell2 = this.createCell(((OrderDto) orderList.get(i)).getAantal(), font2);
-                PdfPCell cell3 = this.createCell(((OrderDto) orderList.get(i)).getProduct(), font2);
-                PdfPCell cell4 = this.createCell(((OrderDto) orderList.get(i)).getOmsumin(), font2);
+                List<MonSubOrders> list = orderList.get(i).getMonSubOrders();
+
+                PdfPCell cell1;
+                PdfPCell cell2;
+                PdfPCell cell3;
+                PdfPCell cell4;
+                if (!isRepeat) {
+                    cell1 = this.createCell(((OrderDto) orderList.get(i)).getRegel(), font2);
+                    cell2 = this.createCell(((OrderDto) orderList.get(i)).getAantal(), font2);
+                    cell3 = this.createCell(((OrderDto) orderList.get(i)).getProduct(), font2);
+                    if (orderList.get(i).getTekst() != null && !orderList.get(i).getTekst().isEmpty()) {
+                        cell4 = this.createCellWithNewLine(((OrderDto) orderList.get(i)).getOmsumin(), "Tekst: "+orderList.get(i).getTekst(), font3);
+                    } else {
+                        cell4 = this.createCell(((OrderDto) orderList.get(i)).getOmsumin(), font2);
+                    }
+                } else {
+                    cell1 = this.createCell("", font2);
+                    cell2 = this.createCell("", font2);
+                    cell3 = this.createCell("", font2);
+                    cell4 = this.createCell("", font2);
+                }
+
+                // If MonSubOrders list is not empty, create a nested table inside this cell
+
+                if (list.size() != 0 && !isRepeat) {
+                    --i;
+                    table.addCell(cell1);
+                    table.addCell(cell2);
+                    table.addCell(cell3);
+                    table.addCell(cell4);
+
+                    // Set fixed height for all cells
+                    cell1.setFixedHeight(20.0F);
+                    cell2.setFixedHeight(20.0F);
+                    cell3.setFixedHeight(20.0F);
+                    cell4.setFixedHeight(20.0F);
+                    continue;
+                }
+
+
+                if (list.size() != 0 && isRepeat) {
+                    orderTrack.pop();
+                    PdfPTable nestedTable = new PdfPTable(3); // 3 columns for Best, Product, and Description
+                    nestedTable.setWidthPercentage(100.0F);
+                    float[] nestedColumnWidths = new float[]{11.0F, 19.0F, 70.0F}; // Distribute space equally for the 3 columns
+                    nestedTable.setWidths(nestedColumnWidths);
+                    nestedTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+                    // Iterate over the list and add rows to the nested table
+                    for (MonSubOrders subOrder : list) {
+                        PdfPCell nestedCell1 = this.createCell(subOrder.getAantal(), font2);
+                        PdfPCell nestedCell2 = this.createCell(subOrder.getProduct(), font2);
+                        PdfPCell nestedCell3 = this.createCell(subOrder.getOmsumin(), font2);
+                        nestedCell1.setBorder(Rectangle.RIGHT | Rectangle.BOTTOM);
+                        nestedCell2.setBorder(Rectangle.RIGHT | Rectangle.BOTTOM);
+                        nestedCell3.setBorder(Rectangle.BOTTOM);
+                        nestedTable.addCell(nestedCell1); // Best
+                        nestedTable.addCell(nestedCell2); // Product
+                        nestedTable.addCell(nestedCell3); // Description
+                    }
+
+                    // Add the nested table inside the regular cell
+                    cell4.addElement(nestedTable); // Add the nested table to the Omsumin cell
+                }
+
+                // Add the cells to the main table
                 table.addCell(cell1);
                 table.addCell(cell2);
                 table.addCell(cell3);
                 table.addCell(cell4);
+
+                // Set fixed height for all cells
                 cell1.setFixedHeight(20.0F);
                 cell2.setFixedHeight(20.0F);
                 cell3.setFixedHeight(20.0F);
@@ -218,6 +358,21 @@ public class MonPrintingServiceImp {
         return cell;
     }
 
+    private PdfPCell createCellWithNewLine(String text, String text2, Font font) {
+        Phrase phrase = new Phrase();
+        phrase.add(text);
+        phrase.add(Chunk.NEWLINE);
+        phrase.add(text2);
+
+        PdfPCell cell = new PdfPCell(phrase);
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        cell.setBorderWidth(0.3F);
+        cell.setPadding(2.0F);
+        return cell;
+    }
+
+
     private void addOptions(PdfWriter writer, Document document, List<OrderDto> orderList) throws DocumentException {
 
         int lettrCountForRows = 0;
@@ -234,6 +389,21 @@ public class MonPrintingServiceImp {
             }
         }
 
+        Boolean isSub = false;
+        for (OrderDto order : orderList) {
+            if (order.getMonSubOrders().size() > 0) {
+                isSub = true;
+                lettrCountForRows = lettrCountForRows + order.getMonSubOrders().size();
+            }
+        }
+
+        for (OrderDto order : orderList) {
+            if (order.getTekst() != null) {
+                lettrCountForRows++;
+            }
+        }
+
+
         Font font3 = new Font(FontFamily.HELVETICA, 10.0F, 1);
         Font font4 = new Font(FontFamily.HELVETICA, 10.0F);
         PdfContentByte cb = writer.getDirectContent();
@@ -244,13 +414,37 @@ public class MonPrintingServiceImp {
         float cb5Y5 = 281.0F;
         float cb6Y6 = 251.0F;
 
-        if (orderList.size() == 1 && lettrCountForRows > 0) {
+        if (orderList.size() == 1) {
+
             cb1Y1 -= 10.5F;
             cb2Y2 -= 10.5F;
             cb3Y3 -= 10.5F;
             cb4Y4 -= 10.5F;
             cb5Y5 -= 10.5F;
             cb6Y6 -= 10.5F;
+
+            if (lettrCountForRows > 0) {
+                lettrCountForRows *= 13;
+                if (isSub) {
+                    lettrCountForRows += 20;
+                } else {
+                    lettrCountForRows -= 20;
+                }
+
+                cb1Y1 -= (lettrCountForRows * 0.5F);
+                cb2Y2 -= (lettrCountForRows * 0.5F);
+                cb3Y3 -= (lettrCountForRows * 0.5F);
+                cb4Y4 -= (lettrCountForRows * 0.5F);
+                cb5Y5 -= (lettrCountForRows * 0.5F);
+                cb6Y6 -= (lettrCountForRows * 0.5F);
+            } else {
+                cb1Y1 += 15.5F;
+                cb2Y2 += 15.5F;
+                cb3Y3 += 15.5F;
+                cb4Y4 += 15.5F;
+                cb5Y5 += 15.5F;
+                cb6Y6 += 15.5F;
+            }
         }
 
         if (orderList.size() == 2) {
@@ -262,7 +456,10 @@ public class MonPrintingServiceImp {
             cb6Y6 -= 13.5F;
 
             if (lettrCountForRows > 0) {
-                lettrCountForRows *= 10;
+                lettrCountForRows *= 20;
+                if (isSub) {
+                    lettrCountForRows += 20;
+                }
 
                 cb1Y1 -= (lettrCountForRows * 0.5F);
                 cb2Y2 -= (lettrCountForRows * 0.5F);
@@ -283,7 +480,11 @@ public class MonPrintingServiceImp {
             cb6Y6 -= 28.5F;
 
             if (lettrCountForRows > 0) {
-                lettrCountForRows *= 10;
+                lettrCountForRows *= 20;
+
+                if (isSub) {
+                    lettrCountForRows += 20;
+                }
 
                 cb1Y1 -= (lettrCountForRows * 0.5F);
                 cb2Y2 -= (lettrCountForRows * 0.5F);
@@ -303,7 +504,10 @@ public class MonPrintingServiceImp {
             cb6Y6 -= 42.5F;
 
             if (lettrCountForRows > 0) {
-                lettrCountForRows *= 10;
+                lettrCountForRows *= 20;
+                if (isSub) {
+                    lettrCountForRows += 20;
+                }
 
                 cb1Y1 -= (lettrCountForRows * 0.5F);
                 cb2Y2 -= (lettrCountForRows * 0.5F);
@@ -323,7 +527,10 @@ public class MonPrintingServiceImp {
             cb6Y6 -= 57.0F;
 
             if (lettrCountForRows > 0) {
-                lettrCountForRows *= 10;
+                lettrCountForRows *= 20;
+                if (isSub) {
+                    lettrCountForRows += 20;
+                }
 
                 cb1Y1 -= (lettrCountForRows * 0.5F);
                 cb2Y2 -= (lettrCountForRows * 0.5F);
@@ -343,7 +550,7 @@ public class MonPrintingServiceImp {
             cb6Y6 -= 72.0F;
 
             if (lettrCountForRows > 0) {
-                lettrCountForRows *= 10;
+                lettrCountForRows *= 20;
 
                 cb1Y1 -= (lettrCountForRows * 0.5F);
                 cb2Y2 -= (lettrCountForRows * 0.5F);
@@ -363,7 +570,7 @@ public class MonPrintingServiceImp {
             cb6Y6 -= 93.0F;
 
             if (lettrCountForRows > 0) {
-                lettrCountForRows *= 10;
+                lettrCountForRows *= 20;
 
                 cb1Y1 -= (lettrCountForRows * 0.5F);
                 cb2Y2 -= (lettrCountForRows * 0.5F);
@@ -383,7 +590,7 @@ public class MonPrintingServiceImp {
             cb6Y6 -= 113.0F;
 
             if (lettrCountForRows > 0) {
-                lettrCountForRows *= 10;
+                lettrCountForRows *= 20;
 
                 cb1Y1 -= (lettrCountForRows * 0.5F);
                 cb2Y2 -= (lettrCountForRows * 0.5F);
@@ -403,7 +610,7 @@ public class MonPrintingServiceImp {
             cb6Y6 -= 134.0F;
 
             if (lettrCountForRows > 0) {
-                lettrCountForRows *= 10;
+                lettrCountForRows *= 20;
 
                 cb1Y1 -= (lettrCountForRows * 0.5F);
                 cb2Y2 -= (lettrCountForRows * 0.5F);
@@ -423,7 +630,7 @@ public class MonPrintingServiceImp {
             cb6Y6 -= 155.0F;
 
             if (lettrCountForRows > 0) {
-                lettrCountForRows *= 10;
+                lettrCountForRows *= 20;
 
                 cb1Y1 -= (lettrCountForRows * 0.5F);
                 cb2Y2 -= (lettrCountForRows * 0.5F);
@@ -443,7 +650,7 @@ public class MonPrintingServiceImp {
             cb6Y6 -= 175.0F;
 
             if (lettrCountForRows > 0) {
-                lettrCountForRows *= 10;
+                lettrCountForRows *= 20;
 
                 cb1Y1 -= (lettrCountForRows * 0.5F);
                 cb2Y2 -= (lettrCountForRows * 0.5F);
@@ -463,7 +670,7 @@ public class MonPrintingServiceImp {
             cb6Y6 -= 195.0F;
 
             if (lettrCountForRows > 0) {
-                lettrCountForRows *= 10;
+                lettrCountForRows *= 20;
 
                 cb1Y1 -= (lettrCountForRows * 0.5F);
                 cb2Y2 -= (lettrCountForRows * 0.5F);
@@ -483,7 +690,7 @@ public class MonPrintingServiceImp {
             cb6Y6 -= 215.0F;
 
             if (lettrCountForRows > 0) {
-                lettrCountForRows *= 10;
+                lettrCountForRows *= 20;
 
                 cb1Y1 -= (lettrCountForRows * 0.5F);
                 cb2Y2 -= (lettrCountForRows * 0.5F);
@@ -503,7 +710,7 @@ public class MonPrintingServiceImp {
             cb6Y6 -= 235.0F;
 
             if (lettrCountForRows > 0) {
-                lettrCountForRows *= 10;
+                lettrCountForRows *= 20;
 
                 cb1Y1 -= (lettrCountForRows * 0.5F);
                 cb2Y2 -= (lettrCountForRows * 0.5F);
@@ -523,7 +730,7 @@ public class MonPrintingServiceImp {
             cb6Y6 -= 255.0F;
 
             if (lettrCountForRows > 0) {
-                lettrCountForRows *= 10;
+                lettrCountForRows *= 20;
 
                 cb1Y1 -= (lettrCountForRows * 0.5F);
                 cb2Y2 -= (lettrCountForRows * 0.5F);
@@ -543,7 +750,7 @@ public class MonPrintingServiceImp {
             cb6Y6 -= 275.0F;
 
             if (lettrCountForRows > 0) {
-                lettrCountForRows *= 10;
+                lettrCountForRows *= 20;
 
                 cb1Y1 -= (lettrCountForRows * 0.5F);
                 cb2Y2 -= (lettrCountForRows * 0.5F);

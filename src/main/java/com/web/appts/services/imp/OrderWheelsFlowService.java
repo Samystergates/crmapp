@@ -190,7 +190,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
                 Document document = new Document();
                 PdfWriter writer = PdfWriter.getInstance(document, outputStream);
                 document.open();
-                this.addSMEHeadingAndAddress(document, "Smederij Order - DM241" + orderSMEDto.getId());
+                this.addSMEHeadingAndAddress(document, "Smederij Order - DM251" + orderSMEDto.getId());
                 this.addSMEBloeHeadingAndInfo(writer, document, "", orderSMEDto);
                 this.addSMEOptions(writer, document, orderSMEDto);
                 this.addSMESections(writer, document, orderSMEDto);
@@ -254,6 +254,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
     }
 
     private void addSMEBloeHeadingAndInfo(PdfWriter writer, Document document, String heading, OrderSMEDto orderSMEDto) throws DocumentException {
+        Font font1 = new Font(FontFamily.HELVETICA, 9.2F);
         Font font2 = new Font(FontFamily.HELVETICA, 12.0F);
         Font font4 = new Font(FontFamily.HELVETICA, 10.0F);
         PdfPTable mainTable = new PdfPTable(3);
@@ -279,8 +280,9 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         cell1.setBorder(0);
         mainTable.addCell(cell1);
         PdfPCell cell2 = new PdfPCell();
-        Paragraph paragraphL1 = new Paragraph(String.format("%-13s%-13s", " Naam Klant:", " " + oda.getCustomerName()), font4);
-        Paragraph paragraphL2 = new Paragraph(String.format("%-16s%-16s", "\n Verkoop order:   ", orderSMEDto.getOrderNumber()), font4);
+//        Paragraph paragraphL1 = new Paragraph(String.format("%-13s%-13s", " Naam Klant:", " " + oda.getCustomerName()), font4);
+        Paragraph paragraphL1 = new Paragraph("Naam Klant: " + oda.getCustomerName(), font1);
+        Paragraph paragraphL2 = new Paragraph(String.format("%-16s%-16s", "\n Verkoop order:   ", orderSMEDto.getOrderNumber()), font1);
         paragraphL1.setAlignment(0);
         paragraphL2.setAlignment(0);
         cell2.addElement(paragraphL1);
@@ -372,6 +374,10 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             orderSMEDto.setVentielbeschermer("");
         }
 
+        if (orderSMEDto.getOptionVentielbeschermer() == null) {
+            orderSMEDto.setOptionVentielbeschermer("");
+        }
+
         OrderDto orders = (OrderDto) this.orderServiceImp.getMap().get(orderSMEDto.getOrderNumber() + "," + orderSMEDto.getRegel());
         if (orders.getOmsumin() == null) {
             orders.setOmsumin("");
@@ -397,7 +403,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         labelParagraph10.setSpacingAfter(5.0F);
         Paragraph labelParagraph11 = new Paragraph(String.format("%-43s%-43s", "                                                                                        Verstevigingsringen:     ", "          Nippel (D/W systeem):  "), font4);
         labelParagraph11.setSpacingAfter(5.0F);
-        Paragraph labelParagraph12 = new Paragraph(String.format("%-43s%-43s", "                                                                                          Ventielbeschermer:     ", " "), font4);
+        Paragraph labelParagraph12 = new Paragraph(String.format("%-43s%-43s", "                                                                                          Ventielbeschermer:     ", "                    " + orderSMEDto.getOptionVentielbeschermer()), font4);
         PdfContentByte cb = writer.getDirectContent();
         cb.rectangle(380.0F, 383.0F, 10.0F, 10.0F);
         cb.stroke();
@@ -418,16 +424,6 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             cb2.lineTo(390.0F, 363.0F);
         }
 
-        PdfContentByte cb3 = writer.getDirectContent();
-        cb3.rectangle(380.0F, 343.0F, 10.0F, 10.0F);
-        cb3.stroke();
-        if (orderSMEDto.getVentielbeschermer().equals("JA")) {
-            cb3.moveTo(380.0F, 343.0F);
-            cb3.lineTo(390.0F, 353.0F);
-            cb3.moveTo(380.0F, 353.0F);
-            cb3.lineTo(390.0F, 343.0F);
-        }
-
         PdfContentByte cb4 = writer.getDirectContent();
         cb4.rectangle(520.0F, 383.0F, 10.0F, 10.0F);
         cb4.stroke();
@@ -446,6 +442,17 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             cb5.lineTo(530.0F, 373.0F);
             cb5.moveTo(520.0F, 373.0F);
             cb5.lineTo(530.0F, 363.0F);
+        }
+
+
+        PdfContentByte cb3 = writer.getDirectContent();
+        cb3.rectangle(380.0F, 343.0F, 10.0F, 10.0F);
+        cb3.stroke();
+        if (orderSMEDto.getVentielbeschermer().equals("JA")) {
+            cb3.moveTo(380.0F, 343.0F);
+            cb3.lineTo(390.0F, 353.0F);
+            cb3.moveTo(380.0F, 353.0F);
+            cb3.lineTo(390.0F, 343.0F);
         }
 
         labelParagraph12.setSpacingAfter(15.0F);
@@ -727,7 +734,6 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
                 lettrCountForRows++;
             }
         }
-
         PdfContentByte cb = writer.getDirectContent();
         if (lettrCountForRows <= 0) {
             cb.rectangle(170.0F, 570.0F, 10.0F, 10.0F);
@@ -738,16 +744,18 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         cb.stroke();
 
         if (orderSPUDto.getStralen().equals("JA")) {
-            cb.moveTo(170.0F, 570.0F);
-            cb.lineTo(180.0F, 580.0F);
-            cb.moveTo(170.0F, 580.0F);
-            cb.lineTo(180.0F, 570.0F);
 
             if (lettrCountForRows > 0) {
                 cb.moveTo(170.0F, 551.0F);
                 cb.lineTo(180.0F, 561.0F);
                 cb.moveTo(170.0F, 561.0F);
                 cb.lineTo(180.0F, 551.0F);
+            } else {
+
+                cb.moveTo(170.0F, 570.0F);
+                cb.lineTo(180.0F, 580.0F);
+                cb.moveTo(170.0F, 580.0F);
+                cb.lineTo(180.0F, 570.0F);
             }
         }
 
@@ -759,16 +767,17 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         }
         cb2.stroke();
         if (orderSPUDto.getStralenGedeeltelijk().equals("JA")) {
-            cb2.moveTo(170.0F, 540.0F);
-            cb2.lineTo(180.0F, 550.0F);
-            cb2.moveTo(170.0F, 550.0F);
-            cb2.lineTo(180.0F, 540.0F);
 
             if (lettrCountForRows > 0) {
                 cb2.moveTo(170.0F, 531.0F);
                 cb2.lineTo(180.0F, 541.0F);
                 cb2.moveTo(170.0F, 541.0F);
                 cb2.lineTo(180.0F, 531.0F);
+            } else {
+                cb2.moveTo(170.0F, 540.0F);
+                cb2.lineTo(180.0F, 550.0F);
+                cb2.moveTo(170.0F, 550.0F);
+                cb2.lineTo(180.0F, 540.0F);
             }
         }
 
@@ -780,16 +789,17 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         }
         cb3.stroke();
         if (orderSPUDto.getPoedercoaten().equals("JA")) {
-            cb3.moveTo(170.0F, 531.0F);
-            cb3.lineTo(180.0F, 541.0F);
-            cb3.moveTo(170.0F, 541.0F);
-            cb3.lineTo(180.0F, 531.0F);
 
             if (lettrCountForRows > 0) {
                 cb3.moveTo(170.0F, 512.0F);
                 cb3.lineTo(180.0F, 522.0F);
                 cb3.moveTo(170.0F, 522.0F);
                 cb3.lineTo(180.0F, 512.0F);
+            } else {
+                cb3.moveTo(170.0F, 531.0F);
+                cb3.lineTo(180.0F, 541.0F);
+                cb3.moveTo(170.0F, 541.0F);
+                cb3.lineTo(180.0F, 531.0F);
             }
         }
 
@@ -801,16 +811,17 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         }
         cb4.stroke();
         if (orderSPUDto.getKitten().equals("JA")) {
-            cb4.moveTo(170.0F, 512.0F);
-            cb4.lineTo(180.0F, 522.0F);
-            cb4.moveTo(170.0F, 522.0F);
-            cb4.lineTo(180.0F, 512.0F);
 
             if (lettrCountForRows > 0) {
-                cb3.moveTo(170.0F, 493.0F);
-                cb3.lineTo(180.0F, 503.0F);
-                cb3.moveTo(170.0F, 503.0F);
-                cb3.lineTo(180.0F, 493.0F);
+                cb4.moveTo(170.0F, 493.0F);
+                cb4.lineTo(180.0F, 503.0F);
+                cb4.moveTo(170.0F, 503.0F);
+                cb4.lineTo(180.0F, 493.0F);
+            } else {
+                cb4.moveTo(170.0F, 512.0F);
+                cb4.lineTo(180.0F, 522.0F);
+                cb4.moveTo(170.0F, 522.0F);
+                cb4.lineTo(180.0F, 512.0F);
             }
         }
 
@@ -822,16 +833,17 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         }
         cb5.stroke();
         if (orderSPUDto.getPrimer().equals("JA")) {
-            cb5.moveTo(170.0F, 493.0F);
-            cb5.lineTo(180.0F, 503.0F);
-            cb5.moveTo(170.0F, 503.0F);
-            cb5.lineTo(180.0F, 493.0F);
 
             if (lettrCountForRows > 0) {
-                cb3.moveTo(170.0F, 474.0F);
-                cb3.lineTo(180.0F, 484.0F);
-                cb3.moveTo(170.0F, 484.0F);
-                cb3.lineTo(180.0F, 474.0F);
+                cb5.moveTo(170.0F, 474.0F);
+                cb5.lineTo(180.0F, 484.0F);
+                cb5.moveTo(170.0F, 484.0F);
+                cb5.lineTo(180.0F, 474.0F);
+            } else {
+                cb5.moveTo(170.0F, 493.0F);
+                cb5.lineTo(180.0F, 503.0F);
+                cb5.moveTo(170.0F, 503.0F);
+                cb5.lineTo(180.0F, 493.0F);
             }
         }
 
@@ -843,16 +855,17 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         }
         cb6.stroke();
         if (orderSPUDto.getOntlakken().equals("JA")) {
-            cb6.moveTo(170.0F, 474.0F);
-            cb6.lineTo(180.0F, 484.0F);
-            cb6.moveTo(170.0F, 484.0F);
-            cb6.lineTo(180.0F, 474.0F);
 
             if (lettrCountForRows > 0) {
-                cb3.moveTo(170.0F, 455.0F);
-                cb3.lineTo(180.0F, 465.0F);
-                cb3.moveTo(170.0F, 465.0F);
-                cb3.lineTo(180.0F, 455.0F);
+                cb6.moveTo(170.0F, 455.0F);
+                cb6.lineTo(180.0F, 465.0F);
+                cb6.moveTo(170.0F, 465.0F);
+                cb6.lineTo(180.0F, 455.0F);
+            } else {
+                cb6.moveTo(170.0F, 474.0F);
+                cb6.lineTo(180.0F, 484.0F);
+                cb6.moveTo(170.0F, 484.0F);
+                cb6.lineTo(180.0F, 474.0F);
             }
         }
 
@@ -864,16 +877,17 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         }
         cb7.stroke();
         if (orderSPUDto.getKleurOmschrijving() != null) {
-            cb7.moveTo(170.0F, 455.0F);
-            cb7.lineTo(180.0F, 465.0F);
-            cb7.moveTo(170.0F, 465.0F);
-            cb7.lineTo(180.0F, 455.0F);
 
             if (lettrCountForRows > 0) {
-                cb3.moveTo(170.0F, 436.0F);
-                cb3.lineTo(180.0F, 446.0F);
-                cb3.moveTo(170.0F, 446.0F);
-                cb3.lineTo(180.0F, 436.0F);
+                cb7.moveTo(170.0F, 436.0F);
+                cb7.lineTo(180.0F, 446.0F);
+                cb7.moveTo(170.0F, 446.0F);
+                cb7.lineTo(180.0F, 436.0F);
+            } else {
+                cb7.moveTo(170.0F, 455.0F);
+                cb7.lineTo(180.0F, 465.0F);
+                cb7.moveTo(170.0F, 465.0F);
+                cb7.lineTo(180.0F, 455.0F);
             }
         }
 
@@ -885,16 +899,17 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         }
         cb8.stroke();
         if (orderSPUDto.getBlankeLak().equals("JA")) {
-            cb8.moveTo(170.0F, 435.0F);
-            cb8.lineTo(180.0F, 445.0F);
-            cb8.moveTo(170.0F, 445.0F);
-            cb8.lineTo(180.0F, 435.0F);
 
             if (lettrCountForRows > 0) {
-                cb3.moveTo(170.0F, 416.0F);
-                cb3.lineTo(180.0F, 426.0F);
-                cb3.moveTo(170.0F, 426.0F);
-                cb3.lineTo(180.0F, 416.0F);
+                cb8.moveTo(170.0F, 416.0F);
+                cb8.lineTo(180.0F, 426.0F);
+                cb8.moveTo(170.0F, 426.0F);
+                cb8.lineTo(180.0F, 416.0F);
+            } else {
+                cb8.moveTo(170.0F, 435.0F);
+                cb8.lineTo(180.0F, 445.0F);
+                cb8.moveTo(170.0F, 445.0F);
+                cb8.lineTo(180.0F, 435.0F);
             }
         }
 

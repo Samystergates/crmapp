@@ -3,23 +3,19 @@ package com.web.appts.services.imp;
 
 import com.web.appts.DTO.ArchivedOrdersDto;
 import com.web.appts.DTO.OrderDto;
+import com.web.appts.entities.MonSubOrders;
 import com.web.appts.entities.Order;
 import com.web.appts.entities.OrderDepartment;
 import com.web.appts.exceptions.ResourceNotFoundException;
+import com.web.appts.repositories.MonSubOrdersRepo;
 import com.web.appts.repositories.OrderRepo;
 import com.web.appts.services.ArchivedOrdersService;
 import com.web.appts.services.OrderService;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.Serializable;
-import java.lang.reflect.Array;
 import java.lang.reflect.Method;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -27,14 +23,18 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.transaction.Transactional;
 
+import com.web.appts.utils.OdbcConnectionMonitor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.hibernate.Hibernate;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
+import static java.util.Collections.min;
 
 @Service
 public class OrderServiceImp implements OrderService {
@@ -46,9 +46,13 @@ public class OrderServiceImp implements OrderService {
     @Autowired
     private OrderRepo orderRepo;
     @Autowired
+    private MonSubOrdersRepo monSubOrdersRepo;
+    @Autowired
     private ArchivedOrdersService archivedOrdersService;
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private OdbcConnectionMonitor connectionMonitor;
 
     public OrderServiceImp() {
     }
@@ -112,6 +116,7 @@ public class OrderServiceImp implements OrderService {
 
     @Transactional
     public void deleteOrderData(List<Integer> ids) {
+        this.orderRepo.deleteMonSubsForIds(ids);
         this.orderRepo.deleteODForIds(ids);
         this.orderRepo.deleteOrdersByIds(ids);
         System.out.print("deleted: ");
@@ -134,6 +139,8 @@ public class OrderServiceImp implements OrderService {
         order.setCity(orderDto.getCity());
         order.setOrganization(orderDto.getOrganization());
         order.setCustomerName(orderDto.getCustomerName());
+        order.setIsParent(orderDto.getIsParent());
+        order.setTekst(orderDto.getTekst());
         if (orderDto.getIsExpired() != null) {
             order.setIsExpired(orderDto.getIsExpired());
         }
@@ -582,13 +589,13 @@ public class OrderServiceImp implements OrderService {
 
     @Async
     @Scheduled(fixedRate = 300000)
-    public void runQuery() {
+    public synchronized void markExpired() {
         if (!ordersMap.isEmpty() && !this.archivedOrdersService.getAllArchivedOrders().isEmpty()) {
             try {
                 String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
                 System.out.println("----------driver----------");
                 System.out.println(driver);
-                String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;ConnectTimeout=30;MaxBufferSize=1024;SocketTimeout=60;Trusted_Connection=Yes;";
+                String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;ConnectTimeout=30;MaxBufferSize=2048;SocketTimeout=60;Trusted_Connection=Yes;";
                 System.out.println("----------connectionString----------");
                 System.out.println(connectionString);
                 String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', " +
@@ -605,7 +612,8 @@ public class OrderServiceImp implements OrderService {
                 try (Connection connection = DriverManager.getConnection(connectionString);
                      Statement statement = connection.createStatement();
                      ResultSet resultSet = statement.executeQuery(query)) {
-                    if (statement != null) {
+                    connectionMonitor.registerConnection(connection);
+                    if (statement != null && resultSet != null) {
                         System.out.println("----------resultSet----------");
                         System.out.println(resultSet);
                         System.out.println(resultSet.next());
@@ -674,7 +682,11 @@ public class OrderServiceImp implements OrderService {
                                 .peek(obj -> obj.setIsExpired(true))
                                 .collect(Collectors.toList());
 
-                        matchingObjects.forEach(obj -> this.updateOrder(obj, obj.getId(), false));
+
+                        matchingObjects.forEach(obj -> {
+                            System.out.println("Got Expired: " + obj.getExpired() + "," + obj.getId());
+                            this.updateOrder(obj, obj.getId(), false);
+                        });
 
 
                         //this.moveToArchive(filteredOrders);
@@ -690,7 +702,7 @@ public class OrderServiceImp implements OrderService {
 
     @Async
     @Scheduled(fixedRate = 380000)
-    public void archiveExpiredOrders() {
+    public synchronized void archiveExpiredOrders() {
         List<OrderDto> orderList = new ArrayList<>(ordersMap.values());
 
         // Group by orderNumber
@@ -718,24 +730,10 @@ public class OrderServiceImp implements OrderService {
             String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
             System.out.println("----------driver----------");
             System.out.println(driver);
-            String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;ConnectTimeout=30;MaxBufferSize=1024;SocketTimeout=60;Trusted_Connection=Yes;";
+            String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;ConnectTimeout=30;MaxBufferSize=4096;SocketTimeout=60;Trusted_Connection=Yes;";
             System.out.println("----------connectionString----------");
             System.out.println(connectionString);
-//            String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', \"va-210\".\"cdordsrt\" AS 'Ordersoort'," +
-//                    " \"va-211\".\"cdborder\" AS 'Backorder', \"va-210\".\"cdgebruiker-init\" AS 'Gebruiker (I)', \"va-210\".\"cddeb\" AS 'Organisatie'," +
-//                    " \"ba-001\".\"naamorg\" AS 'Naam', \"ba-012\".\"postcode\" AS 'Postcode', \"ba-012\".\"plaats\" AS 'Plaats'," +
-//                    " \"ba-012\".\"cdland\" AS 'Land', \"va-210\".\"datum-lna\" AS 'Leverdatum', \"va-210\".\"opm-30\" AS 'Referentie'," +
-//                    " \"va-210\".\"datum-order\" AS 'Datum order', \"va-210\".\"SYS-DATE\" AS 'Datum laatste wijziging'," +
-//                    " \"va-210\".\"cdgebruiker\" AS 'Gebruiker (L)', \"va-211\".\"nrordrgl\" AS 'Regel', \"va-211\".\"aantbest\" AS 'Aantal besteld'," +
-//                    " \"va-211\".\"aanttelev\" AS 'Aantal geleverd', \"va-211\".\"cdprodukt\" AS 'Product', \"af-801\".\"tekst\" AS 'Omschrijving'," +
-//                    " \"va-211\".\"volgorde\" AS 'regelvolgorde', \"bb-043\".\"cdprodgrp\" FROM DATA.PUB.\"af-801\" , DATA.PUB.\"ba-001\" ," +
-//                    " DATA.PUB.\"ba-012\" , DATA.PUB.\"bb-043\" , DATA.PUB.\"va-210\" , DATA.PUB.\"va-211\" " +
-//                    "WHERE \"ba-001\".\"cdorg\" = \"va-210\".\"cdorg\" AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" " +
-//                    "AND \"va-211\".\"cdorder\" = \"va-210\".\"cdorder\" AND \"va-211\".\"cdorg\" = \"ba-001\".\"cdorg\" " +
-//                    "AND \"va-211\".\"cdprodukt\" = \"af-801\".\"cdsleutel1\" AND \"ba-012\".\"id-cdads\" = \"va-211\".\"id-cdads\" " +
-//                    "AND \"bb-043\".\"cdprodukt\" = \"va-211\".\"cdprodukt\" AND ((\"af-801\".\"cdtabel\"='bb-062') AND (\"va-210\".\"cdadmin\"='01') " +
-//                    "AND (\"va-211\".\"cdadmin\"='01') AND (\"va-210\".\"cdvestiging\"='ree') AND (\"va-210\".\"cdstatus\" <> 'Z' " +
-//                    "And \"va-210\".\"cdstatus\" <> 'B') AND (\"bb-043\".\"cdprodcat\"='pro'))";
+
             String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', \"va-210\".\"cdordsrt\" AS 'Ordersoort'," +
                     " \"va-211\".\"cdborder\" AS 'Backorder', \"va-210\".\"cdgebruiker-init\" AS 'Gebruiker (I)', \"va-210\".\"cddeb\" AS 'Organisatie'," +
                     " \"ba-001\".\"naamorg\" AS 'Naam', \"ba-012\".\"postcode\" AS 'Postcode', \"ba-012\".\"plaats\" AS 'Plaats'," +
@@ -751,12 +749,33 @@ public class OrderServiceImp implements OrderService {
                     "AND \"bb-043\".\"cdprodukt\" = \"va-211\".\"cdprodukt\" AND ((\"af-801\".\"cdtabel\"='bb-062') AND (\"va-210\".\"cdadmin\"='01') " +
                     "AND (\"va-211\".\"cdadmin\"='01') AND (\"va-210\".\"cdvestiging\"='ree') AND (\"va-210\".\"cdstatus\" <> 'Z' " +
                     "And \"va-210\".\"cdstatus\" <> 'B') AND (\"bb-043\".\"cdprodcat\"='pro'))";
+
+//            String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', \"va-210\".\"cdordsrt\" AS 'Ordersoort'," +
+//                    "\"va-211\".\"cdborder\" AS 'Backorder', \"va-210\".\"cdgebruiker-init\" AS 'Gebruiker (I)', \"va-210\".\"cddeb\" AS 'Organisatie'," +
+//                    "\"ba-001\".\"naamorg\" AS 'Naam', \"ba-012\".\"postcode\" AS 'Postcode', \"ba-012\".\"plaats\" AS 'Plaats'," +
+//                    "\"ba-012\".\"cdland\" AS 'Land', \"va-210\".\"datum-lna\" AS 'Leverdatum', \"va-210\".\"opm-30\" AS 'Referentie'," +
+//                    "\"va-210\".\"datum-order\" AS 'Datum order', \"va-210\".\"SYS-DATE\" AS 'Datum laatste wijziging'," +
+//                    "\"va-210\".\"cdgebruiker\" AS 'Gebruiker (L)', \"va-211\".\"nrordrgl\" AS 'Regel', \"va-211\".\"aantbest\" AS 'Aantal besteld'," +
+//                    "\"va-211\".\"aanttelev\" AS 'Aantal geleverd', \"va-211\".\"cdprodukt\" AS 'Product', \"af-801\".\"tekst\" AS 'Omschrijving'," +
+//                    "\"va-211\".\"volgorde\" AS 'regelvolgorde', af801_tekst.\"tekst\" AS 'text', \"bb-043\".\"cdprodgrp\" AS 'Productgroep' " +
+//                    "FROM DATA.PUB.\"af-801\", DATA.PUB.\"ba-001\", DATA.PUB.\"ba-012\", DATA.PUB.\"bb-043\", DATA.PUB.\"va-210\", DATA.PUB.\"va-211\" " +
+//                    "LEFT JOIN DATA.PUB.\"af-801\" AS af801_tekst " +
+//                    "ON af801_tekst.\"cdsleutel1\" = \"va-211\".\"cdprodukt\" AND af801_tekst.\"cdsleutel2\" = \"va-211\".\"nrordrgl\" " +
+//                    "AND af801_tekst.\"cdsoort\" = 'ORR' " +
+//                    "WHERE \"ba-001\".\"cdorg\" = \"va-210\".\"cdorg\" AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" " +
+//                    "AND \"va-211\".\"cdorder\" = \"va-210\".\"cdorder\" " +
+//                    "AND \"va-211\".\"cdprodukt\" = \"af-801\".\"cdsleutel1\" AND \"ba-012\".\"id-cdads\" = \"va-211\".\"id-cdads\" " +
+//                    "AND \"bb-043\".\"cdprodukt\" = \"va-211\".\"cdprodukt\" AND ((\"af-801\".\"cdtabel\"='bb-062') AND (\"va-210\".\"cdadmin\"='01') " +
+//                    "AND (\"va-211\".\"cdadmin\"='01') AND (\"va-210\".\"cdvestiging\"='ree') AND (\"va-210\".\"cdstatus\" <> 'Z' " +
+//                    "And \"va-210\".\"cdstatus\" <> 'B') AND (\"bb-043\".\"cdprodcat\"='pro'))";
+
             System.out.println("----------query----------");
             System.out.println(query);
             Class.forName(driver);
             try (Connection connection = DriverManager.getConnection(connectionString);
                  Statement statement = connection.createStatement();
                  ResultSet resultSet = statement.executeQuery(query)) {
+                connectionMonitor.registerConnection(connection);
                 //Class.forName(driver);
                 System.out.println("----------connection----------");
                 System.out.println(connection);
@@ -767,12 +786,12 @@ public class OrderServiceImp implements OrderService {
                     System.out.println(resultSet);
                     String orderNumber = null;
                     while (resultSet.next()) {
-                        orderNumber = resultSet.getString("Verkooporder");
-                        System.out.println(orderNumber);
                         if (resultSet.wasNull()) {
                             System.out.println("no ordernumer");
                             continue;
                         }
+                        orderNumber = resultSet.getString("Verkooporder");
+                        System.out.println(orderNumber);
                         String orderType = resultSet.getString("Ordersoort");
                         String backOrder = resultSet.getString("Backorder");
                         String user = resultSet.getString("Gebruiker (I)");
@@ -794,11 +813,15 @@ public class OrderServiceImp implements OrderService {
                         String deliveryDate2 = "";
                         OrderDto orderDto = new OrderDto();
                         String finalOrderNumber = orderNumber;
-                        if (!this.ordersMap.containsKey(orderNumber + "," + regel) && !this.archivedOrdersService.getAllArchivedOrders().stream().anyMatch((obj) -> {
+
+                        if (this.archivedOrdersService.getAllArchivedOrders().stream().anyMatch((obj) -> {
                             return obj.getOrderNumber().equals(finalOrderNumber);
                         })) {
+                            archivedOrdersService.deleteFromArchive(finalOrderNumber);
+                        }
+                        if (!this.ordersMap.containsKey(orderNumber + "," + regel)) {
                             String finalOrderNumber1 = orderNumber;
-                            if (!this.ordersMap.entrySet().stream().anyMatch((obj) -> {
+                            if (this.ordersMap.entrySet().stream().noneMatch((obj) -> {
                                 return ((OrderDto) obj.getValue()).getOrderNumber().equals(finalOrderNumber1);
                             })) {
                                 orderDto.setIsParent(1);
@@ -893,6 +916,9 @@ public class OrderServiceImp implements OrderService {
                 }
             } catch (SQLException var35) {
                 var35.printStackTrace();
+                this.updateProductNotes();
+                this.createMonSub();
+                this.adjustParentOrders();
                 List<OrderDto> orderList = this.getAllOrders();
                 this.orderDtoList = orderList;
                 return this.orderDtoList;
@@ -901,13 +927,17 @@ public class OrderServiceImp implements OrderService {
             } catch (Exception var37) {
                 Exception e = var37;
                 e.printStackTrace();
+                this.updateProductNotes();
+                this.createMonSub();
+                this.adjustParentOrders();
                 List<OrderDto> orderList = this.getAllOrders();
                 this.orderDtoList = orderList;
                 return this.orderDtoList;
                 //new ResourceNotFoundException("Order", "CRM", "N/A");
                 //return null;
             }
-
+            this.updateProductNotes();
+            this.createMonSub();
             this.ordersMap.clear();
             List<OrderDto> orderList = this.getAllOrders();
             this.orderDtoList = orderList;
@@ -915,6 +945,9 @@ public class OrderServiceImp implements OrderService {
         } catch (Exception var39) {
             Exception e = var39;
             e.printStackTrace();
+            this.updateProductNotes();
+            this.createMonSub();
+            this.adjustParentOrders();
             List<OrderDto> orderList = this.getAllOrders();
             this.orderDtoList = orderList;
             return this.orderDtoList;
@@ -966,7 +999,8 @@ public class OrderServiceImp implements OrderService {
         String orderType = orderDto.getOrderType();
         List<OrderDepartment> depList = new ArrayList();
         String wheelOrder = orderDto.getCdProdGrp();
-        String pattern = "(182|183|184|440|820|821|822|823|824|825|826|850|851)";
+        //String pattern = "(182|183|184|410|440|441|820|821|822|823|824|825|826|850|851)";
+        String pattern = ".*(182|183|184|410|440|441|820|821|822|823|824|825|826|850|851).*";
         Pattern compiledPattern = Pattern.compile(pattern);
         Matcher matcher = compiledPattern.matcher(wheelOrder);
         if (matcher.find()) {
@@ -980,8 +1014,7 @@ public class OrderServiceImp implements OrderService {
                 orderDto.getCdProdGrp().contains("402") || orderDto.getCdProdGrp().contains("403") ||
                 orderDto.getCdProdGrp().contains("404") || orderDto.getCdProdGrp().contains("405") ||
                 orderDto.getCdProdGrp().contains("406") || orderDto.getCdProdGrp().contains("407") ||
-                orderDto.getCdProdGrp().contains("408") || orderDto.getCdProdGrp().contains("409") ||
-                orderDto.getCdProdGrp().contains("410") || orderDto.getCdProdGrp().contains("411") ||
+                orderDto.getCdProdGrp().contains("408") || orderDto.getCdProdGrp().contains("409") || orderDto.getCdProdGrp().contains("411") ||
                 orderDto.getCdProdGrp().contains("412") || orderDto.getCdProdGrp().contains("413") ||
                 orderDto.getCdProdGrp().contains("414") || orderDto.getCdProdGrp().contains("415") ||
                 orderDto.getCdProdGrp().contains("416") || orderDto.getCdProdGrp().contains("417") ||
@@ -1120,6 +1153,348 @@ public class OrderServiceImp implements OrderService {
         }
 
         orderDto.setDepartments(depList);
+    }
+
+    @Override
+    public void adjustParentOrders() {
+        Map<String, List<OrderDto>> groupedOrdersMap = ordersMap.values().stream()
+                .collect(Collectors.groupingBy(OrderDto::getOrderNumber));
+
+        for (Map.Entry<String, List<OrderDto>> entry : groupedOrdersMap.entrySet()) {
+            List<OrderDto> orderDtos = entry.getValue();
+
+            OrderDto parentOrderDto = orderDtos.stream()
+                    .min(Comparator.comparingInt(o -> Integer.parseInt(o.getRegel())))
+                    .orElseThrow(() -> new IllegalStateException("No orders found for ordernumber: " + entry.getKey()));
+
+            boolean leastOneIsParentAlready = parentOrderDto.getIsParent() == 1;
+            List<OrderDto> ordersToUpdate = new ArrayList<>();
+
+            for (OrderDto orderDto : orderDtos) {
+                if (Integer.parseInt(orderDto.getRegel()) != Integer.parseInt(parentOrderDto.getRegel())) {
+                    if (orderDto.getIsParent() == 1) {
+                        orderDto.setIsParent(0);
+                        ordersToUpdate.add(orderDto);
+                    }
+                }
+            }
+            if (!leastOneIsParentAlready) {
+                parentOrderDto.setIsParent(1);
+                ordersToUpdate.add(parentOrderDto);
+            }
+            ordersToUpdate.forEach(order -> updateOrder(order, order.getId(), false));
+        }
+    }
+
+
+    @Override
+    public void createMonSubDemo() {
+
+        OrderDto orderDto = ordersMap.getOrDefault("V0500331" + "," + "1", null);
+
+        Order order = orderRepo.findById(orderDto.getId()).get();
+        MonSubOrders subOrder = new MonSubOrders();
+        subOrder.setOrderNumber(orderDto.getOrderNumber());
+        subOrder.setProduct(orderDto.getProduct() + "2");
+        subOrder.setRegel("1");
+        subOrder.setAantal(order.getAantal());
+        subOrder.setOmsumin("some description");
+        subOrder.setOrder(order);
+
+        if (order.getMonSubOrders() != null) {
+            order.getMonSubOrders().add(subOrder);
+        } else {
+            List<MonSubOrders> subOrdersList = new ArrayList<>();
+            subOrdersList.add(subOrder);
+            order.setMonSubOrders(subOrdersList);
+        }
+        orderRepo.save(order);
+    }
+
+    private void updateProductNotes(){
+        try {
+            String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
+            System.out.println("----------driver----------");
+            System.out.println(driver);
+            String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;ConnectTimeout=30;MaxBufferSize=4096;SocketTimeout=60;Trusted_Connection=Yes;";
+            System.out.println("----------connectionString----------");
+            System.out.println(connectionString);
+
+            System.out.println("Orders Map Size: " + ordersMap.size());
+            List<String> formattedOrders = new ArrayList<>();
+            for (Map.Entry<String, OrderDto> entry : ordersMap.entrySet()) {
+                String orderNumbers = entry.getValue().getOrderNumber();
+                formattedOrders.add("'" + orderNumbers + "'");
+            }
+
+            String stringOfOrdersWithCommaAndQuotations = String.join(",", formattedOrders);
+
+            String query = "SELECT \"af-801\".\"cdsleutel1\" AS 'Verkooporder', \"af-801\".\"tekst\" AS 'TekstDescription', \"af-801\".\"cdsleutel2\" AS 'Regel' " +
+                    "FROM DATA.PUB.\"af-801\" " +
+                    "WHERE \"af-801\".\"cdsoort\" = 'ORR' " +
+                    "AND \"af-801\".\"cdsleutel1\" IN (" + stringOfOrdersWithCommaAndQuotations + ")";
+
+            System.out.println("----------query----------");
+            System.out.println(query);
+            Class.forName(driver);
+            try (Connection connection = DriverManager.getConnection(connectionString);
+                 Statement statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+                 ResultSet resultSet = statement.executeQuery(query)) {
+                connectionMonitor.registerConnection(connection);
+                System.out.println("----------connection----------");
+                System.out.println(connection);
+                System.out.println("----------statement----------");
+                System.out.println(statement);
+                if (statement != null) {
+                    System.out.println("----------resultSet----------");
+                    System.out.println(resultSet);
+                    if (resultSet != null) {
+                        ResultSetMetaData metaData = resultSet.getMetaData();
+                        for (int i = 1; i <= metaData.getColumnCount(); i++) {
+                            System.out.println(metaData.getColumnName(i));
+                        }
+
+                        boolean hasRows = resultSet.isBeforeFirst();
+                        System.out.println("ResultSet has rows: " + hasRows);
+
+                        if (hasRows) {
+                            System.out.println("----------resultSet Rows----------");
+                            while (resultSet.next()) {
+
+                                String orderNumber = resultSet.getString("Verkooporder");
+                                String regel = resultSet.getString("Regel");
+                                String text = resultSet.getString("TekstDescription");
+
+                                regel = String.valueOf(Integer.parseInt(regel));
+
+                                OrderDto orderDto = ordersMap.getOrDefault(orderNumber + "," + regel, null);
+                                if (orderDto != null) {
+                                    if(orderDto.getTekst() != null && !orderDto.getTekst().equals(text)){
+                                        orderDto.setTekst(text);
+                                        this.updateOrder(orderDto, orderDto.getId(), false);
+                                    }
+                                    if (orderDto.getTekst() == null) {
+                                        orderDto.setTekst(text);
+                                        this.updateOrder(orderDto, orderDto.getId(), false);
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        System.out.println("ResultSet is empty or null.");
+                    }
+                }
+            } catch (Exception var39) {
+                Exception e = var39;
+                e.printStackTrace();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public Map<String, OrderDto> verifyCrmOrders() {
+        try {
+            String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
+            System.out.println("----------driver----------");
+            System.out.println(driver);
+            String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;ConnectTimeout=30;MaxBufferSize=4096;SocketTimeout=60;Trusted_Connection=Yes;";
+            System.out.println("----------connectionString----------");
+            System.out.println(connectionString);
+
+            System.out.println("Orders Map Size: " + ordersMap.size());
+            List<String> formattedOrders = new ArrayList<>();
+            for (Map.Entry<String, OrderDto> entry : ordersMap.entrySet()) {
+                String orderNumbers = entry.getValue().getOrderNumber();
+                formattedOrders.add("'" + orderNumbers + "'");
+            }
+
+            String stringOfOrdersWithCommaAndQuotations = String.join(",", formattedOrders);
+
+            String query = "SELECT \"af-801\".\"cdsleutel1\" AS 'Verkooporder', \"af-801\".\"tekst\" AS 'TekstDescription', \"af-801\".\"cdsleutel2\" AS 'Regel' " +
+                    "FROM DATA.PUB.\"af-801\" " +
+                    "WHERE \"af-801\".\"cdsoort\" = 'ORR' " +
+                    "AND \"af-801\".\"cdsleutel1\" IN (" + stringOfOrdersWithCommaAndQuotations + ")";
+
+            System.out.println("----------query----------");
+            System.out.println(query);
+            Class.forName(driver);
+            try (Connection connection = DriverManager.getConnection(connectionString);
+                 Statement statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+                 ResultSet resultSet = statement.executeQuery(query)) {
+                connectionMonitor.registerConnection(connection);
+                System.out.println("----------connection----------");
+                System.out.println(connection);
+                System.out.println("----------statement----------");
+                System.out.println(statement);
+                if (statement != null) {
+                    System.out.println("----------resultSet----------");
+                    System.out.println(resultSet);
+                    if (resultSet != null) {
+                        ResultSetMetaData metaData = resultSet.getMetaData();
+                        for (int i = 1; i <= metaData.getColumnCount(); i++) {
+                            System.out.println(metaData.getColumnName(i));
+                        }
+
+                        boolean hasRows = resultSet.isBeforeFirst();
+                        System.out.println("ResultSet has rows: " + hasRows);
+
+                        if (hasRows) {
+                            System.out.println("----------resultSet Rows----------");
+                            while (resultSet.next()) {
+
+                                String orderNumber = resultSet.getString("Verkooporder");
+                                String regel = resultSet.getString("Regel");
+                                String text = resultSet.getString("TekstDescription");
+
+                                regel = String.valueOf(Integer.parseInt(regel));
+
+                                OrderDto orderDto = ordersMap.getOrDefault(orderNumber + "," + regel, null);
+                                if (orderDto != null) {
+                                    if(orderDto.getTekst() != null && !orderDto.getTekst().equals(text)){
+                                        orderDto.setTekst(text);
+                                        this.updateOrder(orderDto, orderDto.getId(), false);
+                                    }
+                                    if (orderDto.getTekst() == null) {
+                                        orderDto.setTekst(text);
+                                        this.updateOrder(orderDto, orderDto.getId(), false);
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        System.out.println("ResultSet is empty or null.");
+                    }
+                }
+            } catch (Exception var39) {
+                Exception e = var39;
+                e.printStackTrace();
+                return null;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+        return null;
+    }
+
+    @Override
+    public Map<String, OrderDto> createMonSub() {
+
+        try {
+            String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
+            String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;ConnectTimeout=30;MaxBufferSize=4096;SocketTimeout=60;Trusted_Connection=Yes;";
+
+            List<String> formattedOrders = new ArrayList<>();
+            for (Map.Entry<String, OrderDto> entry : ordersMap.entrySet()) {
+                if ("MLE".equals(entry.getValue().getOrderType()) ||
+                        "MSE".equals(entry.getValue().getOrderType()) ||
+                        "MSP".equals(entry.getValue().getOrderType()) ||
+                        "MWP".equals(entry.getValue().getOrderType()) ||
+                        "MLP".equals(entry.getValue().getOrderType()) ||
+                        "MAP".equals(entry.getValue().getOrderType()) ||
+                        "MST".equals(entry.getValue().getOrderType()) ||
+                        "MLT".equals(entry.getValue().getOrderType()) ||
+                        "MSO".equals(entry.getValue().getOrderType()) ||
+                        "MWO".equals(entry.getValue().getOrderType()) ||
+                        "MLO".equals(entry.getValue().getOrderType()) ||
+                        "MAO".equals(entry.getValue().getOrderType())) {
+
+                    String orderNumber = entry.getValue().getOrderNumber();
+                    formattedOrders.add("'" + orderNumber + "'");
+                }
+            }
+
+            String stringOfOrdersWithCommaAndQuotations = String.join(",", formattedOrders);
+
+            String query = "SELECT \"va-229\".\"cdorder\" AS 'Verkooporder', \"va-229\".\"nrordrgl\" AS 'Regel', \"va-229\".\"cdprodukt\" AS 'Product', " +
+                    "\"va-229\".\"cdadmin\" AS 'Admin', \"af-801\".\"tekst\" AS 'Omschrijving' " +
+                    "FROM DATA.PUB.\"va-229\" va " +
+                    "LEFT JOIN DATA.PUB.\"af-801\" af ON va.\"cdprodukt\" = af.\"cdsleutel1\" " +
+                    "AND af.\"cdtabel\" = 'bb-062' " +
+                    "WHERE va.\"cdstatus\" <> 'Z' " +
+                    "AND va.\"cdadmin\" = '01' " +
+                    "AND va.\"cdorder\" IN (" + stringOfOrdersWithCommaAndQuotations + ")";
+
+            System.out.println("----------query----------");
+            System.out.println(query);
+            Class.forName(driver);
+            try (Connection connection = DriverManager.getConnection(connectionString);
+                 Statement statement = connection.createStatement();
+                 ResultSet resultSet = statement.executeQuery(query)) {
+                connectionMonitor.registerConnection(connection);
+                //Class.forName(driver);
+                System.out.println("----------connection----------");
+                System.out.println(connection);
+                System.out.println("----------statement----------");
+                System.out.println(statement);
+                if (statement != null && resultSet != null) {
+                    System.out.println("----------resultSet----------");
+                    System.out.println(resultSet);
+                    String orderNumber = null;
+                    while (resultSet.next()) {
+                        orderNumber = resultSet.getString("Verkooporder");
+                        System.out.println(orderNumber);
+                        if (resultSet.wasNull()) {
+                            System.out.println("no ordernumer");
+                            continue;
+                        }
+                        String regel = resultSet.getString("Regel");
+                        String product = resultSet.getString("Product");
+                        String description = resultSet.getString("Omschrijving");
+
+                        if (ordersMap.isEmpty()) {
+                            this.getAllOrders();
+                        }
+
+                        OrderDto orderDto = ordersMap.getOrDefault(orderNumber + "," + regel, null);
+                        Map<String, Boolean> reminderMap = new HashMap<>();
+                        Optional<MonSubOrders> existingSubOrder = monSubOrdersRepo.findByOrderNumberAndRegelAndProduct(orderNumber, regel, product);
+                        if (orderDto != null && !product.equals("L") && !existingSubOrder.isPresent() && reminderMap.getOrDefault(orderNumber + "," + product, true)) {
+                            try {
+                                Order order = orderRepo.findById(orderDto.getId()).get();
+                                MonSubOrders subOrder = new MonSubOrders();
+                                subOrder.setOrderNumber(orderNumber);
+                                subOrder.setProduct(product);
+                                subOrder.setRegel(regel);
+                                subOrder.setAantal(order.getAantal());
+                                subOrder.setOmsumin(description);
+                                subOrder.setOrder(order);
+
+                                if (order.getMonSubOrders() != null) {
+                                    order.getMonSubOrders().add(subOrder);
+                                } else {
+                                    List<MonSubOrders> subOrdersList = new ArrayList<>();
+                                    subOrdersList.add(subOrder);
+                                    order.setMonSubOrders(subOrdersList);
+                                }
+                                orderRepo.save(order);
+                                ordersMap.put(orderNumber + "," + regel, orderToDto(order));
+                                reminderMap.put(orderNumber + "," + product, false);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                }
+            } catch (SQLException var35) {
+                var35.printStackTrace();
+                List<OrderDto> orderList = this.getAllOrders();
+                this.orderDtoList = orderList;
+            } catch (Exception var37) {
+                Exception e = var37;
+                e.printStackTrace();
+                List<OrderDto> orderList = this.getAllOrders();
+                this.orderDtoList = orderList;
+            }
+        } catch (Exception var39) {
+            Exception e = var39;
+            e.printStackTrace();
+            List<OrderDto> orderList = this.getAllOrders();
+            this.orderDtoList = orderList;
+        }
+        return null;
     }
 
     private void updatingFlow(Order order, OrderDto orderDto) {
@@ -1936,11 +2311,8 @@ public class OrderServiceImp implements OrderService {
                         }
                     }
                 }
-
-//                if (orderDto.getSpu() == null) {
-//                    orderDto.setSpu("");
-//                }
-
+            }
+            if (orderDto.getSpu() != null) {
                 if (orderDto.getSpu() == null && orderDto.getSpu() == "") {
                     if ((orderDto.getSpu() == null || orderDto.getSpu().equals("")) && (order.getSme() != null || !order.getSme().equals(""))) {
                         index = IntStream.range(0, depList.size()).filter((i) -> {
@@ -2124,7 +2496,8 @@ public class OrderServiceImp implements OrderService {
         }
 
         orders.sort(Comparator.comparing(OrderDto::getOrderNumber)
-                .thenComparing(OrderDto::getRegel));
+                .thenComparing(order -> Integer.parseInt(order.getRegel())));
+
 
         // Add data rows
         int rowIdx = 1;
@@ -2166,6 +2539,7 @@ public class OrderServiceImp implements OrderService {
         return order;
     }
 
+    @Transactional
     public OrderDto orderToDto(Order order) {
         OrderDto orderDto = (OrderDto) this.modelMapper.map(order, OrderDto.class);
         return orderDto;

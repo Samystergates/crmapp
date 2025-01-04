@@ -38,6 +38,11 @@ public interface OrderRepo extends JpaRepository<Order, Integer> {
 
 	@Modifying
 	@Transactional
+	@Query("DELETE MonSubOrders mso WHERE mso.order.id IN :ids")
+	int deleteMonSubsForIds(@Param("ids") List<Integer> ids);
+
+	@Modifying
+	@Transactional
 	@Query("DELETE FROM Order o WHERE o.id IN :ids")
 	int deleteOrdersByIds(@Param("ids") List<Integer> ids);
 
