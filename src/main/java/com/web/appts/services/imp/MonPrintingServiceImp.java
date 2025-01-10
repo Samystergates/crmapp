@@ -234,12 +234,13 @@ public class MonPrintingServiceImp {
     private void addOrdersTable(Document document, List<OrderDto> orderList) throws DocumentException {
         PdfPTable table = new PdfPTable(4);
         table.setWidthPercentage(100.0F);
-        float[] columnWidths = new float[]{8.0F, 10.0F, 16.0F, 76.0F};
+        float[] columnWidths = new float[]{4.0F, 5.0F, 11.0F, 80.0F};
         table.setWidths(columnWidths);
         table.setSpacingBefore(3.0F);
         table.setSpacingAfter(250.0F);
         Font font2 = new Font(FontFamily.HELVETICA, 10.0F);
         Font font3 = new Font(FontFamily.HELVETICA, 10.0F, 1);
+        //Font font4 = new Font(FontFamily.HELVETICA, 8.0F);
         PdfPCell headerCell = this.createHeaderCell("Rgl", font3);
         PdfPCell headerCell2 = this.createHeaderCell("Best", font3);
         PdfPCell headerCell3 = this.createHeaderCell("Product", font3);
@@ -266,11 +267,17 @@ public class MonPrintingServiceImp {
                 PdfPCell cell3;
                 PdfPCell cell4;
                 if (!isRepeat) {
+                    String[] aantal;
+                    if(orderList.get(i).getAantal().contains(".")){
+                        aantal = orderList.get(i).getAantal().split("\\.");
+                        cell2 = this.createCell(aantal[0], font2);
+                    } else{
+                        cell2 = this.createCell(((OrderDto) orderList.get(i)).getAantal(), font2);
+                    }
                     cell1 = this.createCell(((OrderDto) orderList.get(i)).getRegel(), font2);
-                    cell2 = this.createCell(((OrderDto) orderList.get(i)).getAantal(), font2);
                     cell3 = this.createCell(((OrderDto) orderList.get(i)).getProduct(), font2);
                     if (orderList.get(i).getTekst() != null && !orderList.get(i).getTekst().isEmpty()) {
-                        cell4 = this.createCellWithNewLine(((OrderDto) orderList.get(i)).getOmsumin(), "Tekst: "+orderList.get(i).getTekst(), font3);
+                        cell4 = this.createCellWithNewLine(((OrderDto) orderList.get(i)).getOmsumin(), orderList.get(i).getTekst(), font2);
                     } else {
                         cell4 = this.createCell(((OrderDto) orderList.get(i)).getOmsumin(), font2);
                     }
@@ -303,12 +310,19 @@ public class MonPrintingServiceImp {
                     orderTrack.pop();
                     PdfPTable nestedTable = new PdfPTable(3); // 3 columns for Best, Product, and Description
                     nestedTable.setWidthPercentage(100.0F);
-                    float[] nestedColumnWidths = new float[]{11.0F, 19.0F, 70.0F}; // Distribute space equally for the 3 columns
+                    float[] nestedColumnWidths = new float[]{6.0F, 12.0F, 82.0F}; // Distribute space equally for the 3 columns
                     nestedTable.setWidths(nestedColumnWidths);
                     nestedTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
                     // Iterate over the list and add rows to the nested table
                     for (MonSubOrders subOrder : list) {
-                        PdfPCell nestedCell1 = this.createCell(subOrder.getAantal(), font2);
+                        PdfPCell nestedCell1 = null;
+                        String[] aantal;
+                        if(orderList.get(i).getAantal().contains(".")){
+                            aantal = orderList.get(i).getAantal().split("\\.");
+                            nestedCell1 = this.createCell(aantal[0], font2);
+                        } else{
+                            nestedCell1 = this.createCell(subOrder.getAantal(), font2);
+                        }
                         PdfPCell nestedCell2 = this.createCell(subOrder.getProduct(), font2);
                         PdfPCell nestedCell3 = this.createCell(subOrder.getOmsumin(), font2);
                         nestedCell1.setBorder(Rectangle.RIGHT | Rectangle.BOTTOM);
@@ -359,18 +373,46 @@ public class MonPrintingServiceImp {
     }
 
     private PdfPCell createCellWithNewLine(String text, String text2, Font font) {
-        Phrase phrase = new Phrase();
-        phrase.add(text);
-        phrase.add(Chunk.NEWLINE);
-        phrase.add(text2);
+        // Create a centered paragraph for text1
+        Paragraph paragraph1 = new Paragraph(text, font);
+        paragraph1.setAlignment(Element.ALIGN_CENTER);
 
+        // Create a smaller, left-aligned paragraph for text2, starting on a new line
+        Font smallerFont = new Font(font.getFamily(), font.getSize() - 1, font.getStyle()); // Reduce font size
+        Paragraph paragraph2 = new Paragraph(text2, smallerFont);
+        paragraph2.setAlignment(Element.ALIGN_LEFT);
+        paragraph2.setSpacingBefore(5); // Add some spacing before text2 for better readability
+
+        // Combine paragraphs into a single Phrase
+        Phrase phrase = new Phrase();
+        phrase.add(paragraph1);  // Add centered text
+        phrase.add(new Chunk("\n")); // Explicit new line
+        phrase.add(paragraph2);  // Add left-aligned text on a new line
+
+        // Create the cell
         PdfPCell cell = new PdfPCell(phrase);
-        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE); // Align content vertically
         cell.setBorderWidth(0.3F);
         cell.setPadding(2.0F);
+
         return cell;
     }
+
+
+
+//    private PdfPCell createCellWithNewLine(String text, String text2, Font font) {
+//        Phrase phrase = new Phrase();
+//        phrase.add(text);
+//        phrase.add(Chunk.NEWLINE);
+//        phrase.add(text2);
+//
+//        PdfPCell cell = new PdfPCell(phrase);
+//        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+//        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+//        cell.setBorderWidth(0.3F);
+//        cell.setPadding(2.0F);
+//        return cell;
+//    }
 
 
     private void addOptions(PdfWriter writer, Document document, List<OrderDto> orderList) throws DocumentException {

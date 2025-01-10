@@ -14,12 +14,13 @@ public class OdbcConnectionMonitor {
 
     private final List<Connection> activeConnections = new ArrayList<>();
 
-    public synchronized void registerConnection(Connection connection) {
-        activeConnections.add(connection);
+    public void registerConnection(Connection connection) {
+        synchronized (activeConnections) {
+            activeConnections.add(connection);
+        }
     }
 
-    private synchronized void cleanConnections() {
-
+    private void cleanConnections() {
         Runtime runtime = Runtime.getRuntime();
         long usedMemory = runtime.totalMemory() - runtime.freeMemory();
         long maxMemory = runtime.maxMemory();
@@ -28,21 +29,20 @@ public class OdbcConnectionMonitor {
         System.out.println("Max memory: " + maxMemory / 1024 / 1024 + " MB");
         System.out.println("Free memory: " + runtime.freeMemory() / 1024 / 1024 + " MB");
 
-        activeConnections.removeIf(connection -> {
-            try {
-
-
-                System.out.println("Checking connection: " + connection);
-                return connection.isClosed();
-            } catch (SQLException e) {
-                e.printStackTrace();
-                return true;
-            }
-        });
+        synchronized (activeConnections) {
+            activeConnections.removeIf(connection -> {
+                try {
+                    return connection.isClosed();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    return true;
+                }
+            });
+        }
     }
 
     @Scheduled(fixedRate = 1800000)
-    public synchronized void monitorConnections() {
+    public void monitorConnections() {
         System.out.println("Monitoring ODBC connections...");
         cleanConnections();
 

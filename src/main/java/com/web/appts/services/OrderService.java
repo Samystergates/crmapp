@@ -32,7 +32,7 @@ public interface OrderService {
 
 	public void adjustParentOrders();
 
-	Map<String, OrderDto> verifyCrmOrders();
+	Map<String, OrderDto> updateTextForOrders();
 
 	void markExpired();
 

@@ -29,6 +29,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.hibernate.Hibernate;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -78,7 +79,24 @@ public class OrderServiceImp implements OrderService {
 
     public Boolean createOrder(OrderDto orderDto) {
         Order order = this.dtoToOrder(orderDto);
-        Order savedOrder = (Order) this.orderRepo.save(order);
+        Order savedOrder = null;
+        try {
+            savedOrder = (Order) this.orderRepo.save(order);
+        } catch (DataIntegrityViolationException e) {
+            Throwable rootCause = e.getRootCause();
+            if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                System.out.println("from create : Caught SQLIntegrityConstraintViolationException:");
+                System.out.println(rootCause.getMessage());
+                System.out.println(order.getId() + " is not saved");
+                e.printStackTrace();
+                return savedOrder != null;
+            } else {
+                System.out.println("from create : Caught DataIntegrityViolationException:");
+                System.out.println(e.getMessage());
+                e.printStackTrace();
+                return savedOrder != null;
+            }
+        }
         return savedOrder != null;
     }
 
@@ -157,289 +175,323 @@ public class OrderServiceImp implements OrderService {
             order.setCompleted("");
         }
 
-        Order updatedOrder = (Order) this.orderRepo.save(order);
-        OrderDto updatedOrderDto = this.orderToDto(updatedOrder);
-        this.ordersMap.put(updatedOrderDto.getOrderNumber() + "," + updatedOrderDto.getRegel(), updatedOrderDto);
-        boolean allOrdersComplete = this.ordersMap.values().stream().filter((ord) -> {
-            return ord.getOrderNumber().equals(updatedOrderDto.getOrderNumber()) && updatedOrderDto.getId() != ord.getId();
-        }).allMatch((ord) -> {
-            return "C".equals(ord.getCompleted());
-        });
-        if (updatedOrder.getCompleted().equals("C") && allOrdersComplete) {
-            List<Integer> idList = (List) this.ordersMap.values().stream().filter((ord) -> {
-                return ord.getOrderNumber().equals(updatedOrderDto.getOrderNumber());
-            }).map(OrderDto::getId).collect(Collectors.toList());
-            this.moveToArchive(idList);
-            this.orderDtoList = new ArrayList();
-            Iterator var13 = this.ordersMap.entrySet().iterator();
+        Order updatedOrder = null;
+        try {
+            updatedOrder = (Order) this.orderRepo.save(order);
 
-            while (var13.hasNext()) {
-                Map.Entry<String, OrderDto> entry = (Map.Entry) var13.next();
-                OrderDto orderDto2 = (OrderDto) entry.getValue();
-                orderDto2.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
-                this.orderDtoList.add(orderDto2);
+            OrderDto updatedOrderDto = this.orderToDto(updatedOrder);
+            this.ordersMap.put(updatedOrderDto.getOrderNumber() + "," + updatedOrderDto.getRegel(), updatedOrderDto);
+            boolean allOrdersComplete = this.ordersMap.values().stream().filter((ord) -> {
+                return ord.getOrderNumber().equals(updatedOrderDto.getOrderNumber()) && updatedOrderDto.getId() != ord.getId();
+            }).allMatch((ord) -> {
+                return "C".equals(ord.getCompleted());
+            });
+            if (updatedOrder.getCompleted().equals("C") && allOrdersComplete) {
+                List<Integer> idList = (List) this.ordersMap.values().stream().filter((ord) -> {
+                    return ord.getOrderNumber().equals(updatedOrderDto.getOrderNumber());
+                }).map(OrderDto::getId).collect(Collectors.toList());
+                this.moveToArchive(idList);
+                this.orderDtoList = new ArrayList();
+                Iterator var13 = this.ordersMap.entrySet().iterator();
+
+                while (var13.hasNext()) {
+                    Map.Entry<String, OrderDto> entry = (Map.Entry) var13.next();
+                    OrderDto orderDto2 = (OrderDto) entry.getValue();
+                    orderDto2.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
+                    this.orderDtoList.add(orderDto2);
+                }
+
+                return this.orderDtoList;
+            } else {
+                this.orderDtoList = new ArrayList();
+                Iterator var9 = this.ordersMap.entrySet().iterator();
+
+                while (var9.hasNext()) {
+                    Map.Entry<String, OrderDto> entry = (Map.Entry) var9.next();
+                    OrderDto orderDto2 = (OrderDto) entry.getValue();
+                    orderDto2.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
+                    this.orderDtoList.add(orderDto2);
+                }
+
+                return this.orderDtoList;
             }
-
-            return this.orderDtoList;
-        } else {
-            this.orderDtoList = new ArrayList();
-            Iterator var9 = this.ordersMap.entrySet().iterator();
-
-            while (var9.hasNext()) {
-                Map.Entry<String, OrderDto> entry = (Map.Entry) var9.next();
-                OrderDto orderDto2 = (OrderDto) entry.getValue();
-                orderDto2.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
-                this.orderDtoList.add(orderDto2);
+        } catch (DataIntegrityViolationException e) {
+            Throwable rootCause = e.getRootCause();
+            if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                System.out.println("Caught SQLIntegrityConstraintViolationException:");
+                System.out.println(rootCause.getMessage());
+                System.out.println(order.getId() + " is not saved");
+                e.printStackTrace();
+                return this.orderDtoList;
+            } else {
+                System.out.println("Caught DataIntegrityViolationException:");
+                System.out.println(e.getMessage());
+                e.printStackTrace();
+                return this.orderDtoList;
             }
-
-            return this.orderDtoList;
         }
     }
 
     @Transactional
     public List<OrderDto> updateOrderColors(String orderNumber, String orderDep, String orderStatus, String flowVal) {
-        List<OrderDto> lo = this.checkMap();
-        String color = "";
-        String prev = "";
-        List<Integer> matchingIds = new ArrayList();
-        Iterator var9 = this.ordersMap.values().iterator();
-
-        while (var9.hasNext()) {
-            OrderDto obj = (OrderDto) var9.next();
-            if (obj.getOrderNumber().equals(orderNumber)) {
-                matchingIds.add(obj.getId());
-            }
-        }
-
-        String setterMethodName = "set" + orderDep.substring(0, 1).toUpperCase() + orderDep.substring(1);
-        String getterMethodName = "get" + orderDep.substring(0, 1).toUpperCase() + orderDep.substring(1);
-
         try {
-            Method setterMethod = OrderDto.class.getMethod(setterMethodName, String.class);
-            Method getterMethod = OrderDto.class.getMethod(getterMethodName);
-            Iterator var13 = this.ordersMap.keySet().iterator();
+            List<OrderDto> lo = this.checkMap();
+            String color = "";
+            String prev = "";
+            List<Integer> matchingIds = new ArrayList();
+            Iterator var9 = this.ordersMap.values().iterator();
 
-            label251:
-            while (true) {
-                String key;
-                OrderDto orderDto;
-                do {
-                    if (!var13.hasNext()) {
-                        break label251;
+            while (var9.hasNext()) {
+                OrderDto obj = (OrderDto) var9.next();
+                if (obj.getOrderNumber().equals(orderNumber)) {
+                    matchingIds.add(obj.getId());
+                }
+            }
+
+            String setterMethodName = "set" + orderDep.substring(0, 1).toUpperCase() + orderDep.substring(1);
+            String getterMethodName = "get" + orderDep.substring(0, 1).toUpperCase() + orderDep.substring(1);
+
+            try {
+                Method setterMethod = OrderDto.class.getMethod(setterMethodName, String.class);
+                Method getterMethod = OrderDto.class.getMethod(getterMethodName);
+                Iterator var13 = this.ordersMap.keySet().iterator();
+
+                label251:
+                while (true) {
+                    String key;
+                    OrderDto orderDto;
+                    do {
+                        if (!var13.hasNext()) {
+                            break label251;
+                        }
+
+                        key = (String) var13.next();
+                        orderDto = (OrderDto) this.ordersMap.get(key);
+                    } while (!orderDto.getOrderNumber().equals(orderNumber));
+
+                    if ("R".equals(getterMethod.invoke(orderDto)) && "R".equals(orderStatus) && (flowVal.equals("FWD") || flowVal.equals("RVS"))) {
+                        setterMethod.invoke(orderDto, "Y");
+                        color = "Y";
+                    } else if ("R".equals(getterMethod.invoke(orderDto)) && "R".equals(orderStatus) && flowVal.equals("HLT")) {
+                        setterMethod.invoke(orderDto, "B");
+                        color = "B";
+                    } else if ("Y".equals(getterMethod.invoke(orderDto)) && "Y".equals(orderStatus)) {
+                        setterMethod.invoke(orderDto, "G");
+                        color = "G";
+                    } else if ("B".equals(getterMethod.invoke(orderDto)) && "B".equals(orderStatus)) {
+                        setterMethod.invoke(orderDto, "R");
+                        color = "R";
                     }
 
-                    key = (String) var13.next();
-                    orderDto = (OrderDto) this.ordersMap.get(key);
-                } while (!orderDto.getOrderNumber().equals(orderNumber));
+                    List<OrderDepartment> depList = orderDto.getDepartments();
+                    Iterator var17 = depList.iterator();
 
-                if ("R".equals(getterMethod.invoke(orderDto)) && "R".equals(orderStatus) && (flowVal.equals("FWD") || flowVal.equals("RVS"))) {
-                    setterMethod.invoke(orderDto, "Y");
-                    color = "Y";
-                } else if ("R".equals(getterMethod.invoke(orderDto)) && "R".equals(orderStatus) && flowVal.equals("HLT")) {
-                    setterMethod.invoke(orderDto, "B");
-                    color = "B";
-                } else if ("Y".equals(getterMethod.invoke(orderDto)) && "Y".equals(orderStatus)) {
-                    setterMethod.invoke(orderDto, "G");
-                    color = "G";
-                } else if ("B".equals(getterMethod.invoke(orderDto)) && "B".equals(orderStatus)) {
-                    setterMethod.invoke(orderDto, "R");
-                    color = "R";
-                }
-
-                List<OrderDepartment> depList = orderDto.getDepartments();
-                Iterator var17 = depList.iterator();
-
-                while (true) {
                     while (true) {
-                        OrderDepartment dep;
-                        do {
-                            if (!var17.hasNext()) {
-                                boolean allStatusGOrEmpty = orderDto.getDepartments().stream().allMatch((department) -> {
-                                    return "G".equals(department.getStatus()) || "".equals(department.getStatus());
-                                });
-                                if (allStatusGOrEmpty) {
-                                    orderDto.setCompleted("C");
+                        while (true) {
+                            OrderDepartment dep;
+                            do {
+                                if (!var17.hasNext()) {
+                                    boolean allStatusGOrEmpty = orderDto.getDepartments().stream().allMatch((department) -> {
+                                        return "G".equals(department.getStatus()) || "".equals(department.getStatus());
+                                    });
+                                    if (allStatusGOrEmpty) {
+                                        orderDto.setCompleted("C");
+                                    }
+
+                                    this.ordersMap.put(key, orderDto);
+                                    continue label251;
                                 }
 
-                                this.ordersMap.put(key, orderDto);
-                                continue label251;
+                                dep = (OrderDepartment) var17.next();
+                            } while (!orderDep.toUpperCase().equals(dep.getDepName()));
+
+                            if ("R".equals(dep.getStatus()) && (flowVal.equals("FWD") || flowVal.equals("RVS"))) {
+                                dep.setStatus("Y");
+                                dep.setPrevStatus("R");
+                                prev = dep.getPrevStatus();
+                            } else if ("R".equals(dep.getStatus()) && flowVal.equals("HLT")) {
+                                dep.setStatus("B");
+                                dep.setPrevStatus("R");
+                                prev = dep.getPrevStatus();
+                            } else if ("Y".equals(dep.getStatus())) {
+                                dep.setStatus("G");
+                                dep.setPrevStatus("Y");
+                                prev = dep.getPrevStatus();
+                            } else if ("B".equals(dep.getStatus())) {
+                                dep.setStatus("R");
+                                dep.setPrevStatus("B");
+                                prev = dep.getPrevStatus();
                             }
-
-                            dep = (OrderDepartment) var17.next();
-                        } while (!orderDep.toUpperCase().equals(dep.getDepName()));
-
-                        if ("R".equals(dep.getStatus()) && (flowVal.equals("FWD") || flowVal.equals("RVS"))) {
-                            dep.setStatus("Y");
-                            dep.setPrevStatus("R");
-                            prev = dep.getPrevStatus();
-                        } else if ("R".equals(dep.getStatus()) && flowVal.equals("HLT")) {
-                            dep.setStatus("B");
-                            dep.setPrevStatus("R");
-                            prev = dep.getPrevStatus();
-                        } else if ("Y".equals(dep.getStatus())) {
-                            dep.setStatus("G");
-                            dep.setPrevStatus("Y");
-                            prev = dep.getPrevStatus();
-                        } else if ("B".equals(dep.getStatus())) {
-                            dep.setStatus("R");
-                            dep.setPrevStatus("B");
-                            prev = dep.getPrevStatus();
                         }
                     }
                 }
-            }
-        } catch (Exception var19) {
-            Exception e = var19;
-            e.printStackTrace();
-        }
-
-        Iterator var24;
-        Map.Entry entry;
-        OrderDto orderDto;
-        if (color.equals("Y")) {
-            if (orderDep.equals("monLb")) {
-                this.orderRepo.updateFieldForIdsMainmonLb(color, matchingIds);
+            } catch (Exception var19) {
+                Exception e = var19;
+                e.printStackTrace();
             }
 
-            if (orderDep.equals("monTr")) {
-                this.orderRepo.updateFieldForIdsMainmonTr(color, matchingIds);
+            Iterator var24;
+            Map.Entry entry;
+            OrderDto orderDto;
+
+            if (color.equals("Y")) {
+                if (orderDep.equals("monLb")) {
+                    this.orderRepo.updateFieldForIdsMainmonLb(color, matchingIds);
+                }
+
+                if (orderDep.equals("monTr")) {
+                    this.orderRepo.updateFieldForIdsMainmonTr(color, matchingIds);
+                }
+
+                if (orderDep.equals("mwe")) {
+                    this.orderRepo.updateFieldForIdsMainmwe(color, matchingIds);
+                }
+
+                if (orderDep.equals("ser")) {
+                    this.orderRepo.updateFieldForIdsMainser(color, matchingIds);
+                }
+
+                if (orderDep.equals("exp")) {
+                    this.orderRepo.updateFieldForIdsMainexp(color, matchingIds);
+                }
+
+                this.orderRepo.updateOrderDepartmentStatusMain(color, prev, orderDep.toUpperCase(), matchingIds);
+                this.orderDtoList = new ArrayList();
+                var24 = this.ordersMap.entrySet().iterator();
+
+                while (var24.hasNext()) {
+                    entry = (Map.Entry) var24.next();
+                    orderDto = (OrderDto) entry.getValue();
+                    orderDto.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
+                    this.orderDtoList.add(orderDto);
+                }
+
+                return this.orderDtoList;
+            } else if (color.equals("R")) {
+                if (orderDep.equals("monLb")) {
+                    this.orderRepo.updateFieldForIdsMainmonLb(color, matchingIds);
+                }
+
+                if (orderDep.equals("monTr")) {
+                    this.orderRepo.updateFieldForIdsMainmonTr(color, matchingIds);
+                }
+
+                if (orderDep.equals("mwe")) {
+                    this.orderRepo.updateFieldForIdsMainmwe(color, matchingIds);
+                }
+
+                if (orderDep.equals("ser")) {
+                    this.orderRepo.updateFieldForIdsMainser(color, matchingIds);
+                }
+
+                if (orderDep.equals("exp")) {
+                    this.orderRepo.updateFieldForIdsMainexp(color, matchingIds);
+                }
+
+                this.orderRepo.updateOrderDepartmentStatusMain(color, prev, orderDep.toUpperCase(), matchingIds);
+                this.orderDtoList = new ArrayList();
+                var24 = this.ordersMap.entrySet().iterator();
+
+                while (var24.hasNext()) {
+                    entry = (Map.Entry) var24.next();
+                    orderDto = (OrderDto) entry.getValue();
+                    orderDto.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
+                    this.orderDtoList.add(orderDto);
+                }
+
+                return this.orderDtoList;
+            } else if (color.equals("B")) {
+                if (orderDep.equals("monLb")) {
+                    this.orderRepo.updateFieldForIdsMainmonLb(color, matchingIds);
+                }
+
+                if (orderDep.equals("monTr")) {
+                    this.orderRepo.updateFieldForIdsMainmonTr(color, matchingIds);
+                }
+
+                if (orderDep.equals("mwe")) {
+                    this.orderRepo.updateFieldForIdsMainmwe(color, matchingIds);
+                }
+
+                if (orderDep.equals("ser")) {
+                    this.orderRepo.updateFieldForIdsMainser(color, matchingIds);
+                }
+
+                if (orderDep.equals("exp")) {
+                    this.orderRepo.updateFieldForIdsMainexp(color, matchingIds);
+                }
+
+                this.orderRepo.updateOrderDepartmentStatusMain(color, prev, orderDep.toUpperCase(), matchingIds);
+                this.orderDtoList = new ArrayList();
+                var24 = this.ordersMap.entrySet().iterator();
+
+                while (var24.hasNext()) {
+                    entry = (Map.Entry) var24.next();
+                    orderDto = (OrderDto) entry.getValue();
+                    orderDto.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
+                    this.orderDtoList.add(orderDto);
+                }
+
+                return this.orderDtoList;
+            } else if (color.equals("G")) {
+                if (orderDep.equals("monLb")) {
+                    this.orderRepo.updateFieldForIdsMainmonLb(color, matchingIds);
+                }
+
+                if (orderDep.equals("monTr")) {
+                    this.orderRepo.updateFieldForIdsMainmonTr(color, matchingIds);
+                }
+
+                if (orderDep.equals("mwe")) {
+                    this.orderRepo.updateFieldForIdsMainmwe(color, matchingIds);
+                }
+
+                if (orderDep.equals("ser")) {
+                    this.orderRepo.updateFieldForIdsMainser(color, matchingIds);
+                }
+
+                if (orderDep.equals("exp")) {
+                    this.orderRepo.updateFieldForIdsMainexp(color, matchingIds);
+                }
+
+                this.orderRepo.updateOrderDepartmentStatusMain(color, prev, orderDep.toUpperCase(), matchingIds);
+                long count = this.ordersMap.values().stream().filter((order) -> {
+                    return order != null && order.getOrderNumber() != null && order.getOrderNumber().equals(orderNumber) && order.getCompleted() != null && order.getCompleted().equals("C");
+                }).count();
+                Boolean allCompleted = count > 0L && count == this.ordersMap.values().stream().filter((order) -> {
+                    return order.getOrderNumber().equals(orderNumber);
+                }).count();
+                if (allCompleted) {
+                    this.moveToArchive(matchingIds);
+                }
+
+                this.orderDtoList = new ArrayList();
+                Iterator var28 = this.ordersMap.entrySet().iterator();
+
+                while (var28.hasNext()) {
+                    entry = (Map.Entry) var28.next();
+                    orderDto = (OrderDto) entry.getValue();
+                    orderDto.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
+                    this.orderDtoList.add(orderDto);
+                }
+
+                return this.orderDtoList;
+            } else {
+                return new ArrayList();
             }
-
-            if (orderDep.equals("mwe")) {
-                this.orderRepo.updateFieldForIdsMainmwe(color, matchingIds);
+        } catch (DataIntegrityViolationException e) {
+            Throwable rootCause = e.getRootCause();
+            if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                System.out.println("from updateColor : Caught SQLIntegrityConstraintViolationException:");
+                System.out.println(rootCause.getMessage());
+                e.printStackTrace();
+                return this.orderDtoList;
+            } else {
+                System.out.println("from updateColor : Caught DataIntegrityViolationException:");
+                System.out.println(e.getMessage());
+                e.printStackTrace();
+                return this.orderDtoList;
             }
-
-            if (orderDep.equals("ser")) {
-                this.orderRepo.updateFieldForIdsMainser(color, matchingIds);
-            }
-
-            if (orderDep.equals("exp")) {
-                this.orderRepo.updateFieldForIdsMainexp(color, matchingIds);
-            }
-
-            this.orderRepo.updateOrderDepartmentStatusMain(color, prev, orderDep.toUpperCase(), matchingIds);
-            this.orderDtoList = new ArrayList();
-            var24 = this.ordersMap.entrySet().iterator();
-
-            while (var24.hasNext()) {
-                entry = (Map.Entry) var24.next();
-                orderDto = (OrderDto) entry.getValue();
-                orderDto.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
-                this.orderDtoList.add(orderDto);
-            }
-
-            return this.orderDtoList;
-        } else if (color.equals("R")) {
-            if (orderDep.equals("monLb")) {
-                this.orderRepo.updateFieldForIdsMainmonLb(color, matchingIds);
-            }
-
-            if (orderDep.equals("monTr")) {
-                this.orderRepo.updateFieldForIdsMainmonTr(color, matchingIds);
-            }
-
-            if (orderDep.equals("mwe")) {
-                this.orderRepo.updateFieldForIdsMainmwe(color, matchingIds);
-            }
-
-            if (orderDep.equals("ser")) {
-                this.orderRepo.updateFieldForIdsMainser(color, matchingIds);
-            }
-
-            if (orderDep.equals("exp")) {
-                this.orderRepo.updateFieldForIdsMainexp(color, matchingIds);
-            }
-
-            this.orderRepo.updateOrderDepartmentStatusMain(color, prev, orderDep.toUpperCase(), matchingIds);
-            this.orderDtoList = new ArrayList();
-            var24 = this.ordersMap.entrySet().iterator();
-
-            while (var24.hasNext()) {
-                entry = (Map.Entry) var24.next();
-                orderDto = (OrderDto) entry.getValue();
-                orderDto.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
-                this.orderDtoList.add(orderDto);
-            }
-
-            return this.orderDtoList;
-        } else if (color.equals("B")) {
-            if (orderDep.equals("monLb")) {
-                this.orderRepo.updateFieldForIdsMainmonLb(color, matchingIds);
-            }
-
-            if (orderDep.equals("monTr")) {
-                this.orderRepo.updateFieldForIdsMainmonTr(color, matchingIds);
-            }
-
-            if (orderDep.equals("mwe")) {
-                this.orderRepo.updateFieldForIdsMainmwe(color, matchingIds);
-            }
-
-            if (orderDep.equals("ser")) {
-                this.orderRepo.updateFieldForIdsMainser(color, matchingIds);
-            }
-
-            if (orderDep.equals("exp")) {
-                this.orderRepo.updateFieldForIdsMainexp(color, matchingIds);
-            }
-
-            this.orderRepo.updateOrderDepartmentStatusMain(color, prev, orderDep.toUpperCase(), matchingIds);
-            this.orderDtoList = new ArrayList();
-            var24 = this.ordersMap.entrySet().iterator();
-
-            while (var24.hasNext()) {
-                entry = (Map.Entry) var24.next();
-                orderDto = (OrderDto) entry.getValue();
-                orderDto.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
-                this.orderDtoList.add(orderDto);
-            }
-
-            return this.orderDtoList;
-        } else if (color.equals("G")) {
-            if (orderDep.equals("monLb")) {
-                this.orderRepo.updateFieldForIdsMainmonLb(color, matchingIds);
-            }
-
-            if (orderDep.equals("monTr")) {
-                this.orderRepo.updateFieldForIdsMainmonTr(color, matchingIds);
-            }
-
-            if (orderDep.equals("mwe")) {
-                this.orderRepo.updateFieldForIdsMainmwe(color, matchingIds);
-            }
-
-            if (orderDep.equals("ser")) {
-                this.orderRepo.updateFieldForIdsMainser(color, matchingIds);
-            }
-
-            if (orderDep.equals("exp")) {
-                this.orderRepo.updateFieldForIdsMainexp(color, matchingIds);
-            }
-
-            this.orderRepo.updateOrderDepartmentStatusMain(color, prev, orderDep.toUpperCase(), matchingIds);
-            long count = this.ordersMap.values().stream().filter((order) -> {
-                return order != null && order.getOrderNumber() != null && order.getOrderNumber().equals(orderNumber) && order.getCompleted() != null && order.getCompleted().equals("C");
-            }).count();
-            Boolean allCompleted = count > 0L && count == this.ordersMap.values().stream().filter((order) -> {
-                return order.getOrderNumber().equals(orderNumber);
-            }).count();
-            if (allCompleted) {
-                this.moveToArchive(matchingIds);
-            }
-
-            this.orderDtoList = new ArrayList();
-            Iterator var28 = this.ordersMap.entrySet().iterator();
-
-            while (var28.hasNext()) {
-                entry = (Map.Entry) var28.next();
-                orderDto = (OrderDto) entry.getValue();
-                orderDto.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
-                this.orderDtoList.add(orderDto);
-            }
-
-            return this.orderDtoList;
-        } else {
-            return new ArrayList();
         }
     }
 
@@ -517,6 +569,7 @@ public class OrderServiceImp implements OrderService {
     }
 
     public List<OrderDto> checkMap() {
+
         if (this.ordersMap.isEmpty()) {
             List<Order> allOrders = this.orderRepo.findAll();
             if (!allOrders.isEmpty() && allOrders != null) {
@@ -539,6 +592,8 @@ public class OrderServiceImp implements OrderService {
         } else {
             List<OrderDto> mapOrders = new ArrayList(this.ordersMap.values());
             long dataLength = this.orderRepo.count();
+            System.out.println("data length : " + dataLength);
+            System.out.println("mapOrders size : " + mapOrders.size());
             if (dataLength == (long) mapOrders.size()) {
                 return null;
             } else {
@@ -569,6 +624,7 @@ public class OrderServiceImp implements OrderService {
                 return this.orderDtoList;
             }
         }
+
     }
 
     public void removingSameArchivedOrders() {
@@ -587,9 +643,9 @@ public class OrderServiceImp implements OrderService {
         this.deleteOrderData(matchingIds);
     }
 
-    @Async
+    @Async("taskExecutor")
     @Scheduled(fixedRate = 300000)
-    public synchronized void markExpired() {
+    public void markExpired() {
         if (!ordersMap.isEmpty() && !this.archivedOrdersService.getAllArchivedOrders().isEmpty()) {
             try {
                 String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
@@ -700,9 +756,9 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
-    @Async
+    @Async("taskExecutor")
     @Scheduled(fixedRate = 380000)
-    public synchronized void archiveExpiredOrders() {
+    public void archiveExpiredOrders() {
         List<OrderDto> orderList = new ArrayList<>(ordersMap.values());
 
         // Group by orderNumber
@@ -1208,10 +1264,24 @@ public class OrderServiceImp implements OrderService {
             subOrdersList.add(subOrder);
             order.setMonSubOrders(subOrdersList);
         }
-        orderRepo.save(order);
+        try {
+            orderRepo.save(order);
+        } catch (DataIntegrityViolationException e) {
+            Throwable rootCause = e.getRootCause();
+            if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                System.out.println("from createMonSubDemo : Caught SQLIntegrityConstraintViolationException:");
+                System.out.println(rootCause.getMessage());
+                System.out.println(order.getId() + " is not saved");
+                e.printStackTrace();
+            } else {
+                System.out.println("from createMonSubDemo : Caught DataIntegrityViolationException:");
+                System.out.println(e.getMessage());
+                e.printStackTrace();
+            }
+        }
     }
 
-    private void updateProductNotes(){
+    private void updateProductNotes() {
         try {
             String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
             System.out.println("----------driver----------");
@@ -1269,7 +1339,7 @@ public class OrderServiceImp implements OrderService {
 
                                 OrderDto orderDto = ordersMap.getOrDefault(orderNumber + "," + regel, null);
                                 if (orderDto != null) {
-                                    if(orderDto.getTekst() != null && !orderDto.getTekst().equals(text)){
+                                    if (orderDto.getTekst() != null && !orderDto.getTekst().equals(text)) {
                                         orderDto.setTekst(text);
                                         this.updateOrder(orderDto, orderDto.getId(), false);
                                     }
@@ -1294,7 +1364,7 @@ public class OrderServiceImp implements OrderService {
     }
 
     @Override
-    public Map<String, OrderDto> verifyCrmOrders() {
+    public Map<String, OrderDto> updateTextForOrders() {
         try {
             String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
             System.out.println("----------driver----------");
@@ -1352,7 +1422,7 @@ public class OrderServiceImp implements OrderService {
 
                                 OrderDto orderDto = ordersMap.getOrDefault(orderNumber + "," + regel, null);
                                 if (orderDto != null) {
-                                    if(orderDto.getTekst() != null && !orderDto.getTekst().equals(text)){
+                                    if (orderDto.getTekst() != null && !orderDto.getTekst().equals(text)) {
                                         orderDto.setTekst(text);
                                         this.updateOrder(orderDto, orderDto.getId(), false);
                                     }
@@ -1469,7 +1539,25 @@ public class OrderServiceImp implements OrderService {
                                     subOrdersList.add(subOrder);
                                     order.setMonSubOrders(subOrdersList);
                                 }
-                                orderRepo.save(order);
+                                try {
+                                    orderRepo.save(order);
+                                } catch (DataIntegrityViolationException e) {
+                                    Throwable rootCause = e.getRootCause();
+                                    if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                                        System.out.println("from mon : Caught SQLIntegrityConstraintViolationException:");
+                                        System.out.println(rootCause.getMessage());
+                                        System.out.println(order.getId() + " is not saved");
+                                        e.printStackTrace();
+                                        List<OrderDto> orderList = this.getAllOrders();
+                                        this.orderDtoList = orderList;
+                                    } else {
+                                        System.out.println("from mon : Caught DataIntegrityViolationException:");
+                                        System.out.println(e.getMessage());
+                                        e.printStackTrace();
+                                        List<OrderDto> orderList = this.getAllOrders();
+                                        this.orderDtoList = orderList;
+                                    }
+                                }
                                 ordersMap.put(orderNumber + "," + regel, orderToDto(order));
                                 reminderMap.put(orderNumber + "," + product, false);
                             } catch (Exception e) {
@@ -2422,20 +2510,34 @@ public class OrderServiceImp implements OrderService {
             OrderDto orderDto;
             do {
                 if (!var13.hasNext()) {
-                    if (color.equals("Y")) {
-                        this.orderRepo.updateFieldForRIds(color, idList);
-                        this.orderRepo.updateOrderDepartmentStatusR(color, prev, idList);
-                        return true;
-                    }
+                    try {
+                        if (color.equals("Y")) {
+                            this.orderRepo.updateFieldForRIds(color, idList);
+                            this.orderRepo.updateOrderDepartmentStatusR(color, prev, idList);
+                            return true;
+                        }
 
-                    if (color.equals("G")) {
-                        this.orderRepo.updateFieldForYIds(color, idList);
-                        this.orderRepo.updateOrderDepartmentStatusY(color, prev, idList);
-                        this.moveToArchive(idList);
-                        return true;
-                    }
+                        if (color.equals("G")) {
+                            this.orderRepo.updateFieldForYIds(color, idList);
+                            this.orderRepo.updateOrderDepartmentStatusY(color, prev, idList);
+                            this.moveToArchive(idList);
+                            return true;
+                        }
 
-                    return false;
+                        return false;
+                    } catch (DataIntegrityViolationException e) {
+                        Throwable rootCause = e.getRootCause();
+                        if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                            System.out.println("from updateTraColors : Caught SQLIntegrityConstraintViolationException:");
+                            System.out.println(rootCause.getMessage());
+                            System.out.println(idList + " is not saved");
+                            e.printStackTrace();
+                        } else {
+                            System.out.println("from updateTraColors : Caught DataIntegrityViolationException:");
+                            System.out.println(e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
                 }
 
                 key = (String) var13.next();

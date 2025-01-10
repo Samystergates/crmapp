@@ -11,6 +11,7 @@ import java.text.SimpleDateFormat;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -45,9 +46,7 @@ public class OrderController {
     @GetMapping({"/refresh/orders"})
     public ResponseEntity<List<OrderDto>> getCrmOrders() {
         List<OrderDto> orderDto = this.orderService.checkMap();
-        if (orderDto == null) {
-            orderDto = this.orderService.getCRMOrders();
-        }
+        orderDto = this.orderService.getCRMOrders();
 
         this.sortUsingDate(orderDto);
         this.messagingTemplate.convertAndSend("/topic/orderUpdate", orderDto);

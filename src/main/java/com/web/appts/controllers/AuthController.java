@@ -119,7 +119,7 @@ public class AuthController {
 
     @GetMapping({"/verify-crm-orders"})
     public ResponseEntity<Integer> getCRMVerification() {
-        this.orderService.verifyCrmOrders();
+        this.orderService.updateTextForOrders();
         return ResponseEntity.ok(1);
     }
 
