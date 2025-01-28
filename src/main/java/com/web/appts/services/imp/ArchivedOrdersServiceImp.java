@@ -19,6 +19,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import javax.transaction.Transactional;
 
 @Service
@@ -80,7 +81,7 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
         }
     }
 
-    @Transactional
+    //@Transactional
     public void deleteFromArchive(String orderNumber) {
         this.getAllArchivedOrders().forEach(ao -> {
             if (ao.getOrderNumber().equals(orderNumber)) {
@@ -92,6 +93,15 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
 
     }
 
+    @PostConstruct
+    @Transactional
+    public void init() {
+        // Your method to be called on startup
+        System.out.println("App started and init method called");
+        getAllArchivedOrders();
+    }
+
+    //@Transactional
     public List<ArchivedOrdersDto> getAllArchivedOrders() {
         if (this.archivedOrdersMap.isEmpty()) {
             List<ArchivedOrders> allArchivedOrders = this.archivedOrdersRepo.findAll();

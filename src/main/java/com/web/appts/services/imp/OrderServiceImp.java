@@ -21,16 +21,18 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import javax.annotation.PostConstruct;
 import javax.transaction.Transactional;
 
 import com.web.appts.utils.OdbcConnectionMonitor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.hibernate.Hibernate;
+import org.hibernate.StaleStateException;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -77,11 +79,17 @@ public class OrderServiceImp implements OrderService {
         return this.ordersMap;
     }
 
+    @Transactional
     public Boolean createOrder(OrderDto orderDto) {
         Order order = this.dtoToOrder(orderDto);
         Order savedOrder = null;
         try {
             savedOrder = (Order) this.orderRepo.save(order);
+        } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
+            System.out.println("from createOrder : Caught ObjectOptimisticLockingFailureException:");
+            System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
+            System.out.println(order.getId() + " could not be saved due to version mismatch or no matching record.");
+            e.printStackTrace();
         } catch (DataIntegrityViolationException e) {
             Throwable rootCause = e.getRootCause();
             if (rootCause instanceof SQLIntegrityConstraintViolationException) {
@@ -134,16 +142,35 @@ public class OrderServiceImp implements OrderService {
 
     @Transactional
     public void deleteOrderData(List<Integer> ids) {
-        this.orderRepo.deleteMonSubsForIds(ids);
-        this.orderRepo.deleteODForIds(ids);
-        this.orderRepo.deleteOrdersByIds(ids);
+        try {
+            this.orderRepo.deleteMonSubsForIds(ids);
+            this.orderRepo.deleteODForIds(ids);
+            this.orderRepo.deleteOrdersByIds(ids);
+        } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
+            System.out.println("from deleteOrderData : Caught ObjectOptimisticLockingFailureException:");
+            System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
+            System.out.println(ids + " could not be saved due to version mismatch or no matching record.");
+            e.printStackTrace();
+        } catch (DataIntegrityViolationException e) {
+            Throwable rootCause = e.getRootCause();
+            if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                System.out.println("Caught ids SQLIntegrityConstraintViolationException:");
+                System.out.println(rootCause.getMessage());
+                System.out.println(ids + " is not saved");
+                e.printStackTrace();
+            } else {
+                System.out.println("Caught ids DataIntegrityViolationException:");
+                System.out.println(e.getMessage());
+                e.printStackTrace();
+            }
+        }
         System.out.print("deleted: ");
         for (Integer i : ids) {
             System.out.print(i + ",");
         }
     }
 
-    @Transactional
+    //@Transactional
     public List<OrderDto> updateOrder(OrderDto orderDto, Integer orderId, Boolean flowUpdate) {
         List<OrderDto> lo = this.checkMap();
         Order order = (Order) this.orderRepo.findById(orderId).orElseThrow(() -> {
@@ -215,6 +242,12 @@ public class OrderServiceImp implements OrderService {
 
                 return this.orderDtoList;
             }
+        } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
+            System.out.println("from updateorder : Caught ObjectOptimisticLockingFailureException:");
+            System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
+            System.out.println(order.getId() + " could not be saved due to version mismatch or no matching record.");
+            e.printStackTrace();
+            return this.orderDtoList;
         } catch (DataIntegrityViolationException e) {
             Throwable rootCause = e.getRootCause();
             if (rootCause instanceof SQLIntegrityConstraintViolationException) {
@@ -479,6 +512,12 @@ public class OrderServiceImp implements OrderService {
             } else {
                 return new ArrayList();
             }
+        } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
+            System.out.println("from updatecolor : Caught ObjectOptimisticLockingFailureException:");
+            System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
+            System.out.println(" could not be saved due to version mismatch or no matching record.");
+            e.printStackTrace();
+            return this.orderDtoList;
         } catch (DataIntegrityViolationException e) {
             Throwable rootCause = e.getRootCause();
             if (rootCause instanceof SQLIntegrityConstraintViolationException) {
@@ -533,6 +572,14 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
+    @PostConstruct
+    @Transactional
+    public void init() {
+        // Your method to be called on startup
+        System.out.println("App started and init method called");
+        getAllOrders();
+    }
+
     public List<OrderDto> getAllOrders() {
         if (this.ordersMap.isEmpty()) {
             List<Order> allOrders = this.orderRepo.findAll();
@@ -568,6 +615,7 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
+    @Transactional
     public List<OrderDto> checkMap() {
 
         if (this.ordersMap.isEmpty()) {
@@ -741,7 +789,26 @@ public class OrderServiceImp implements OrderService {
 
                         matchingObjects.forEach(obj -> {
                             System.out.println("Got Expired: " + obj.getExpired() + "," + obj.getId());
-                            this.updateOrder(obj, obj.getId(), false);
+                            try {
+                                this.updateOrder(obj, obj.getId(), false);
+                            } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
+                                System.out.println("from markexpired : Caught ObjectOptimisticLockingFailureException:");
+                                System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
+                                System.out.println(obj.getId() + " could not be saved due to version mismatch or no matching record.");
+                                e.printStackTrace();
+                            } catch (DataIntegrityViolationException e) {
+                                Throwable rootCause = e.getRootCause();
+                                if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                                    System.out.println("Caught markexpired SQLIntegrityConstraintViolationException:");
+                                    System.out.println(rootCause.getMessage());
+                                    System.out.println(obj.getId() + " is not saved");
+                                    e.printStackTrace();
+                                } else {
+                                    System.out.println("Caught markexpired DataIntegrityViolationException:");
+                                    System.out.println(e.getMessage());
+                                    e.printStackTrace();
+                                }
+                            }
                         });
 
 
@@ -779,9 +846,12 @@ public class OrderServiceImp implements OrderService {
         this.moveToArchive(resultIds);
     }
 
-    @Transactional
+    //@Transactional
     public List<OrderDto> getCRMOrders() {
         //{DataDirect 7.1 OpenEdge Wire Protocol};DSN=AGRPROD
+        boolean adjustParentCalled = false;
+        boolean createMonCalled = false;
+        boolean productNotesCalled = false;
         try {
             String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
             System.out.println("----------driver----------");
@@ -918,6 +988,7 @@ public class OrderServiceImp implements OrderService {
                                 System.out.println("Failed to create record in app");
                             } else {
                                 this.ordersMap.put(orderNumber + "," + regel, orderDto);
+                                System.out.println("CREATED ORDER : " + orderDto.getOrderNumber());
                             }
                         }
 
@@ -952,10 +1023,52 @@ public class OrderServiceImp implements OrderService {
                             orderDto.setOmsumin(omsumin);
 
                             Map<String, Boolean> fieldsCheckMap = checkForFeildsChange(existingOrderDto, orderDto);
+                            fieldsCheckMap.entrySet().stream()
+                                    .forEach(entry -> System.out.println("Key: " + entry.getKey() + ", Value: " + entry.getValue()));
+
                             if (fieldsCheckMap.getOrDefault("cdProdGrp", false) || fieldsCheckMap.getOrDefault("orderType", false)) {
-                                this.deleteOrderData(Collections.singletonList(existingOrderDto.getId()));
+                                try {
+                                    this.deleteOrderData(Collections.singletonList(existingOrderDto.getId()));
+                                    System.out.println("DELETING : " + existingOrderDto.getId());
+                                } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
+                                    System.out.println("from getcrm delete : Caught ObjectOptimisticLockingFailureException:");
+                                    System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
+                                    System.out.println(existingOrderDto.getId() + " could not be saved due to version mismatch or no matching record.");
+                                    e.printStackTrace();
+                                } catch (DataIntegrityViolationException e) {
+                                    Throwable rootCause = e.getRootCause();
+                                    if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                                        System.out.println("from getcrm delete : Caught SQLIntegrityConstraintViolationException:");
+                                        System.out.println(rootCause.getMessage());
+                                        System.out.println(existingOrderDto.getId() + " is not saved");
+                                        e.printStackTrace();
+                                    } else {
+                                        System.out.println("from getcrm delete : Caught DataIntegrityViolationException:");
+                                        System.out.println(e.getMessage());
+                                        e.printStackTrace();
+                                    }
+                                }
                                 this.settingUpFlow(orderDto);
-                                this.createOrder(orderDto);
+                                try {
+                                    this.createOrder(orderDto);
+                                } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
+                                    System.out.println("from getcrm createOrder : Caught ObjectOptimisticLockingFailureException:");
+                                    System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
+                                    System.out.println(orderDto.getId() + " could not be saved due to version mismatch or no matching record.");
+                                    e.printStackTrace();
+                                } catch (DataIntegrityViolationException e) {
+                                    Throwable rootCause = e.getRootCause();
+                                    if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                                        System.out.println("from getcrm create : Caught SQLIntegrityConstraintViolationException:");
+                                        System.out.println(rootCause.getMessage());
+                                        System.out.println(orderDto.getId() + " is not saved");
+                                        e.printStackTrace();
+                                    } else {
+                                        System.out.println("from getcrm create : Caught DataIntegrityViolationException:");
+                                        System.out.println(e.getMessage());
+                                        e.printStackTrace();
+                                    }
+                                }
                                 this.ordersMap.put(orderNumber + "," + regel, orderDto);
                             } else if (fieldsCheckMap.getOrDefault("aantal", false) ||
                                     fieldsCheckMap.getOrDefault("custName", false) ||
@@ -964,17 +1077,44 @@ public class OrderServiceImp implements OrderService {
                                     fieldsCheckMap.getOrDefault("organization", false) ||
                                     fieldsCheckMap.getOrDefault("city", false) ||
                                     fieldsCheckMap.getOrDefault("country", false) ||
-                                    !(existingOrderDto.getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.equals(""))) {
-                                this.updateOrder(orderDto, orderDto.getId(), false);
+                                    (!existingOrderDto.getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.isEmpty())) {
+                                try {
+                                    this.updateOrder(orderDto, orderDto.getId(), false);
+                                    System.out.println(existingOrderDto.getDeliveryDate() + ", "+ deliveryDate2);
+                                    System.out.println("UPDATING : " + orderDto.getId());
+                                } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
+                                    System.out.println("from getcrm update : Caught ObjectOptimisticLockingFailureException:");
+                                    System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
+                                    System.out.println(orderDto.getId() + " could not be saved due to version mismatch or no matching record.");
+                                    fieldsCheckMap.entrySet().stream().forEach(o -> System.out.println(o.getKey() + ", " + o.getValue()));
+                                    e.printStackTrace();
+                                } catch (DataIntegrityViolationException e) {
+                                    Throwable rootCause = e.getRootCause();
+                                    if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                                        System.out.println("from getcrm update : Caught SQLIntegrityConstraintViolationException:");
+                                        System.out.println(rootCause.getMessage());
+                                        System.out.println(orderDto.getId() + " is not saved");
+                                        e.printStackTrace();
+                                    } else {
+                                        System.out.println("from getcrm update : Caught DataIntegrityViolationException:");
+                                        System.out.println(e.getMessage());
+                                        e.printStackTrace();
+                                    }
+                                }
                             }
                         }
                     }
                 }
             } catch (SQLException var35) {
                 var35.printStackTrace();
-                this.updateProductNotes();
-                this.createMonSub();
-                this.adjustParentOrders();
+                if (adjustParentCalled != true && createMonCalled != true && productNotesCalled != true) {
+
+                    //this.adjustParentOrders();
+
+                    adjustParentCalled = true;
+                    createMonCalled = true;
+                    productNotesCalled = true;
+                }
                 List<OrderDto> orderList = this.getAllOrders();
                 this.orderDtoList = orderList;
                 return this.orderDtoList;
@@ -983,17 +1123,28 @@ public class OrderServiceImp implements OrderService {
             } catch (Exception var37) {
                 Exception e = var37;
                 e.printStackTrace();
-                this.updateProductNotes();
-                this.createMonSub();
-                this.adjustParentOrders();
+                if (adjustParentCalled != true && createMonCalled != true && productNotesCalled != true) {
+//                    this.updateProductNotes();
+//                    this.createMonSub();
+                    //this.adjustParentOrders();
+
+                    adjustParentCalled = true;
+                    createMonCalled = true;
+                    productNotesCalled = true;
+                }
                 List<OrderDto> orderList = this.getAllOrders();
                 this.orderDtoList = orderList;
                 return this.orderDtoList;
                 //new ResourceNotFoundException("Order", "CRM", "N/A");
                 //return null;
             }
-            this.updateProductNotes();
-            this.createMonSub();
+            if (createMonCalled != true && productNotesCalled != true) {
+//                this.updateProductNotes();
+//                this.createMonSub();
+
+                createMonCalled = true;
+                productNotesCalled = true;
+            }
             this.ordersMap.clear();
             List<OrderDto> orderList = this.getAllOrders();
             this.orderDtoList = orderList;
@@ -1001,9 +1152,11 @@ public class OrderServiceImp implements OrderService {
         } catch (Exception var39) {
             Exception e = var39;
             e.printStackTrace();
-            this.updateProductNotes();
-            this.createMonSub();
-            this.adjustParentOrders();
+            if (adjustParentCalled != true || (createMonCalled != true && productNotesCalled != true)) {
+//                this.updateProductNotes();
+//                this.createMonSub();
+                //this.adjustParentOrders();
+            }
             List<OrderDto> orderList = this.getAllOrders();
             this.orderDtoList = orderList;
             return this.orderDtoList;
@@ -1074,7 +1227,8 @@ public class OrderServiceImp implements OrderService {
                 orderDto.getCdProdGrp().contains("412") || orderDto.getCdProdGrp().contains("413") ||
                 orderDto.getCdProdGrp().contains("414") || orderDto.getCdProdGrp().contains("415") ||
                 orderDto.getCdProdGrp().contains("416") || orderDto.getCdProdGrp().contains("417") ||
-                orderDto.getCdProdGrp().contains("418") || orderDto.getCdProdGrp().contains("419") || orderDto.getCdProdGrp().contains("420")) {
+                orderDto.getCdProdGrp().contains("418") || orderDto.getCdProdGrp().contains("419") ||
+                orderDto.getCdProdGrp().contains("420") || orderDto.getCdProdGrp().contains("421")) {
             if (orderDto.getSme() == null) {
                 orderDto.setSme("");
                 depList.add(new OrderDepartment(2, "SME", "", this.dtoToOrder(orderDto)));
@@ -1238,7 +1392,50 @@ public class OrderServiceImp implements OrderService {
                 parentOrderDto.setIsParent(1);
                 ordersToUpdate.add(parentOrderDto);
             }
-            ordersToUpdate.forEach(order -> updateOrder(order, order.getId(), false));
+            for (OrderDto orderDto : ordersToUpdate) {
+                System.out.println(orderDto.getId() + ", " + orderDto.getOrderNumber() + ", " + orderDto.getRegel());
+            }
+            try {
+                ordersToUpdate.forEach(order -> {
+                    try {
+                        updateOrder(order, order.getId(), false);
+                    } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
+                        System.out.println("from adjustparent insdie: Caught ObjectOptimisticLockingFailureException:");
+                        System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
+                        System.out.println(order.getId() + " could not be saved due to version mismatch or no matching record.");
+                        e.printStackTrace();
+                    } catch (DataIntegrityViolationException e) {
+                        Throwable rootCause = e.getRootCause();
+                        if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                            System.out.println("Caught adjustparent insdie SQLIntegrityConstraintViolationException:");
+                            System.out.println(rootCause.getMessage());
+                            System.out.println(order.getId() + " is not saved");
+                            e.printStackTrace();
+                        } else {
+                            System.out.println("Caught adjustparent insdie DataIntegrityViolationException:");
+                            System.out.println(e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
+                });
+            } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
+                System.out.println("from adjustparent : Caught ObjectOptimisticLockingFailureException:");
+                System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
+                System.out.println(ordersToUpdate.get(0).getId() + " could not be saved due to version mismatch or no matching record.");
+                e.printStackTrace();
+            } catch (DataIntegrityViolationException e) {
+                Throwable rootCause = e.getRootCause();
+                if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                    System.out.println("Caught adjustparent SQLIntegrityConstraintViolationException:");
+                    System.out.println(rootCause.getMessage());
+                    System.out.println(ordersToUpdate.get(0).getId() + " is not saved");
+                    e.printStackTrace();
+                } else {
+                    System.out.println("Caught adjustparent DataIntegrityViolationException:");
+                    System.out.println(e.getMessage());
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
@@ -1266,6 +1463,11 @@ public class OrderServiceImp implements OrderService {
         }
         try {
             orderRepo.save(order);
+        } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
+            System.out.println("from createMonSubDemo : Caught ObjectOptimisticLockingFailureException:");
+            System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
+            System.out.println(order.getId() + " could not be saved due to version mismatch or no matching record.");
+            e.printStackTrace();
         } catch (DataIntegrityViolationException e) {
             Throwable rootCause = e.getRootCause();
             if (rootCause instanceof SQLIntegrityConstraintViolationException) {
@@ -1281,7 +1483,9 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
-    private void updateProductNotes() {
+    //@Transactional
+    @Override
+    public void updateProductNotes() {
         try {
             String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
             System.out.println("----------driver----------");
@@ -1297,66 +1501,68 @@ public class OrderServiceImp implements OrderService {
                 formattedOrders.add("'" + orderNumbers + "'");
             }
 
-            String stringOfOrdersWithCommaAndQuotations = String.join(",", formattedOrders);
+            if (!formattedOrders.isEmpty()) {
+                String stringOfOrdersWithCommaAndQuotations = String.join(",", formattedOrders);
 
-            String query = "SELECT \"af-801\".\"cdsleutel1\" AS 'Verkooporder', \"af-801\".\"tekst\" AS 'TekstDescription', \"af-801\".\"cdsleutel2\" AS 'Regel' " +
-                    "FROM DATA.PUB.\"af-801\" " +
-                    "WHERE \"af-801\".\"cdsoort\" = 'ORR' " +
-                    "AND \"af-801\".\"cdsleutel1\" IN (" + stringOfOrdersWithCommaAndQuotations + ")";
+                String query = "SELECT \"af-801\".\"cdsleutel1\" AS 'Verkooporder', \"af-801\".\"tekst\" AS 'TekstDescription', \"af-801\".\"cdsleutel2\" AS 'Regel' " +
+                        "FROM DATA.PUB.\"af-801\" " +
+                        "WHERE \"af-801\".\"cdsoort\" = 'ORR' " +
+                        "AND \"af-801\".\"cdsleutel1\" IN (" + stringOfOrdersWithCommaAndQuotations + ")";
 
-            System.out.println("----------query----------");
-            System.out.println(query);
-            Class.forName(driver);
-            try (Connection connection = DriverManager.getConnection(connectionString);
-                 Statement statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-                 ResultSet resultSet = statement.executeQuery(query)) {
-                connectionMonitor.registerConnection(connection);
-                System.out.println("----------connection----------");
-                System.out.println(connection);
-                System.out.println("----------statement----------");
-                System.out.println(statement);
-                if (statement != null) {
-                    System.out.println("----------resultSet----------");
-                    System.out.println(resultSet);
-                    if (resultSet != null) {
-                        ResultSetMetaData metaData = resultSet.getMetaData();
-                        for (int i = 1; i <= metaData.getColumnCount(); i++) {
-                            System.out.println(metaData.getColumnName(i));
-                        }
+                System.out.println("----------query----------");
+                System.out.println(query);
+                Class.forName(driver);
+                try (Connection connection = DriverManager.getConnection(connectionString);
+                     Statement statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+                     ResultSet resultSet = statement.executeQuery(query)) {
+                    connectionMonitor.registerConnection(connection);
+                    System.out.println("----------connection----------");
+                    System.out.println(connection);
+                    System.out.println("----------statement----------");
+                    System.out.println(statement);
+                    if (statement != null) {
+                        System.out.println("----------resultSet----------");
+                        System.out.println(resultSet);
+                        if (resultSet != null) {
+                            ResultSetMetaData metaData = resultSet.getMetaData();
+                            for (int i = 1; i <= metaData.getColumnCount(); i++) {
+                                System.out.println(metaData.getColumnName(i));
+                            }
 
-                        boolean hasRows = resultSet.isBeforeFirst();
-                        System.out.println("ResultSet has rows: " + hasRows);
+                            boolean hasRows = resultSet.isBeforeFirst();
+                            System.out.println("ResultSet has rows: " + hasRows);
 
-                        if (hasRows) {
-                            System.out.println("----------resultSet Rows----------");
-                            while (resultSet.next()) {
+                            if (hasRows) {
+                                System.out.println("----------resultSet Rows----------");
+                                while (resultSet.next()) {
 
-                                String orderNumber = resultSet.getString("Verkooporder");
-                                String regel = resultSet.getString("Regel");
-                                String text = resultSet.getString("TekstDescription");
+                                    String orderNumber = resultSet.getString("Verkooporder");
+                                    String regel = resultSet.getString("Regel");
+                                    String text = resultSet.getString("TekstDescription");
 
-                                regel = String.valueOf(Integer.parseInt(regel));
+                                    regel = String.valueOf(Integer.parseInt(regel));
 
-                                OrderDto orderDto = ordersMap.getOrDefault(orderNumber + "," + regel, null);
-                                if (orderDto != null) {
-                                    if (orderDto.getTekst() != null && !orderDto.getTekst().equals(text)) {
-                                        orderDto.setTekst(text);
-                                        this.updateOrder(orderDto, orderDto.getId(), false);
-                                    }
-                                    if (orderDto.getTekst() == null) {
-                                        orderDto.setTekst(text);
-                                        this.updateOrder(orderDto, orderDto.getId(), false);
+                                    OrderDto orderDto = ordersMap.getOrDefault(orderNumber + "," + regel, null);
+                                    if (orderDto != null) {
+                                        if (orderDto.getTekst() != null && !orderDto.getTekst().equals(text)) {
+                                            orderDto.setTekst(text);
+                                            this.updateOrder(orderDto, orderDto.getId(), false);
+                                        }
+                                        if (orderDto.getTekst() == null) {
+                                            orderDto.setTekst(text);
+                                            this.updateOrder(orderDto, orderDto.getId(), false);
+                                        }
                                     }
                                 }
                             }
+                        } else {
+                            System.out.println("ResultSet is empty or null.");
                         }
-                    } else {
-                        System.out.println("ResultSet is empty or null.");
                     }
+                } catch (Exception var39) {
+                    Exception e = var39;
+                    e.printStackTrace();
                 }
-            } catch (Exception var39) {
-                Exception e = var39;
-                e.printStackTrace();
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -1450,6 +1656,7 @@ public class OrderServiceImp implements OrderService {
     }
 
     @Override
+    @Transactional
     public Map<String, OrderDto> createMonSub() {
 
         try {
@@ -1476,105 +1683,148 @@ public class OrderServiceImp implements OrderService {
                 }
             }
 
-            String stringOfOrdersWithCommaAndQuotations = String.join(",", formattedOrders);
+            if (!formattedOrders.isEmpty()) {
+                String stringOfOrdersWithCommaAndQuotations = String.join(",", formattedOrders);
 
-            String query = "SELECT \"va-229\".\"cdorder\" AS 'Verkooporder', \"va-229\".\"nrordrgl\" AS 'Regel', \"va-229\".\"cdprodukt\" AS 'Product', " +
-                    "\"va-229\".\"cdadmin\" AS 'Admin', \"af-801\".\"tekst\" AS 'Omschrijving' " +
-                    "FROM DATA.PUB.\"va-229\" va " +
-                    "LEFT JOIN DATA.PUB.\"af-801\" af ON va.\"cdprodukt\" = af.\"cdsleutel1\" " +
-                    "AND af.\"cdtabel\" = 'bb-062' " +
-                    "WHERE va.\"cdstatus\" <> 'Z' " +
-                    "AND va.\"cdadmin\" = '01' " +
-                    "AND va.\"cdorder\" IN (" + stringOfOrdersWithCommaAndQuotations + ")";
+                String query = "SELECT \"va-229\".\"cdorder\" AS 'Verkooporder', \"va-229\".\"nrordrgl\" AS 'Regel', \"va-229\".\"cdprodukt\" AS 'Product', " +
+                        "\"va-229\".\"cdadmin\" AS 'Admin', \"af-801\".\"tekst\" AS 'Omschrijving' " +
+                        "FROM DATA.PUB.\"va-229\" va " +
+                        "LEFT JOIN DATA.PUB.\"af-801\" af ON va.\"cdprodukt\" = af.\"cdsleutel1\" " +
+                        "AND af.\"cdtabel\" = 'bb-062' " +
+                        "WHERE va.\"cdstatus\" <> 'Z' " +
+                        "AND va.\"cdadmin\" = '01' " +
+                        "AND va.\"cdorder\" IN (" + stringOfOrdersWithCommaAndQuotations + ")";
 
-            System.out.println("----------query----------");
-            System.out.println(query);
-            Class.forName(driver);
-            try (Connection connection = DriverManager.getConnection(connectionString);
-                 Statement statement = connection.createStatement();
-                 ResultSet resultSet = statement.executeQuery(query)) {
-                connectionMonitor.registerConnection(connection);
-                //Class.forName(driver);
-                System.out.println("----------connection----------");
-                System.out.println(connection);
-                System.out.println("----------statement----------");
-                System.out.println(statement);
-                if (statement != null && resultSet != null) {
-                    System.out.println("----------resultSet----------");
-                    System.out.println(resultSet);
-                    String orderNumber = null;
-                    while (resultSet.next()) {
-                        orderNumber = resultSet.getString("Verkooporder");
-                        System.out.println(orderNumber);
-                        if (resultSet.wasNull()) {
-                            System.out.println("no ordernumer");
-                            continue;
-                        }
-                        String regel = resultSet.getString("Regel");
-                        String product = resultSet.getString("Product");
-                        String description = resultSet.getString("Omschrijving");
+                System.out.println("----------query----------");
+                System.out.println(query);
+                Class.forName(driver);
+                try (Connection connection = DriverManager.getConnection(connectionString);
+                     Statement statement = connection.createStatement();
+                     ResultSet resultSet = statement.executeQuery(query)) {
+                    connectionMonitor.registerConnection(connection);
+                    //Class.forName(driver);
+                    System.out.println("----------connection----------");
+                    System.out.println(connection);
+                    System.out.println("----------statement----------");
+                    System.out.println(statement);
+                    if (statement != null && resultSet != null) {
+                        System.out.println("----------resultSet----------");
+                        System.out.println(resultSet);
+                        String orderNumber = null;
+                        while (resultSet.next()) {
+                            orderNumber = resultSet.getString("Verkooporder");
+                            System.out.println(orderNumber);
+                            if (resultSet.wasNull()) {
+                                System.out.println("no ordernumer");
+                                continue;
+                            }
+                            String regel = resultSet.getString("Regel");
+                            String product = resultSet.getString("Product");
+                            String description = resultSet.getString("Omschrijving");
 
-                        if (ordersMap.isEmpty()) {
-                            this.getAllOrders();
-                        }
-
-                        OrderDto orderDto = ordersMap.getOrDefault(orderNumber + "," + regel, null);
-                        Map<String, Boolean> reminderMap = new HashMap<>();
-                        Optional<MonSubOrders> existingSubOrder = monSubOrdersRepo.findByOrderNumberAndRegelAndProduct(orderNumber, regel, product);
-                        if (orderDto != null && !product.equals("L") && !existingSubOrder.isPresent() && reminderMap.getOrDefault(orderNumber + "," + product, true)) {
-                            try {
-                                Order order = orderRepo.findById(orderDto.getId()).get();
-                                MonSubOrders subOrder = new MonSubOrders();
-                                subOrder.setOrderNumber(orderNumber);
-                                subOrder.setProduct(product);
-                                subOrder.setRegel(regel);
-                                subOrder.setAantal(order.getAantal());
-                                subOrder.setOmsumin(description);
-                                subOrder.setOrder(order);
-
-                                if (order.getMonSubOrders() != null) {
-                                    order.getMonSubOrders().add(subOrder);
-                                } else {
-                                    List<MonSubOrders> subOrdersList = new ArrayList<>();
-                                    subOrdersList.add(subOrder);
-                                    order.setMonSubOrders(subOrdersList);
-                                }
+                            if (ordersMap.isEmpty()) {
                                 try {
-                                    orderRepo.save(order);
+                                    this.getAllOrders();
                                 } catch (DataIntegrityViolationException e) {
                                     Throwable rootCause = e.getRootCause();
                                     if (rootCause instanceof SQLIntegrityConstraintViolationException) {
-                                        System.out.println("from mon : Caught SQLIntegrityConstraintViolationException:");
+                                        System.out.println("from mon getall: Caught SQLIntegrityConstraintViolationException:");
                                         System.out.println(rootCause.getMessage());
-                                        System.out.println(order.getId() + " is not saved");
                                         e.printStackTrace();
                                         List<OrderDto> orderList = this.getAllOrders();
                                         this.orderDtoList = orderList;
                                     } else {
-                                        System.out.println("from mon : Caught DataIntegrityViolationException:");
+                                        System.out.println("from mon getall: Caught DataIntegrityViolationException:");
                                         System.out.println(e.getMessage());
                                         e.printStackTrace();
                                         List<OrderDto> orderList = this.getAllOrders();
                                         this.orderDtoList = orderList;
                                     }
                                 }
-                                ordersMap.put(orderNumber + "," + regel, orderToDto(order));
-                                reminderMap.put(orderNumber + "," + product, false);
-                            } catch (Exception e) {
-                                e.printStackTrace();
+                            }
+
+                            OrderDto orderDto = ordersMap.getOrDefault(orderNumber + "," + regel, null);
+                            Map<String, Boolean> reminderMap = new HashMap<>();
+                            Optional<MonSubOrders> existingSubOrder = Optional.empty();
+                            try {
+                                existingSubOrder = monSubOrdersRepo.findByOrderNumberAndRegelAndProduct(orderNumber, regel, product);
+                            } catch (DataIntegrityViolationException e) {
+                                Throwable rootCause = e.getRootCause();
+                                if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                                    System.out.println("from mon : Caught SQLIntegrityConstraintViolationException:");
+                                    System.out.println(rootCause.getMessage());
+                                    System.out.println(orderNumber + " is not saved");
+                                    e.printStackTrace();
+                                    List<OrderDto> orderList = this.getAllOrders();
+                                    this.orderDtoList = orderList;
+                                } else {
+                                    System.out.println("from mon : Caught DataIntegrityViolationException:");
+                                    System.out.println(e.getMessage());
+                                    e.printStackTrace();
+                                    List<OrderDto> orderList = this.getAllOrders();
+                                    this.orderDtoList = orderList;
+                                }
+                            }
+                            if (orderDto != null && !product.equals("L") && !existingSubOrder.isPresent() && reminderMap.getOrDefault(orderNumber + "," + product, true)) {
+                                try {
+                                    Order order = orderRepo.findById(orderDto.getId()).get();
+                                    MonSubOrders subOrder = new MonSubOrders();
+                                    subOrder.setOrderNumber(orderNumber);
+                                    subOrder.setProduct(product);
+                                    subOrder.setRegel(regel);
+                                    subOrder.setAantal(order.getAantal());
+                                    subOrder.setOmsumin(description);
+                                    subOrder.setOrder(order);
+
+                                    if (order.getMonSubOrders() != null) {
+                                        order.getMonSubOrders().add(subOrder);
+                                    } else {
+                                        List<MonSubOrders> subOrdersList = new ArrayList<>();
+                                        subOrdersList.add(subOrder);
+                                        order.setMonSubOrders(subOrdersList);
+                                    }
+                                    try {
+                                        orderRepo.save(order);
+                                    } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
+                                        System.out.println("from mon : Caught ObjectOptimisticLockingFailureException:");
+                                        System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
+                                        System.out.println(order.getId() + " could not be saved due to version mismatch or no matching record.");
+                                        e.printStackTrace();
+                                    } catch (DataIntegrityViolationException e) {
+                                        Throwable rootCause = e.getRootCause();
+                                        if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                                            System.out.println("from mon : Caught SQLIntegrityConstraintViolationException:");
+                                            System.out.println(rootCause.getMessage());
+                                            System.out.println(order.getId() + " is not saved");
+                                            e.printStackTrace();
+                                            List<OrderDto> orderList = this.getAllOrders();
+                                            this.orderDtoList = orderList;
+                                        } else {
+                                            System.out.println("from mon : Caught DataIntegrityViolationException:");
+                                            System.out.println(e.getMessage());
+                                            e.printStackTrace();
+                                            List<OrderDto> orderList = this.getAllOrders();
+                                            this.orderDtoList = orderList;
+                                        }
+                                    }
+                                    ordersMap.put(orderNumber + "," + regel, orderToDto(order));
+                                    reminderMap.put(orderNumber + "," + product, false);
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                }
                             }
                         }
                     }
+                } catch (SQLException var35) {
+                    var35.printStackTrace();
+                    List<OrderDto> orderList = this.getAllOrders();
+                    this.orderDtoList = orderList;
+                } catch (Exception var37) {
+                    Exception e = var37;
+                    e.printStackTrace();
+                    List<OrderDto> orderList = this.getAllOrders();
+                    this.orderDtoList = orderList;
                 }
-            } catch (SQLException var35) {
-                var35.printStackTrace();
-                List<OrderDto> orderList = this.getAllOrders();
-                this.orderDtoList = orderList;
-            } catch (Exception var37) {
-                Exception e = var37;
-                e.printStackTrace();
-                List<OrderDto> orderList = this.getAllOrders();
-                this.orderDtoList = orderList;
             }
         } catch (Exception var39) {
             Exception e = var39;
@@ -1582,6 +1832,7 @@ public class OrderServiceImp implements OrderService {
             List<OrderDto> orderList = this.getAllOrders();
             this.orderDtoList = orderList;
         }
+
         return null;
     }
 
@@ -2525,6 +2776,11 @@ public class OrderServiceImp implements OrderService {
                         }
 
                         return false;
+                    } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
+                        System.out.println("from updatetracolors : Caught ObjectOptimisticLockingFailureException:");
+                        System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
+                        System.out.println(ids + " could not be saved due to version mismatch or no matching record.");
+                        e.printStackTrace();
                     } catch (DataIntegrityViolationException e) {
                         Throwable rootCause = e.getRootCause();
                         if (rootCause instanceof SQLIntegrityConstraintViolationException) {

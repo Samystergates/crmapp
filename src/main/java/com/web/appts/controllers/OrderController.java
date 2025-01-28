@@ -47,10 +47,14 @@ public class OrderController {
     public ResponseEntity<List<OrderDto>> getCrmOrders() {
         List<OrderDto> orderDto = this.orderService.checkMap();
         orderDto = this.orderService.getCRMOrders();
+        this.orderService.createMonSub();
+        this.orderService.updateProductNotes();
+        this.orderService.adjustParentOrders();
+        List<OrderDto> orderDtos = this.orderService.checkMap();
 
-        this.sortUsingDate(orderDto);
-        this.messagingTemplate.convertAndSend("/topic/orderUpdate", orderDto);
-        return ResponseEntity.ok(orderDto);
+        this.sortUsingDate(orderDtos);
+        this.messagingTemplate.convertAndSend("/topic/orderUpdate", orderDtos);
+        return ResponseEntity.ok(orderDtos);
     }
 
     @GetMapping({"/search/{userName}"})

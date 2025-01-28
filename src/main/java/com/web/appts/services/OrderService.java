@@ -32,6 +32,9 @@ public interface OrderService {
 
 	public void adjustParentOrders();
 
+	//@Transactional
+	void updateProductNotes();
+
 	Map<String, OrderDto> updateTextForOrders();
 
 	void markExpired();
