@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.PostConstruct;
+import javax.sql.DataSource;
 import javax.transaction.Transactional;
 
 import com.web.appts.utils.OdbcConnectionMonitor;
@@ -29,7 +30,14 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.hibernate.StaleStateException;
 import org.modelmapper.ModelMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.SpringApplication;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -43,6 +51,7 @@ import static java.util.Collections.min;
 public class OrderServiceImp implements OrderService {
     Map<String, OrderDto> ordersMap = new HashMap();
     Map<String, OrderDto> archivedOrdersMap = new HashMap();
+    private static final Logger logger = LoggerFactory.getLogger(OrderServiceImp.class);
     List<OrderDto> orderDtoList;
     @Autowired
     private ModelMapper modelMapper;
@@ -57,7 +66,71 @@ public class OrderServiceImp implements OrderService {
     @Autowired
     private OdbcConnectionMonitor connectionMonitor;
 
+    private final Set<Connection> activeConnections = new HashSet<>();
+
+    public Connection getConnection() throws SQLException {
+        Connection connection = secondaryDataSource.getConnection();
+        activeConnections.add(connection);
+        return connection;
+    }
+
+    public void closeConnections() {
+        for (Connection connection : activeConnections) {
+            try {
+                if (!connection.isClosed()) {
+                    connection.close();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+        activeConnections.clear();
+    }
+
+    @Autowired
+    @Qualifier("secondaryDataSource")
+    private DataSource secondaryDataSource;
+
+    @Autowired
+    @Lazy
+    private ApplicationContext context;
+
     public OrderServiceImp() {
+    }
+
+
+    private void refreshDataSource() {
+        try {
+            closeConnections();
+            ((ConfigurableApplicationContext) context).getBeanFactory()
+                    .destroyBean(secondaryDataSource);
+            secondaryDataSource = context.getBean("secondaryDataSource", DataSource.class);
+            System.out.println("DataSource refreshed successfully!");
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            System.out.println("Failed to refresh DataSource.");
+        }
+    }
+
+    private void reloadJDBCDriver() {
+        try {
+            Enumeration<Driver> drivers = DriverManager.getDrivers();
+            while (drivers.hasMoreElements()) {
+                Driver driver = drivers.nextElement();
+                if (driver.getClass().getName().equals("sun.jdbc.odbc.JdbcOdbcDriver")) {
+                    DriverManager.deregisterDriver(driver);
+                    logger.info("Deregistered JDBC-ODBC driver: " + driver);
+                    break;
+                }
+            }
+            Class<?> driverClass = Class.forName("sun.jdbc.odbc.JdbcOdbcDriver");
+            Driver driverInstance = (Driver) driverClass.getDeclaredConstructor().newInstance();
+            DriverManager.registerDriver(driverInstance);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println();
+            logger.info("Failed to reload JDBC-ODBC Driver.");
+        }
     }
 
     public Map<String, OrderDto> getMap() {
@@ -695,131 +768,170 @@ public class OrderServiceImp implements OrderService {
     @Scheduled(fixedRate = 300000)
     public void markExpired() {
         if (!ordersMap.isEmpty() && !this.archivedOrdersService.getAllArchivedOrders().isEmpty()) {
-            try {
-                String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
-                System.out.println("----------driver----------");
-                System.out.println(driver);
-                String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;ConnectTimeout=30;MaxBufferSize=2048;SocketTimeout=60;Trusted_Connection=Yes;";
-                System.out.println("----------connectionString----------");
-                System.out.println(connectionString);
-                String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', " +
-                        "\"va-211\".\"cdprodukt\" AS 'Product' , \"va-211\".\"nrordrgl\" AS 'Regel'" +
-                        "FROM DATA.PUB.\"va-210\" " +
-                        "JOIN DATA.PUB.\"va-211\" ON \"va-210\".\"cdorder\" = \"va-211\".\"cdorder\" " +
-                        "AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" " +
-                        "WHERE (\"va-210\".\"cdstatus\" <> 'Z' And \"va-210\".\"cdstatus\" <> 'B') " +
-                        "AND \"va-210\".\"cdadmin\" = '01' " +
-                        "AND \"va-210\".\"cdvestiging\" = 'ree'";
+            int retry = 0;
+            while (retry < 5 && retry != -1) {
+                try {
+                    markExpiredInner();
+                    retry = -1;
+                } catch (Exception e) {
+                    logger.info("markExpired sql exc 2");
+                    if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                        retry++;
+                    } else {
+                        e.printStackTrace();
+                    }
+                } finally {
+                    closeConnections();
+                }
+            }
+            if (retry == 5) {
+                retry = 0;
+                reloadJDBCDriver();
+                refreshDataSource();
+                while (retry < 5 && retry != -1) {
+                    try {
+                        markExpiredInner();
+                        retry = -1;
+                    } catch (Exception e) {
+                        logger.info("markExpired sql exc 3");
+                        if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                            retry++;
+                        } else {
+                            e.printStackTrace();
+                        }
+                    } finally {
+                        closeConnections();
+                    }
+                }
+                if (retry == 5) {
+                    int exitCode = SpringApplication.exit(context, () -> 0);
+                    System.exit(exitCode);
+                }
+                logger.info("fixed");
+            } else {
+                logger.info("worked");
+            }
+        }
+    }
 
-                System.out.println(query);
-                Class.forName(driver);
-                try (Connection connection = DriverManager.getConnection(connectionString);
-                     Statement statement = connection.createStatement();
-                     ResultSet resultSet = statement.executeQuery(query)) {
-                    connectionMonitor.registerConnection(connection);
-                    if (statement != null && resultSet != null) {
-                        System.out.println("----------resultSet----------");
-                        System.out.println(resultSet);
-                        System.out.println(resultSet.next());
-                        String orderNumber = null;
+    public void markExpiredInner() {
 
-                        List<String> existingOrderNumbers = new ArrayList<>();
-                        while (resultSet.next()) {
-                            if (resultSet.wasNull()) {
-                                System.out.println("no ordernumer");
-                                continue;
-                            }
-                            orderNumber = resultSet.getString("Verkooporder");
-                            String product = resultSet.getString("Product");
-                            String regel = resultSet.getString("Regel");
-                            existingOrderNumbers.add(orderNumber + "," + regel);
+        String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', " +
+                "\"va-211\".\"cdprodukt\" AS 'Product' , \"va-211\".\"nrordrgl\" AS 'Regel'" +
+                "FROM DATA.PUB.\"va-210\" " +
+                "JOIN DATA.PUB.\"va-211\" ON \"va-210\".\"cdorder\" = \"va-211\".\"cdorder\" " +
+                "AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" " +
+                "WHERE (\"va-210\".\"cdstatus\" <> 'Z' And \"va-210\".\"cdstatus\" <> 'B') " +
+                "AND \"va-210\".\"cdadmin\" = '01' " +
+                "AND \"va-210\".\"cdvestiging\" = 'ree'";
+
+        System.out.println(query);
+        try (Connection connection = getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(query)) {
+            connectionMonitor.registerConnection(connection);
+            if (statement != null && resultSet != null) {
+                System.out.println("----------resultSet----------");
+                System.out.println(resultSet);
+                System.out.println(resultSet.next());
+                String orderNumber = null;
+
+                List<String> existingOrderNumbers = new ArrayList<>();
+                while (resultSet.next()) {
+                    if (resultSet.wasNull()) {
+                        System.out.println("no ordernumer");
+                        continue;
+                    }
+                    orderNumber = resultSet.getString("Verkooporder");
+                    String product = resultSet.getString("Product");
+                    String regel = resultSet.getString("Regel");
+                    existingOrderNumbers.add(orderNumber + "," + regel);
 //                            System.out.println("orderNumber");
 //                            System.out.println(orderNumber);
-                        }
+                }
 //                        for (String on : existingOrderNumbers) {
 //                            System.out.println(on);
 //                        }
-                        Set<String> uniqueones = new HashSet<>(existingOrderNumbers);
-                        System.out.print("unique ones: ");
-                        System.out.println(uniqueones.size());
-                        System.out.print("total: ");
-                        System.out.println(existingOrderNumbers.size());
-                        System.out.println(ordersMap.values().size());
-                        List<OrderDto> orderList = this.ordersMap.values()
-                                .stream()
-                                .filter(ord -> {
-                                    return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getRegel());
-                                })
-                                .collect(Collectors.toList());
+                Set<String> uniqueones = new HashSet<>(existingOrderNumbers);
+                System.out.print("unique ones: ");
+                System.out.println(uniqueones.size());
+                System.out.print("total: ");
+                System.out.println(existingOrderNumbers.size());
+                System.out.println(ordersMap.values().size());
+                List<OrderDto> orderList = this.ordersMap.values()
+                        .stream()
+                        .filter(ord -> {
+                            return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getRegel());
+                        })
+                        .collect(Collectors.toList());
 
 //                        for (Integer id : idList1) {
 //                            System.out.println("id1: " + id);
 //                        }
-                        System.out.println("list1: " + orderList.size());
-                        List<ArchivedOrdersDto> archivedOrdersList = this.archivedOrdersService.getAllArchivedOrders()
-                                .stream()
-                                .filter(ord -> {
-                                    return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getRegel());
-                                })
-                                .collect(Collectors.toList());
+                System.out.println("list1: " + orderList.size());
+                List<ArchivedOrdersDto> archivedOrdersList = this.archivedOrdersService.getAllArchivedOrders()
+                        .stream()
+                        .filter(ord -> {
+                            return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getRegel());
+                        })
+                        .collect(Collectors.toList());
 //                        for (Long id : idList2) {
 //                            System.out.println("id2: " + id);
 //                        }
-                        System.out.println("list2: " + archivedOrdersList.size());
-                        List<Integer> filteredOrders = orderList
-                                .stream()
-                                .filter(order ->
-                                        archivedOrdersList.stream()
-                                                .noneMatch(archivedOrder ->
-                                                        archivedOrder.getOrderNumber().equals(order.getOrderNumber()) &&
-                                                                archivedOrder.getRegel().equals(order.getRegel())
-                                                )
-                                ).map(OrderDto::getId)
-                                .collect(Collectors.toList());
+                System.out.println("list2: " + archivedOrdersList.size());
+                List<Integer> filteredOrders = orderList
+                        .stream()
+                        .filter(order ->
+                                archivedOrdersList.stream()
+                                        .noneMatch(archivedOrder ->
+                                                archivedOrder.getOrderNumber().equals(order.getOrderNumber()) &&
+                                                        archivedOrder.getRegel().equals(order.getRegel())
+                                        )
+                        ).map(OrderDto::getId)
+                        .collect(Collectors.toList());
 
 //                        for (Integer id : idList3) {
 //                            System.out.println("id3: " + id);
 //                        }
-                        System.out.println("list3: " + filteredOrders.size());
-                        List<OrderDto> matchingObjects = ordersMap.values().stream()
-                                .filter(obj -> filteredOrders.contains(obj.getId()))
-                                .peek(obj -> obj.setIsExpired(true))
-                                .collect(Collectors.toList());
+                System.out.println("list3: " + filteredOrders.size());
+                List<OrderDto> matchingObjects = ordersMap.values().stream()
+                        .filter(obj -> filteredOrders.contains(obj.getId()))
+                        .peek(obj -> obj.setIsExpired(true))
+                        .collect(Collectors.toList());
 
 
-                        matchingObjects.forEach(obj -> {
-                            System.out.println("Got Expired: " + obj.getExpired() + "," + obj.getId());
-                            try {
-                                this.updateOrder(obj, obj.getId(), false);
-                            } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
-                                System.out.println("from markexpired : Caught ObjectOptimisticLockingFailureException:");
-                                System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
-                                System.out.println(obj.getId() + " could not be saved due to version mismatch or no matching record.");
-                                e.printStackTrace();
-                            } catch (DataIntegrityViolationException e) {
-                                Throwable rootCause = e.getRootCause();
-                                if (rootCause instanceof SQLIntegrityConstraintViolationException) {
-                                    System.out.println("Caught markexpired SQLIntegrityConstraintViolationException:");
-                                    System.out.println(rootCause.getMessage());
-                                    System.out.println(obj.getId() + " is not saved");
-                                    e.printStackTrace();
-                                } else {
-                                    System.out.println("Caught markexpired DataIntegrityViolationException:");
-                                    System.out.println(e.getMessage());
-                                    e.printStackTrace();
-                                }
-                            }
-                        });
-
-
-                        //this.moveToArchive(filteredOrders);
+                matchingObjects.forEach(obj -> {
+                    System.out.println("Got Expired: " + obj.getExpired() + "," + obj.getId());
+                    try {
+                        this.updateOrder(obj, obj.getId(), false);
+                    } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
+                        System.out.println("from markexpired : Caught ObjectOptimisticLockingFailureException:");
+                        System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
+                        System.out.println(obj.getId() + " could not be saved due to version mismatch or no matching record.");
+                        e.printStackTrace();
+                    } catch (DataIntegrityViolationException e) {
+                        Throwable rootCause = e.getRootCause();
+                        if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+                            System.out.println("Caught markexpired SQLIntegrityConstraintViolationException:");
+                            System.out.println(rootCause.getMessage());
+                            System.out.println(obj.getId() + " is not saved");
+                            e.printStackTrace();
+                        } else {
+                            System.out.println("Caught markexpired DataIntegrityViolationException:");
+                            System.out.println(e.getMessage());
+                            e.printStackTrace();
+                        }
                     }
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
+                });
+
+
+                //this.moveToArchive(filteredOrders);
             }
+        } catch (SQLException e) {
+
+            logger.info("markExpired sql exc 1");
+            logger.info(e.getMessage());
+            throw new RuntimeException(e);
         }
     }
 
@@ -853,12 +965,6 @@ public class OrderServiceImp implements OrderService {
         boolean createMonCalled = false;
         boolean productNotesCalled = false;
         try {
-            String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
-            System.out.println("----------driver----------");
-            System.out.println(driver);
-            String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;ConnectTimeout=30;MaxBufferSize=4096;SocketTimeout=60;Trusted_Connection=Yes;";
-            System.out.println("----------connectionString----------");
-            System.out.println(connectionString);
 
             String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', \"va-210\".\"cdordsrt\" AS 'Ordersoort'," +
                     " \"va-211\".\"cdborder\" AS 'Backorder', \"va-210\".\"cdgebruiker-init\" AS 'Gebruiker (I)', \"va-210\".\"cddeb\" AS 'Organisatie'," +
@@ -897,8 +1003,7 @@ public class OrderServiceImp implements OrderService {
 
             System.out.println("----------query----------");
             System.out.println(query);
-            Class.forName(driver);
-            try (Connection connection = DriverManager.getConnection(connectionString);
+            try (Connection connection = getConnection();
                  Statement statement = connection.createStatement();
                  ResultSet resultSet = statement.executeQuery(query)) {
                 connectionMonitor.registerConnection(connection);
@@ -1080,7 +1185,7 @@ public class OrderServiceImp implements OrderService {
                                     (!existingOrderDto.getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.isEmpty())) {
                                 try {
                                     this.updateOrder(orderDto, orderDto.getId(), false);
-                                    System.out.println(existingOrderDto.getDeliveryDate() + ", "+ deliveryDate2);
+                                    System.out.println(existingOrderDto.getDeliveryDate() + ", " + deliveryDate2);
                                     System.out.println("UPDATING : " + orderDto.getId());
                                 } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
                                     System.out.println("from getcrm update : Caught ObjectOptimisticLockingFailureException:");
@@ -1106,6 +1211,7 @@ public class OrderServiceImp implements OrderService {
                     }
                 }
             } catch (SQLException var35) {
+                System.out.println("getCRMOrders sql exc 1");
                 var35.printStackTrace();
                 if (adjustParentCalled != true && createMonCalled != true && productNotesCalled != true) {
 
@@ -1121,6 +1227,7 @@ public class OrderServiceImp implements OrderService {
                 //new ResourceNotFoundException("Order", "CRM", "N/A");
                 //return null;
             } catch (Exception var37) {
+                System.out.println("getCRMOrders sql exc 2");
                 Exception e = var37;
                 e.printStackTrace();
                 if (adjustParentCalled != true && createMonCalled != true && productNotesCalled != true) {
@@ -1150,6 +1257,7 @@ public class OrderServiceImp implements OrderService {
             this.orderDtoList = orderList;
             return this.orderDtoList;
         } catch (Exception var39) {
+            System.out.println("getCRMOrders sql exc 3");
             Exception e = var39;
             e.printStackTrace();
             if (adjustParentCalled != true || (createMonCalled != true && productNotesCalled != true)) {
@@ -1162,6 +1270,8 @@ public class OrderServiceImp implements OrderService {
             return this.orderDtoList;
             //new ResourceNotFoundException("Order", "CRM", "N/A");
             //return null;
+        } finally {
+            closeConnections();
         }
     }
 
@@ -1487,12 +1597,6 @@ public class OrderServiceImp implements OrderService {
     @Override
     public void updateProductNotes() {
         try {
-            String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
-            System.out.println("----------driver----------");
-            System.out.println(driver);
-            String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;ConnectTimeout=30;MaxBufferSize=4096;SocketTimeout=60;Trusted_Connection=Yes;";
-            System.out.println("----------connectionString----------");
-            System.out.println(connectionString);
 
             System.out.println("Orders Map Size: " + ordersMap.size());
             List<String> formattedOrders = new ArrayList<>();
@@ -1511,8 +1615,8 @@ public class OrderServiceImp implements OrderService {
 
                 System.out.println("----------query----------");
                 System.out.println(query);
-                Class.forName(driver);
-                try (Connection connection = DriverManager.getConnection(connectionString);
+
+                try (Connection connection = getConnection();
                      Statement statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
                      ResultSet resultSet = statement.executeQuery(query)) {
                     connectionMonitor.registerConnection(connection);
@@ -1560,24 +1664,22 @@ public class OrderServiceImp implements OrderService {
                         }
                     }
                 } catch (Exception var39) {
+                    System.out.println("updateProductNotes sql exc 1");
                     Exception e = var39;
                     e.printStackTrace();
                 }
             }
         } catch (Exception e) {
+            System.out.println("updateProductNotes sql exc 1");
             e.printStackTrace();
+        } finally {
+            closeConnections();
         }
     }
 
     @Override
     public Map<String, OrderDto> updateTextForOrders() {
         try {
-            String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
-            System.out.println("----------driver----------");
-            System.out.println(driver);
-            String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;ConnectTimeout=30;MaxBufferSize=4096;SocketTimeout=60;Trusted_Connection=Yes;";
-            System.out.println("----------connectionString----------");
-            System.out.println(connectionString);
 
             System.out.println("Orders Map Size: " + ordersMap.size());
             List<String> formattedOrders = new ArrayList<>();
@@ -1595,8 +1697,7 @@ public class OrderServiceImp implements OrderService {
 
             System.out.println("----------query----------");
             System.out.println(query);
-            Class.forName(driver);
-            try (Connection connection = DriverManager.getConnection(connectionString);
+            try (Connection connection = getConnection();
                  Statement statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
                  ResultSet resultSet = statement.executeQuery(query)) {
                 connectionMonitor.registerConnection(connection);
@@ -1644,13 +1745,17 @@ public class OrderServiceImp implements OrderService {
                     }
                 }
             } catch (Exception var39) {
+                System.out.println("updateTextForOrders sql exc 1");
                 Exception e = var39;
                 e.printStackTrace();
                 return null;
             }
         } catch (Exception e) {
+            System.out.println("updateTextForOrders sql exc 2");
             e.printStackTrace();
             return null;
+        } finally {
+            closeConnections();
         }
         return null;
     }
@@ -1660,8 +1765,6 @@ public class OrderServiceImp implements OrderService {
     public Map<String, OrderDto> createMonSub() {
 
         try {
-            String driver = "sun.jdbc.odbc.JdbcOdbcDriver";
-            String connectionString = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;ConnectTimeout=30;MaxBufferSize=4096;SocketTimeout=60;Trusted_Connection=Yes;";
 
             List<String> formattedOrders = new ArrayList<>();
             for (Map.Entry<String, OrderDto> entry : ordersMap.entrySet()) {
@@ -1697,16 +1800,11 @@ public class OrderServiceImp implements OrderService {
 
                 System.out.println("----------query----------");
                 System.out.println(query);
-                Class.forName(driver);
-                try (Connection connection = DriverManager.getConnection(connectionString);
+                try (Connection connection = getConnection();
                      Statement statement = connection.createStatement();
                      ResultSet resultSet = statement.executeQuery(query)) {
                     connectionMonitor.registerConnection(connection);
                     //Class.forName(driver);
-                    System.out.println("----------connection----------");
-                    System.out.println(connection);
-                    System.out.println("----------statement----------");
-                    System.out.println(statement);
                     if (statement != null && resultSet != null) {
                         System.out.println("----------resultSet----------");
                         System.out.println(resultSet);
@@ -1816,10 +1914,12 @@ public class OrderServiceImp implements OrderService {
                         }
                     }
                 } catch (SQLException var35) {
+                    System.out.println("createMonSub sql exc 1");
                     var35.printStackTrace();
                     List<OrderDto> orderList = this.getAllOrders();
                     this.orderDtoList = orderList;
                 } catch (Exception var37) {
+                    System.out.println("createMonSub sql exc 2");
                     Exception e = var37;
                     e.printStackTrace();
                     List<OrderDto> orderList = this.getAllOrders();
@@ -1827,10 +1927,13 @@ public class OrderServiceImp implements OrderService {
                 }
             }
         } catch (Exception var39) {
+            System.out.println("createMonSub sql exc 3");
             Exception e = var39;
             e.printStackTrace();
             List<OrderDto> orderList = this.getAllOrders();
             this.orderDtoList = orderList;
+        } finally {
+            closeConnections();
         }
 
         return null;
