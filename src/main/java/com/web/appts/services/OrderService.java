@@ -46,4 +46,6 @@ public interface OrderService {
 	public void generateExcelFile(OutputStream outputStream);
 
 	List<OrderDto> checkMap();
+
+	List<OrderDto> getOrdersByRegel(String regel);
 }

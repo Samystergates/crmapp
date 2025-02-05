@@ -138,4 +138,12 @@ public class OrderController {
             return ResponseEntity.internalServerError().build();
         }
     }
+
+    @GetMapping("/search/regel/{regel}")
+    public ResponseEntity<List<OrderDto>> getOrdersByRegel(@PathVariable("regel") String regel) {
+        List<OrderDto> orderDto = orderService.getOrdersByRegel(regel);
+        this.sortUsingDate(orderDto);
+        return ResponseEntity.ok(orderDto);
+    }
+
 }

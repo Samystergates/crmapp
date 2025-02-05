@@ -70,6 +70,10 @@ public class ArchivedOrdersDto {
         return this.orderType;
     }
 
+    public void setRegel(String regel) {
+        this.regel = regel;
+    }
+
     public void setOrderType(String orderType) {
         this.orderType = orderType;
     }
@@ -252,10 +256,6 @@ public class ArchivedOrdersDto {
 
     public String getRegel() {
         return this.regel;
-    }
-
-    public void setRegel(String regel) {
-        this.regel = regel;
     }
 
     public String getAantal() {

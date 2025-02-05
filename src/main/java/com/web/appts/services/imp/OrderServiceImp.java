@@ -385,6 +385,7 @@ public class OrderServiceImp implements OrderService {
                 this.orderDtoList = new ArrayList();
                 Iterator var13 = this.ordersMap.entrySet().iterator();
 
+
                 while (var13.hasNext()) {
                     Map.Entry<String, OrderDto> entry = (Map.Entry) var13.next();
                     OrderDto orderDto2 = (OrderDto) entry.getValue();
@@ -779,7 +780,9 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
+
     @Transactional
+
     public List<OrderDto> checkMap() {
 
         if (this.ordersMap.isEmpty()) {
