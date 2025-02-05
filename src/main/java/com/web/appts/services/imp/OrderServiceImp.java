@@ -68,28 +68,41 @@ public class OrderServiceImp implements OrderService {
 
     private final Set<Connection> activeConnections = new HashSet<>();
 
+    @Autowired
+    @Qualifier("secondaryDataSource")
+    private DataSource secondaryDataSource;
+
     public Connection getConnection() throws SQLException {
+        logger.info("getConnection() called.");
         Connection connection = secondaryDataSource.getConnection();
+        logger.info("Connection acquired: " + connection);
         activeConnections.add(connection);
         return connection;
     }
 
     public void closeConnections() {
-        for (Connection connection : activeConnections) {
+        logger.info("Closing connections. Total active: " + activeConnections.size());
+
+        Iterator<Connection> iterator = activeConnections.iterator();
+        while (iterator.hasNext()) {
+            Connection connection = iterator.next();
             try {
                 if (!connection.isClosed()) {
+                    logger.info("Closing connection: " + connection);
                     connection.close();
+                    logger.info("Connection closed: " + connection);
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                logger.error("Error closing connection: " + connection, e);
+            } finally {
+                iterator.remove(); // Remove from list even if it fails to close
             }
         }
-        activeConnections.clear();
+
+        logger.info("All connections closed. Active connections now: " + activeConnections.size());
     }
 
-    @Autowired
-    @Qualifier("secondaryDataSource")
-    private DataSource secondaryDataSource;
+
 
     @Autowired
     @Lazy
@@ -114,24 +127,102 @@ public class OrderServiceImp implements OrderService {
 
     private void reloadJDBCDriver() {
         try {
+            closeConnections();
+
+            // Log all drivers before deregistering
+            Enumeration<Driver> driversBefore = DriverManager.getDrivers();
+            logger.info("Drivers before deregistration:");
+            while (driversBefore.hasMoreElements()) {
+                Driver driver = driversBefore.nextElement();
+                logger.info(" - " + driver);
+            }
+
+            // Remove ODBC driver
             Enumeration<Driver> drivers = DriverManager.getDrivers();
             while (drivers.hasMoreElements()) {
                 Driver driver = drivers.nextElement();
                 if (driver.getClass().getName().equals("sun.jdbc.odbc.JdbcOdbcDriver")) {
                     DriverManager.deregisterDriver(driver);
+                    System.gc(); // Hint JVM to clean up resources
                     logger.info("Deregistered JDBC-ODBC driver: " + driver);
-                    break;
                 }
             }
+
+            // Log all drivers after deregistration
+            Enumeration<Driver> driversAfter = DriverManager.getDrivers();
+            logger.info("Drivers after deregistration:");
+            while (driversAfter.hasMoreElements()) {
+                Driver driver = driversAfter.nextElement();
+                logger.info(" - " + driver);
+            }
+
+            Thread.sleep(1000);
+
+            // Reload driver
             Class<?> driverClass = Class.forName("sun.jdbc.odbc.JdbcOdbcDriver");
             Driver driverInstance = (Driver) driverClass.getDeclaredConstructor().newInstance();
             DriverManager.registerDriver(driverInstance);
+            logger.info("Re-registered JDBC-ODBC driver: " + driverInstance);
+
+            // Confirm driver is reloaded
+            Enumeration<Driver> driversFinal = DriverManager.getDrivers();
+            logger.info("Drivers after re-registration:");
+            while (driversFinal.hasMoreElements()) {
+                Driver driver = driversFinal.nextElement();
+                logger.info(" - " + driver);
+            }
+
         } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println();
-            logger.info("Failed to reload JDBC-ODBC Driver.");
+            logger.error("Failed to reload JDBC-ODBC Driver.", e);
         }
     }
+
+
+
+//    private void reloadJDBCDriver() {
+//        try {
+//            closeConnections();
+//            Enumeration<Driver> drivers = DriverManager.getDrivers();
+//            while (drivers.hasMoreElements()) {
+//                Driver driver = drivers.nextElement();
+//                if (driver.getClass().getName().equals("sun.jdbc.odbc.JdbcOdbcDriver")) {
+//                    DriverManager.deregisterDriver(driver);
+//                    System.gc();
+//                    logger.info("Deregistered JDBC-ODBC driver: " + driver);
+//                    break;
+//                }
+//            }
+//
+//            Enumeration<Driver> drivers2 = DriverManager.getDrivers();
+//            while (drivers2.hasMoreElements()) {
+//                Driver driver = drivers2.nextElement();
+//                if (driver.getClass().getName().equals("sun.jdbc.odbc.JdbcOdbcDriver")) {
+//                    logger.info("JDBC-ODBC driver: " + driver);
+//                    break;
+//                }
+//            }
+//            logger.info("JDBC-ODBC driver2 ");
+//
+//            Thread.sleep(1000);
+//            Class<?> driverClass = Class.forName("sun.jdbc.odbc.JdbcOdbcDriver");
+//            Driver driverInstance = (Driver) driverClass.getDeclaredConstructor().newInstance();
+//            DriverManager.registerDriver(driverInstance);
+//
+//            Enumeration<Driver> drivers3 = DriverManager.getDrivers();
+//            while (drivers3.hasMoreElements()) {
+//                Driver driver = drivers3.nextElement();
+//                if (driver.getClass().getName().equals("sun.jdbc.odbc.JdbcOdbcDriver")) {
+//                    logger.info("JDBC-ODBC driver: " + driver);
+//                    break;
+//                }
+//            }
+//            logger.info("JDBC-ODBC driver3 ");
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            System.out.println();
+//            logger.info("Failed to reload JDBC-ODBC Driver.");
+//        }
+//    }
 
     public Map<String, OrderDto> getMap() {
         if (this.ordersMap.isEmpty() || this.ordersMap == null) {
@@ -829,7 +920,6 @@ public class OrderServiceImp implements OrderService {
         try (Connection connection = getConnection();
              Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(query)) {
-            connectionMonitor.registerConnection(connection);
             if (statement != null && resultSet != null) {
                 System.out.println("----------resultSet----------");
                 System.out.println(resultSet);
