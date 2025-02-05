@@ -1,6 +1,7 @@
 
 package com.web.appts.DTO;
 
+import com.web.appts.entities.MonSubOrders;
 import com.web.appts.entities.OrderDepartment;
 import java.util.List;
 import java.util.Objects;
@@ -36,10 +37,12 @@ public class OrderDto {
   private String aantal;
   private String product;
   private String Omsumin;
+  private String tekst;
   private String cdProdGrp;
   private String completed;
   private int isParent;
   private List<OrderDepartment> departments;
+  private List<MonSubOrders> monSubOrders;
 
   public OrderDto() {
   }
@@ -291,6 +294,13 @@ public class OrderDto {
   public void setCdProdGrp(String cdProdGrp) {
     this.cdProdGrp = cdProdGrp;
   }
+  public String getTekst() {
+    return tekst;
+  }
+
+  public void setTekst(String tekst) {
+    this.tekst = tekst;
+  }
 
   public String getOmsumin() {
     return this.Omsumin;
@@ -314,6 +324,22 @@ public class OrderDto {
 
   public void setDepartments(List<OrderDepartment> departments) {
     this.departments = departments;
+  }
+
+  public Boolean getExpired() {
+    return isExpired;
+  }
+
+  public void setExpired(Boolean expired) {
+    isExpired = expired;
+  }
+
+  public List<MonSubOrders> getMonSubOrders() {
+    return monSubOrders;
+  }
+
+  public void setMonSubOrders(List<MonSubOrders> monSubOrders) {
+    this.monSubOrders = monSubOrders;
   }
 
   public boolean equals(Object obj) {

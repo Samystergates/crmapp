@@ -66,7 +66,7 @@ public class OrderWheelsFlowController {
 
 	@PostMapping({"/sme/get"})
 	public ResponseEntity<OrderSMEDto> getOrderSME(@RequestBody OrderSMEDto orderSMEDto) {
-		OrderSMEDto orderSMEDtoReturn = this.orderSMEService.getOrderSME(orderSMEDto.getOrderNumber(), orderSMEDto.getProdNumber());
+		OrderSMEDto orderSMEDtoReturn = this.orderSMEService.getOrderSME(orderSMEDto.getOrderNumber(), orderSMEDto.getRegel());
 		if (orderSMEDtoReturn == null) {
 			orderSMEDtoReturn = orderSMEDto;
 		}
@@ -137,7 +137,7 @@ public class OrderWheelsFlowController {
 
 	@PostMapping({"/spu/get"})
 	public ResponseEntity<OrderSPUDto> getOrderSPU(@RequestBody OrderSPUDto orderSPUDto) {
-		OrderSPUDto orderSPUDtoReturn = this.orderSPUService.getOrderSPU(orderSPUDto.getOrderNumber(), orderSPUDto.getProdNumber());
+		OrderSPUDto orderSPUDtoReturn = this.orderSPUService.getOrderSPU(orderSPUDto.getOrderNumber(), orderSPUDto.getRegel());
 		if (orderSPUDtoReturn == null) {
 			orderSPUDtoReturn = orderSPUDto;
 		}

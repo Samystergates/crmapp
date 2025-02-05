@@ -16,5 +16,7 @@ public interface ArchivedOrdersService {
 
   void validateArchiveMap();
 
-  List<ArchivedOrdersDto> getArchivedOrdersByRegel(String regel);
+
+  void deleteFromArchive(String orderNumber);
+
 }

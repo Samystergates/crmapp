@@ -2,7 +2,10 @@
 package com.web.appts.services;
 
 import com.web.appts.DTO.OrderDto;
+
+import java.io.OutputStream;
 import java.util.List;
+import java.util.Map;
 
 public interface OrderService {
 	Boolean createOrder(OrderDto paramOrderDto);
@@ -19,11 +22,28 @@ public interface OrderService {
 
 	List<OrderDto> getAllOrders();
 
+	void removingSameArchivedOrders();
+
 	List<OrderDto> getCRMOrders();
+
+	void createMonSubDemo();
+
+	Map<String, OrderDto> createMonSub();
+
+	public void adjustParentOrders();
+
+	//@Transactional
+	void updateProductNotes();
+
+	Map<String, OrderDto> updateTextForOrders();
+
+	void markExpired();
 
 	Boolean updateTraColors(String ids, Long id);
 
 	void deleteOrder(Integer paramInteger);
+
+	public void generateExcelFile(OutputStream outputStream);
 
 	List<OrderDto> checkMap();
 

@@ -21,6 +21,7 @@ public class ArchivedOrdersDto {
     private String user;
     private String organization;
     private String customerName;
+    private String cdProdGrp;
     private String postCode;
     private String city;
     private String country;
@@ -295,5 +296,21 @@ public class ArchivedOrdersDto {
 
     public void setDepartments(List<OrderDepartment> departments) {
         this.departments = departments;
+    }
+
+    public String getCdProdGrp() {
+        return cdProdGrp;
+    }
+
+    public void setCdProdGrp(String cdProdGrp) {
+        this.cdProdGrp = cdProdGrp;
+    }
+
+    public Boolean getExpired() {
+        return isExpired;
+    }
+
+    public void setExpired(Boolean expired) {
+        isExpired = expired;
     }
 }

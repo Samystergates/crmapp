@@ -2,14 +2,7 @@
 package com.web.appts.entities;
 
 import java.util.List;
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
+import javax.persistence.*;
 
 @Entity
 @Table(
@@ -36,6 +29,12 @@ public class ArchivedOrders {
 			name = "Backorder"
 	)
 	private String backOrder;
+
+	@Column(
+			name = "cdProdGrp"
+	)
+	private String cdProdGrp;
+
 	@Column(
 			name = "SME"
 	)
@@ -148,6 +147,7 @@ public class ArchivedOrders {
 	)
 	private int isParent;
 	@OneToMany(
+			fetch = FetchType.EAGER,
 			mappedBy = "order",
 			cascade = {CascadeType.ALL}
 	)
@@ -414,5 +414,21 @@ public class ArchivedOrders {
 
 	public void setDepartments(List<OrderDepartment> departments) {
 		this.Departments = departments;
+	}
+
+	public String getCdProdGrp() {
+		return cdProdGrp;
+	}
+
+	public void setCdProdGrp(String cdProdGrp) {
+		this.cdProdGrp = cdProdGrp;
+	}
+
+	public Boolean getExpired() {
+		return isExpired;
+	}
+
+	public void setExpired(Boolean expired) {
+		isExpired = expired;
 	}
 }

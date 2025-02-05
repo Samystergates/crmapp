@@ -3,13 +3,17 @@ package com.web.appts.controllers;
 
 import com.web.appts.DTO.OrderDto;
 import com.web.appts.services.OrderService;
+
+import java.io.ByteArrayOutputStream;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -42,13 +46,15 @@ public class OrderController {
     @GetMapping({"/refresh/orders"})
     public ResponseEntity<List<OrderDto>> getCrmOrders() {
         List<OrderDto> orderDto = this.orderService.checkMap();
-        if (orderDto == null) {
-            orderDto = this.orderService.getCRMOrders();
-        }
+        orderDto = this.orderService.getCRMOrders();
+        this.orderService.createMonSub();
+        this.orderService.updateProductNotes();
+        this.orderService.adjustParentOrders();
+        List<OrderDto> orderDtos = this.orderService.checkMap();
 
-        this.sortUsingDate(orderDto);
-        this.messagingTemplate.convertAndSend("/topic/orderUpdate", orderDto);
-        return ResponseEntity.ok(orderDto);
+        this.sortUsingDate(orderDtos);
+        this.messagingTemplate.convertAndSend("/topic/orderUpdate", orderDtos);
+        return ResponseEntity.ok(orderDtos);
     }
 
     @GetMapping({"/search/{userName}"})
@@ -74,25 +80,63 @@ public class OrderController {
         return ResponseEntity.ok(updatedOrders);
     }
 
+//    private void sortUsingDate(List<OrderDto> orderDto) {
+//        if (orderDto != null && !orderDto.isEmpty()) {
+//            DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+//            orderDto.sort(Comparator.comparing((order) -> {
+//                String deliveryDate = order.getDeliveryDate();
+//                return deliveryDate.isEmpty() ? order.getCreationDate() : deliveryDate;
+//            }, (date1, date2) -> {
+//                try {
+//                    Date parsedDate1 = dateFormat.parse(date1);
+//                    Date parsedDate2 = dateFormat.parse(date2);
+//                    return parsedDate2.compareTo(parsedDate1);
+//                } catch (ParseException var5) {
+//                    ParseException e = var5;
+//                    e.printStackTrace();
+//                    return 0;
+//                }
+//            }));
+//        }
+//    }
+
     private void sortUsingDate(List<OrderDto> orderDto) {
         if (orderDto != null && !orderDto.isEmpty()) {
             DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            orderDto.sort(Comparator.comparing((order) -> {
+            orderDto.sort(Comparator.comparing((OrderDto order) -> {
+                if (order == null) return null; // Handle null orders
                 String deliveryDate = order.getDeliveryDate();
-                return deliveryDate.isEmpty() ? order.getCreationDate() : deliveryDate;
+                String dateToParse = (deliveryDate != null && !deliveryDate.isEmpty()) ? deliveryDate : order.getCreationDate();
+                return dateToParse; // Return the date string for parsing
             }, (date1, date2) -> {
                 try {
-                    Date parsedDate1 = dateFormat.parse(date1);
-                    Date parsedDate2 = dateFormat.parse(date2);
-                    return parsedDate2.compareTo(parsedDate1);
-                } catch (ParseException var5) {
-                    ParseException e = var5;
+                    Date parsedDate1 = (date1 != null) ? dateFormat.parse(date1) : null;
+                    Date parsedDate2 = (date2 != null) ? dateFormat.parse(date2) : null;
+                    return Comparator.nullsLast(Date::compareTo).compare(parsedDate2, parsedDate1);
+                } catch (ParseException e) {
                     e.printStackTrace();
-                    return 0;
+                    return 0; // Treat parse failures as equal
                 }
             }));
         }
+    }
 
+
+    @GetMapping("/export-orders")
+    public ResponseEntity<byte[]> exportOrders() {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            // Generate Excel file
+            orderService.generateExcelFile(out);
+
+            // Build response with file data
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=orders.xlsx")
+                    .header(HttpHeaders.CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    .body(out.toByteArray());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @GetMapping("/search/regel/{regel}")

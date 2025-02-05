@@ -2,12 +2,14 @@ package com.web.appts.controllers;
 
 import com.web.appts.DTO.JwtAuthRequest;
 import com.web.appts.DTO.JwtAuthResponse;
+import com.web.appts.DTO.OrderDto;
 import com.web.appts.DTO.UserDto;
 import com.web.appts.configurations.JwtTokenHelper;
 import com.web.appts.entities.Department;
 import com.web.appts.entities.User;
 import com.web.appts.exceptions.ApiException;
 import com.web.appts.repositories.UserRepo;
+import com.web.appts.services.OrderService;
 import com.web.appts.services.UserService;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +26,7 @@ import javax.validation.Valid;
 import java.security.Principal;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 @RestController
@@ -43,6 +46,9 @@ public class AuthController {
 
     @Autowired
     private UserRepo userRepo;
+
+    @Autowired
+    private OrderService orderService;
 
     @Autowired
     private ModelMapper mapper;
@@ -98,4 +104,35 @@ public class AuthController {
         User user = this.userRepo.findByEmail(principal.getName()).get();
         return new ResponseEntity<>(this.mapper.map(user, UserDto.class), HttpStatus.OK);
     }
+
+    @GetMapping({"/removing-same-orders"})
+    public ResponseEntity<Integer> removeArchiveAndMainOrders() {
+        this.orderService.removingSameArchivedOrders();
+        return ResponseEntity.ok(1);
+    }
+
+    @GetMapping({"/mon-sub-orders"})
+    public ResponseEntity<Integer> getMonSub() {
+        this.orderService.createMonSub();
+        return ResponseEntity.ok(1);
+    }
+
+    @GetMapping({"/verify-crm-orders"})
+    public ResponseEntity<Integer> getCRMVerification() {
+        this.orderService.updateTextForOrders();
+        return ResponseEntity.ok(1);
+    }
+
+    @GetMapping({"/adjust-parent-orders"})
+    public ResponseEntity<Integer> adjustingParents() {
+        this.orderService.adjustParentOrders();
+        return ResponseEntity.ok(1);
+    }
+
+    @GetMapping({"/mark-orders-expired"})
+    public ResponseEntity<Integer> markOrdersExpired() {
+        this.orderService.markExpired();
+        return ResponseEntity.ok(1);
+    }
+
 }

@@ -17,7 +17,7 @@ import org.hibernate.annotations.CacheConcurrencyStrategy;
 )
 public class WheelColor {
 	@Id
-	private long id;
+	private String id;
 	@Column(
 			name = "Kleurnaam"
 	)
@@ -46,11 +46,11 @@ public class WheelColor {
 	public WheelColor() {
 	}
 
-	public long getId() {
+	public String getId() {
 		return this.id;
 	}
 
-	public void setId(long id) {
+	public void setId(String id) {
 		this.id = id;
 	}
 

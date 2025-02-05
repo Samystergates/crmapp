@@ -18,6 +18,7 @@ public class StickerLabelDto {
     private String et;
     private String sjabloon;
     private String barCode;
+    private String regel;
 
     public StickerLabelDto() {
     }
@@ -148,5 +149,13 @@ public class StickerLabelDto {
 
     public void setSjabloon(String sjabloon) {
         this.sjabloon = sjabloon;
+    }
+
+    public String getRegel() {
+        return regel;
+    }
+
+    public void setRegel(String regel) {
+        this.regel = regel;
     }
 }

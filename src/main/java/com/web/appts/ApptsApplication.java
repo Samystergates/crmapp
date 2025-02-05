@@ -7,21 +7,32 @@ import java.sql.PreparedStatement;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import javax.annotation.PostConstruct;
 import javax.persistence.Column;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 
 import org.modelmapper.ModelMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
 
 @SpringBootApplication
+@EnableScheduling
+@EnableAsync
 public class ApptsApplication {
-
+	@Autowired
+	private ApplicationContext context;
 	public static void main(String[] args) {
 		SpringApplication.run(ApptsApplication.class, args);
 
@@ -272,6 +283,24 @@ public class ApptsApplication {
 //		default:
 //			return "";
 //		}
+	}
+
+	private boolean isAppStarted = false;
+
+	@EventListener(ApplicationReadyEvent.class)
+	public void onApplicationReady() {
+		isAppStarted = true;
+		System.out.println("Application started successfully. Refresh will occur in 30 minutes.");
+	}
+
+
+	@Scheduled(fixedRate = 30 * 60 * 1000)
+	//@Scheduled(fixedDelay = 180000) // 3 minutes in milliseconds
+	public void restartApplication() {
+		if (isAppStarted) {
+			int exitCode = SpringApplication.exit(context, () -> 0);
+			System.exit(exitCode);
+		}
 	}
 
 	@Bean

@@ -115,6 +115,12 @@ public class OrderSME {
 	)
 	private String aansluitnippel;
 
+	@Column(name = "option_ventielbeschermer")
+	private String optionVentielbeschermer;
+
+	@Column(name = "regel")
+	private String regel;
+
 	public OrderSME() {
 	}
 
@@ -300,5 +306,21 @@ public class OrderSME {
 
 	public void setAansluitnippel(String aansluitnippel) {
 		this.aansluitnippel = aansluitnippel;
+	}
+
+	public String getOptionVentielbeschermer() {
+		return optionVentielbeschermer;
+	}
+
+	public void setOptionVentielbeschermer(String optionVentielbeschermer) {
+		this.optionVentielbeschermer = optionVentielbeschermer;
+	}
+
+	public String getRegel() {
+		return regel;
+	}
+
+	public void setRegel(String regel) {
+		this.regel = regel;
 	}
 }

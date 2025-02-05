@@ -11,7 +11,7 @@ public interface OrderSPUService {
 
 	Boolean deleteOrderSPU(Long orderSPUId);
 
-	OrderSPUDto getOrderSPU(String orderNumber, String prodNumber);
+	OrderSPUDto getOrderSPU(String orderNumber, String regel);
 
 	List<OrderSPUDto> getAllSpu();
 
