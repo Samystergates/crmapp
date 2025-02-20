@@ -294,7 +294,7 @@ public class ApptsApplication {
 	}
 
 
-	@Scheduled(fixedRate = 30 * 60 * 1000)
+	//@Scheduled(fixedRate = 30 * 60 * 1000)
 	//@Scheduled(fixedDelay = 180000) // 3 minutes in milliseconds
 	public void restartApplication() {
 		if (isAppStarted) {

@@ -41,10 +41,10 @@ public class OdbcConnectionMonitor {
         }
     }
 
-    @Scheduled(fixedRate = 1800000)
+    //@Scheduled(fixedRate = 1800000)
     public void monitorConnections() {
         System.out.println("Monitoring ODBC connections...");
-        cleanConnections();
+        //cleanConnections();
 
         System.out.println("Active connections: " + activeConnections.size());
         activeConnections.forEach(connection -> {

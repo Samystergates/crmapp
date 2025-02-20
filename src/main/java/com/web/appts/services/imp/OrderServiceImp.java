@@ -17,6 +17,7 @@ import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -34,6 +35,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -49,6 +52,9 @@ import static java.util.Collections.min;
 
 @Service
 public class OrderServiceImp implements OrderService {
+    @Autowired
+    private ConfigurableApplicationContext configurableContext;
+
     Map<String, OrderDto> ordersMap = new HashMap();
     Map<String, OrderDto> archivedOrdersMap = new HashMap();
     private static final Logger logger = LoggerFactory.getLogger(OrderServiceImp.class);
@@ -65,6 +71,11 @@ public class OrderServiceImp implements OrderService {
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private OdbcConnectionMonitor connectionMonitor;
+    private static final String DB_URL = "jdbc:odbc:DRIVER={Progress OpenEdge 11.7 driver};DSN=AGRPROD2;UID=ODBC;PWD=ODBC;HOST=W2K16DMBBU4;PORT=12501;DB=data;FetchSize=100;PacketSize=4096;";
+    private static final String USERNAME = "ODBC";
+    private static final String PASSWORD = "ODBC";
+    private static Connection connection;
+    private static final AtomicBoolean inUse = new AtomicBoolean(false);
 
     private final Set<Connection> activeConnections = new HashSet<>();
 
@@ -72,12 +83,41 @@ public class OrderServiceImp implements OrderService {
     @Qualifier("secondaryDataSource")
     private DataSource secondaryDataSource;
 
-    public Connection getConnection() throws SQLException {
-        logger.info("getConnection() called.");
-        Connection connection = secondaryDataSource.getConnection();
-        logger.info("Connection acquired: " + connection);
-        activeConnections.add(connection);
+//    public Connection getConnection() throws SQLException {
+//        logger.info("getConnection() called.");
+//        Connection connection = secondaryDataSource.getConnection();
+//        logger.info("Connection acquired: " + connection);
+//        activeConnections.add(connection);
+//        return connection;
+//    }
+
+    public static synchronized Connection getConnection() throws SQLException {
+        if (connection == null || connection.isClosed()) {
+            connection = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
+        }
         return connection;
+    }
+
+    // Mark connection as in use (prevents unnecessary closures)
+    public static boolean tryAcquire() {
+        return inUse.compareAndSet(false, true);
+    }
+
+    // Mark connection as released
+    public static void release() {
+        inUse.set(false);
+    }
+
+    // Close the connection manually
+    public static synchronized void closeConnection() {
+        try {
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+                connection = null;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     public void closeConnections() {
@@ -87,21 +127,38 @@ public class OrderServiceImp implements OrderService {
         while (iterator.hasNext()) {
             Connection connection = iterator.next();
             try {
-                if (!connection.isClosed()) {
+                logger.info("connection is null? " + connection);
+                if (connection != null) {
+                    logger.info("connection is closed? " + connection.isClosed());
+                }
+                if (connection != null && !connection.isClosed()) {
                     logger.info("Closing connection: " + connection);
-                    connection.close();
+                    //connection.close();
                     logger.info("Connection closed: " + connection);
                 }
             } catch (SQLException e) {
                 logger.error("Error closing connection: " + connection, e);
             } finally {
-                iterator.remove(); // Remove from list even if it fails to close
+                //iterator.remove(); // Remove from list even if it fails to close
             }
         }
 
         logger.info("All connections closed. Active connections now: " + activeConnections.size());
     }
 
+    @Async
+    @Scheduled(fixedRate = 200000)
+    protected void keepConnectionAlive() {
+        try {
+            PreparedStatement ps = getConnection().prepareStatement("SELECT count(*) AS CNT FROM \"sysprogress\".\"syscalctable\"");
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                logger.info("ODBC connection is active.");
+            }
+        } catch (SQLException e) {
+            logger.warn("Connection check failed: " + e.getMessage());
+        }
+    }
 
 
     @Autowired
@@ -111,17 +168,52 @@ public class OrderServiceImp implements OrderService {
     public OrderServiceImp() {
     }
 
+    private void forceCloseODBCConnections() {
+        if (secondaryDataSource == null) {
+            logger.warn("Secondary DataSource is null. Skipping force close.");
+            return;
+        }
+
+        try (Connection connection = secondaryDataSource.getConnection()) {
+            if (connection != null && !connection.isClosed()) {
+                logger.info("Forced closure of secondaryDataSource connection.");
+            }
+        } catch (SQLException e) {
+            logger.warn("Error while force closing ODBC connection: " + e.getMessage());
+        }
+    }
+
 
     private void refreshDataSource() {
         try {
             closeConnections();
-            ((ConfigurableApplicationContext) context).getBeanFactory()
-                    .destroyBean(secondaryDataSource);
-            secondaryDataSource = context.getBean("secondaryDataSource", DataSource.class);
-            System.out.println("DataSource refreshed successfully!");
+            //forceCloseODBCConnections();
+
+            ConfigurableListableBeanFactory beanFactory = configurableContext.getBeanFactory();
+
+            if (beanFactory.containsBean("secondaryDataSource")) {
+                beanFactory.destroyBean("secondaryDataSource");
+            }
+
+            logger.info("bean destroyed");
+            secondaryDataSource = null;
+            logger.info("sds made null");
+
+            System.gc();
+
+            Thread.sleep(2000);
+
+
+            secondaryDataSource = configurableContext.getBean("secondaryDataSource", DataSource.class);
+
+            logger.info("DataSource refreshed successfully!");
+
         } catch (Exception ex) {
             ex.printStackTrace();
-            System.out.println("Failed to refresh DataSource.");
+            logger.info(ex.getCause().getMessage());
+            logger.info(ex.getMessage());
+            logger.info(ex.getCause().getLocalizedMessage());
+            logger.info("Failed to refresh DataSource.");
         }
     }
 
@@ -155,8 +247,8 @@ public class OrderServiceImp implements OrderService {
                 Driver driver = driversAfter.nextElement();
                 logger.info(" - " + driver);
             }
-
-            Thread.sleep(1000);
+            System.gc();
+            Thread.sleep(2000);
 
             // Reload driver
             Class<?> driverClass = Class.forName("sun.jdbc.odbc.JdbcOdbcDriver");
@@ -176,7 +268,6 @@ public class OrderServiceImp implements OrderService {
             logger.error("Failed to reload JDBC-ODBC Driver.", e);
         }
     }
-
 
 
 //    private void reloadJDBCDriver() {
@@ -869,7 +960,9 @@ public class OrderServiceImp implements OrderService {
                     if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
                         retry++;
                     } else {
+                        retry++;
                         e.printStackTrace();
+                        logger.info(e.getMessage());
                     }
                 } finally {
                     closeConnections();
@@ -887,8 +980,11 @@ public class OrderServiceImp implements OrderService {
                         logger.info("markExpired sql exc 3");
                         if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
                             retry++;
+                            logger.info("3 exp retry is: " + retry);
                         } else {
+                            retry++;
                             e.printStackTrace();
+                            logger.info(e.getMessage());
                         }
                     } finally {
                         closeConnections();
@@ -917,14 +1013,19 @@ public class OrderServiceImp implements OrderService {
                 "AND \"va-210\".\"cdvestiging\" = 'ree'";
 
         System.out.println(query);
-        try (Connection connection = getConnection();
-             Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(query)) {
+        try {
+            Connection connection = getConnection();
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery(query);
+            if (activeConnections.isEmpty()) {
+                activeConnections.add(connection);
+            }
             if (statement != null && resultSet != null) {
                 System.out.println("----------resultSet----------");
                 System.out.println(resultSet);
                 System.out.println(resultSet.next());
                 String orderNumber = null;
+
 
                 List<String> existingOrderNumbers = new ArrayList<>();
                 while (resultSet.next()) {
@@ -936,12 +1037,7 @@ public class OrderServiceImp implements OrderService {
                     String product = resultSet.getString("Product");
                     String regel = resultSet.getString("Regel");
                     existingOrderNumbers.add(orderNumber + "," + regel);
-//                            System.out.println("orderNumber");
-//                            System.out.println(orderNumber);
                 }
-//                        for (String on : existingOrderNumbers) {
-//                            System.out.println(on);
-//                        }
                 Set<String> uniqueones = new HashSet<>(existingOrderNumbers);
                 System.out.print("unique ones: ");
                 System.out.println(uniqueones.size());
@@ -1025,8 +1121,8 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
-    @Async("taskExecutor")
-    @Scheduled(fixedRate = 380000)
+    //    @Async("taskExecutor")
+//    @Scheduled(fixedRate = 380000)
     public void archiveExpiredOrders() {
         List<OrderDto> orderList = new ArrayList<>(ordersMap.values());
 
@@ -1048,8 +1144,61 @@ public class OrderServiceImp implements OrderService {
         this.moveToArchive(resultIds);
     }
 
-    //@Transactional
     public List<OrderDto> getCRMOrders() {
+        List<OrderDto> orderDtos = null;
+        int retry = 0;
+        while (retry < 5 && retry != -1) {
+            try {
+                orderDtos = getCRMOrdersInner();
+                retry = -1;
+            } catch (Exception e) {
+                logger.info("getCRMOrders sql exc 2");
+                if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                    retry++;
+                } else {
+                    retry++;
+                    e.printStackTrace();
+                    logger.info(e.getMessage());
+                }
+            } finally {
+                closeConnections();
+            }
+        }
+        if (retry == 5) {
+            retry = 0;
+            reloadJDBCDriver();
+            refreshDataSource();
+            while (retry < 5 && retry != -1) {
+                try {
+                    orderDtos = getCRMOrdersInner();
+                    retry = -1;
+                } catch (Exception e) {
+                    logger.info("getCRMOrders sql exc 3");
+                    if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                        retry++;
+                        logger.info("3 exp retry is: " + retry);
+                    } else {
+                        retry++;
+                        e.printStackTrace();
+                        logger.info(e.getMessage());
+                    }
+                } finally {
+                    closeConnections();
+                }
+            }
+            if (retry == 5) {
+                int exitCode = SpringApplication.exit(context, () -> 0);
+                System.exit(exitCode);
+            }
+            logger.info("fixed");
+        } else {
+            logger.info("worked");
+        }
+        return orderDtos;
+    }
+
+    //@Transactional
+    public List<OrderDto> getCRMOrdersInner() {
         //{DataDirect 7.1 OpenEdge Wire Protocol};DSN=AGRPROD
         boolean adjustParentCalled = false;
         boolean createMonCalled = false;
@@ -1072,31 +1221,17 @@ public class OrderServiceImp implements OrderService {
                     "AND (\"va-211\".\"cdadmin\"='01') AND (\"va-210\".\"cdvestiging\"='ree') AND (\"va-210\".\"cdstatus\" <> 'Z' " +
                     "And \"va-210\".\"cdstatus\" <> 'B') AND (\"bb-043\".\"cdprodcat\"='pro'))";
 
-//            String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', \"va-210\".\"cdordsrt\" AS 'Ordersoort'," +
-//                    "\"va-211\".\"cdborder\" AS 'Backorder', \"va-210\".\"cdgebruiker-init\" AS 'Gebruiker (I)', \"va-210\".\"cddeb\" AS 'Organisatie'," +
-//                    "\"ba-001\".\"naamorg\" AS 'Naam', \"ba-012\".\"postcode\" AS 'Postcode', \"ba-012\".\"plaats\" AS 'Plaats'," +
-//                    "\"ba-012\".\"cdland\" AS 'Land', \"va-210\".\"datum-lna\" AS 'Leverdatum', \"va-210\".\"opm-30\" AS 'Referentie'," +
-//                    "\"va-210\".\"datum-order\" AS 'Datum order', \"va-210\".\"SYS-DATE\" AS 'Datum laatste wijziging'," +
-//                    "\"va-210\".\"cdgebruiker\" AS 'Gebruiker (L)', \"va-211\".\"nrordrgl\" AS 'Regel', \"va-211\".\"aantbest\" AS 'Aantal besteld'," +
-//                    "\"va-211\".\"aanttelev\" AS 'Aantal geleverd', \"va-211\".\"cdprodukt\" AS 'Product', \"af-801\".\"tekst\" AS 'Omschrijving'," +
-//                    "\"va-211\".\"volgorde\" AS 'regelvolgorde', af801_tekst.\"tekst\" AS 'text', \"bb-043\".\"cdprodgrp\" AS 'Productgroep' " +
-//                    "FROM DATA.PUB.\"af-801\", DATA.PUB.\"ba-001\", DATA.PUB.\"ba-012\", DATA.PUB.\"bb-043\", DATA.PUB.\"va-210\", DATA.PUB.\"va-211\" " +
-//                    "LEFT JOIN DATA.PUB.\"af-801\" AS af801_tekst " +
-//                    "ON af801_tekst.\"cdsleutel1\" = \"va-211\".\"cdprodukt\" AND af801_tekst.\"cdsleutel2\" = \"va-211\".\"nrordrgl\" " +
-//                    "AND af801_tekst.\"cdsoort\" = 'ORR' " +
-//                    "WHERE \"ba-001\".\"cdorg\" = \"va-210\".\"cdorg\" AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" " +
-//                    "AND \"va-211\".\"cdorder\" = \"va-210\".\"cdorder\" " +
-//                    "AND \"va-211\".\"cdprodukt\" = \"af-801\".\"cdsleutel1\" AND \"ba-012\".\"id-cdads\" = \"va-211\".\"id-cdads\" " +
-//                    "AND \"bb-043\".\"cdprodukt\" = \"va-211\".\"cdprodukt\" AND ((\"af-801\".\"cdtabel\"='bb-062') AND (\"va-210\".\"cdadmin\"='01') " +
-//                    "AND (\"va-211\".\"cdadmin\"='01') AND (\"va-210\".\"cdvestiging\"='ree') AND (\"va-210\".\"cdstatus\" <> 'Z' " +
-//                    "And \"va-210\".\"cdstatus\" <> 'B') AND (\"bb-043\".\"cdprodcat\"='pro'))";
 
             System.out.println("----------query----------");
             System.out.println(query);
-            try (Connection connection = getConnection();
-                 Statement statement = connection.createStatement();
-                 ResultSet resultSet = statement.executeQuery(query)) {
-                connectionMonitor.registerConnection(connection);
+            try {
+                Connection connection = getConnection();
+                Statement statement = connection.createStatement();
+                ResultSet resultSet = statement.executeQuery(query);
+
+                if (activeConnections.isEmpty()) {
+                    activeConnections.add(connection);
+                }
                 //Class.forName(driver);
                 System.out.println("----------connection----------");
                 System.out.println(connection);
@@ -1683,11 +1818,60 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
-    //@Transactional
-    @Override
     public void updateProductNotes() {
-        try {
+        int retry = 0;
+        while (retry < 5 && retry != -1) {
+            try {
+                updateProductNotesInner();
+                retry = -1;
+            } catch (Exception e) {
+                logger.info("updateProductNotes sql exc 2");
+                if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                    retry++;
+                } else {
+                    retry++;
+                    e.printStackTrace();
+                    logger.info(e.getMessage());
+                }
+            } finally {
+                closeConnections();
+            }
+        }
+        if (retry == 5) {
+            retry = 0;
+            reloadJDBCDriver();
+            refreshDataSource();
+            while (retry < 5 && retry != -1) {
+                try {
+                    updateProductNotesInner();
+                    retry = -1;
+                } catch (Exception e) {
+                    logger.info("updateProductNotes sql exc 3");
+                    if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                        retry++;
+                        logger.info("3 exp retry is: " + retry);
+                    } else {
+                        retry++;
+                        e.printStackTrace();
+                        logger.info(e.getMessage());
+                    }
+                } finally {
+                    closeConnections();
+                }
+            }
+            if (retry == 5) {
+                int exitCode = SpringApplication.exit(context, () -> 0);
+                System.exit(exitCode);
+            }
+            logger.info("fixed");
+        } else {
+            logger.info("worked");
+        }
+    }
 
+    //@Transactional
+    public void updateProductNotesInner() {
+        try {
             System.out.println("Orders Map Size: " + ordersMap.size());
             List<String> formattedOrders = new ArrayList<>();
             for (Map.Entry<String, OrderDto> entry : ordersMap.entrySet()) {
@@ -1706,10 +1890,13 @@ public class OrderServiceImp implements OrderService {
                 System.out.println("----------query----------");
                 System.out.println(query);
 
-                try (Connection connection = getConnection();
-                     Statement statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-                     ResultSet resultSet = statement.executeQuery(query)) {
-                    connectionMonitor.registerConnection(connection);
+                try {
+                    Connection connection = getConnection();
+                    Statement statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+                    ResultSet resultSet = statement.executeQuery(query);
+                    if (activeConnections.isEmpty()) {
+                        activeConnections.add(connection);
+                    }
                     System.out.println("----------connection----------");
                     System.out.println(connection);
                     System.out.println("----------statement----------");
@@ -1769,6 +1956,59 @@ public class OrderServiceImp implements OrderService {
 
     @Override
     public Map<String, OrderDto> updateTextForOrders() {
+        Map<String, OrderDto> textMap = null;
+        int retry = 0;
+        while (retry < 5 && retry != -1) {
+            try {
+                textMap = updateTextForOrdersInner();
+                retry = -1;
+            } catch (Exception e) {
+                logger.info("updateTextForOrders sql exc 2");
+                if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                    retry++;
+                } else {
+                    retry++;
+                    e.printStackTrace();
+                    logger.info(e.getMessage());
+                }
+            } finally {
+                closeConnections();
+            }
+        }
+        if (retry == 5) {
+            retry = 0;
+            reloadJDBCDriver();
+            refreshDataSource();
+            while (retry < 5 && retry != -1) {
+                try {
+                    textMap = updateTextForOrdersInner();
+                    retry = -1;
+                } catch (Exception e) {
+                    logger.info("updateTextForOrders sql exc 3");
+                    if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                        retry++;
+                        logger.info("3 exp retry is: " + retry);
+                    } else {
+                        retry++;
+                        e.printStackTrace();
+                        logger.info(e.getMessage());
+                    }
+                } finally {
+                    closeConnections();
+                }
+            }
+            if (retry == 5) {
+                int exitCode = SpringApplication.exit(context, () -> 0);
+                System.exit(exitCode);
+            }
+            logger.info("fixed");
+        } else {
+            logger.info("worked");
+        }
+        return textMap;
+    }
+
+    public Map<String, OrderDto> updateTextForOrdersInner() {
         try {
 
             System.out.println("Orders Map Size: " + ordersMap.size());
@@ -1787,10 +2027,15 @@ public class OrderServiceImp implements OrderService {
 
             System.out.println("----------query----------");
             System.out.println(query);
-            try (Connection connection = getConnection();
-                 Statement statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
-                 ResultSet resultSet = statement.executeQuery(query)) {
-                connectionMonitor.registerConnection(connection);
+            try {
+
+                Connection connection = getConnection();
+                Statement statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+                ResultSet resultSet = statement.executeQuery(query);
+
+                if (activeConnections.isEmpty()) {
+                    activeConnections.add(connection);
+                }
                 System.out.println("----------connection----------");
                 System.out.println(connection);
                 System.out.println("----------statement----------");
@@ -1853,9 +2098,60 @@ public class OrderServiceImp implements OrderService {
     @Override
     @Transactional
     public Map<String, OrderDto> createMonSub() {
+        Map<String, OrderDto> monSubMap = null;
+        int retry = 0;
+        while (retry < 5 && retry != -1) {
+            try {
+                monSubMap = createMonSubInner();
+                retry = -1;
+            } catch (Exception e) {
+                logger.info("createMonSub sql exc 2");
+                if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                    retry++;
+                } else {
+                    retry++;
+                    e.printStackTrace();
+                    logger.info(e.getMessage());
+                }
+            } finally {
+                closeConnections();
+            }
+        }
+        if (retry == 5) {
+            retry = 0;
+            reloadJDBCDriver();
+            refreshDataSource();
+            while (retry < 5 && retry != -1) {
+                try {
+                    monSubMap = createMonSubInner();
+                    retry = -1;
+                } catch (Exception e) {
+                    logger.info("createMonSub sql exc 3");
+                    if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                        retry++;
+                        logger.info("3 exp retry is: " + retry);
+                    } else {
+                        retry++;
+                        e.printStackTrace();
+                        logger.info(e.getMessage());
+                    }
+                } finally {
+                    closeConnections();
+                }
+            }
+            if (retry == 5) {
+                int exitCode = SpringApplication.exit(context, () -> 0);
+                System.exit(exitCode);
+            }
+            logger.info("fixed");
+        } else {
+            logger.info("worked");
+        }
+        return monSubMap;
+    }
 
+    public Map<String, OrderDto> createMonSubInner() {
         try {
-
             List<String> formattedOrders = new ArrayList<>();
             for (Map.Entry<String, OrderDto> entry : ordersMap.entrySet()) {
                 if ("MLE".equals(entry.getValue().getOrderType()) ||
@@ -1890,10 +2186,14 @@ public class OrderServiceImp implements OrderService {
 
                 System.out.println("----------query----------");
                 System.out.println(query);
-                try (Connection connection = getConnection();
-                     Statement statement = connection.createStatement();
-                     ResultSet resultSet = statement.executeQuery(query)) {
-                    connectionMonitor.registerConnection(connection);
+                try {
+                    Connection connection = getConnection();
+                    Statement statement = connection.createStatement();
+                    ResultSet resultSet = statement.executeQuery(query);
+
+                    if (activeConnections.isEmpty()) {
+                        activeConnections.add(connection);
+                    }
                     //Class.forName(driver);
                     if (statement != null && resultSet != null) {
                         System.out.println("----------resultSet----------");
