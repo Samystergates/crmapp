@@ -93,7 +93,7 @@ public class OrderServiceImp implements OrderService {
 
     public static synchronized Connection getConnection() throws SQLException {
         if (connection == null || connection.isClosed()) {
-            connection = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
+            //connection = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
         }
         return connection;
     }
@@ -991,8 +991,7 @@ public class OrderServiceImp implements OrderService {
                     }
                 }
                 if (retry == 5) {
-                    int exitCode = SpringApplication.exit(context, () -> 0);
-                    System.exit(exitCode);
+                    exitProgram();
                 }
                 logger.info("fixed");
             } else {
@@ -1000,6 +999,10 @@ public class OrderServiceImp implements OrderService {
             }
         }
     }
+     private void exitProgram(){
+//         int exitCode = SpringApplication.exit(context, () -> 0);
+//         System.exit(exitCode);
+     }
 
     public void markExpiredInner() {
 
@@ -1187,8 +1190,7 @@ public class OrderServiceImp implements OrderService {
                 }
             }
             if (retry == 5) {
-                int exitCode = SpringApplication.exit(context, () -> 0);
-                System.exit(exitCode);
+               exitProgram();
             }
             logger.info("fixed");
         } else {
@@ -1860,8 +1862,7 @@ public class OrderServiceImp implements OrderService {
                 }
             }
             if (retry == 5) {
-                int exitCode = SpringApplication.exit(context, () -> 0);
-                System.exit(exitCode);
+                exitProgram();
             }
             logger.info("fixed");
         } else {
@@ -1998,8 +1999,7 @@ public class OrderServiceImp implements OrderService {
                 }
             }
             if (retry == 5) {
-                int exitCode = SpringApplication.exit(context, () -> 0);
-                System.exit(exitCode);
+                exitProgram();
             }
             logger.info("fixed");
         } else {
@@ -2140,8 +2140,7 @@ public class OrderServiceImp implements OrderService {
                 }
             }
             if (retry == 5) {
-                int exitCode = SpringApplication.exit(context, () -> 0);
-                System.exit(exitCode);
+                exitProgram();
             }
             logger.info("fixed");
         } else {

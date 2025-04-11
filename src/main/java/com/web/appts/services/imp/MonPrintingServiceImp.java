@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.stream.Collectors;
 
+import com.web.appts.controllers.CheckboxCellEvent;
 import com.web.appts.entities.MonSubOrders;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -232,12 +233,14 @@ public class MonPrintingServiceImp {
 //    }
 
     private void addOrdersTable(Document document, List<OrderDto> orderList) throws DocumentException {
+
         PdfPTable table = new PdfPTable(4);
         table.setWidthPercentage(100.0F);
         float[] columnWidths = new float[]{4.0F, 5.0F, 11.0F, 80.0F};
         table.setWidths(columnWidths);
-        table.setSpacingBefore(3.0F);
-        table.setSpacingAfter(250.0F);
+        //table.setSpacingBefore(3.0F);
+        //table.setSpacingAfter(250.0F);
+
         Font font2 = new Font(FontFamily.HELVETICA, 10.0F);
         Font font3 = new Font(FontFamily.HELVETICA, 10.0F, 1);
         //Font font4 = new Font(FontFamily.HELVETICA, 8.0F);
@@ -350,8 +353,19 @@ public class MonPrintingServiceImp {
                 cell4.setFixedHeight(20.0F);
             }
         }
+//        table.getDefaultCell().setBorder(Rectangle.TOP);
 
-        document.add(table);
+        PdfPTable outerTable = new PdfPTable(1); // Single column to wrap the table
+        outerTable.setWidthPercentage(100.0f);
+
+
+        PdfPCell tableWrapper = new PdfPCell(table); // Add the table directly to a cell
+
+        tableWrapper.setPaddingBottom(270f);
+        tableWrapper.setBorder(Rectangle.NO_BORDER);
+        outerTable.addCell(tableWrapper);
+
+        document.add(outerTable);
     }
 
     private PdfPCell createHeaderCell(String text, Font font) {
@@ -417,419 +431,502 @@ public class MonPrintingServiceImp {
 
     private void addOptions(PdfWriter writer, Document document, List<OrderDto> orderList) throws DocumentException {
 
-        int lettrCountForRows = 0;
-        long letterCount = 0;
-
-        for (OrderDto order : orderList) {
-            if (order.getOmsumin().length() > 52) {
-                letterCount = order.getOmsumin().chars()
-                        .filter(Character::isLetter)
-                        .count();
-                if (letterCount >= 24) {
-                    lettrCountForRows++;
-                }
-            }
-        }
-
-        Boolean isSub = false;
-        for (OrderDto order : orderList) {
-            if (order.getMonSubOrders().size() > 0) {
-                isSub = true;
-                lettrCountForRows = lettrCountForRows + order.getMonSubOrders().size();
-            }
-        }
-
-        for (OrderDto order : orderList) {
-            if (order.getTekst() != null) {
-                lettrCountForRows++;
-            }
-        }
-
+//        int lettrCountForRows = 0;
+//        long letterCount = 0;
+//
+//        for (OrderDto order : orderList) {
+//            if (order.getOmsumin().length() > 52) {
+//                letterCount = order.getOmsumin().chars()
+//                        .filter(Character::isLetter)
+//                        .count();
+//                if (letterCount >= 24) {
+//                    lettrCountForRows++;
+//                }
+//            }
+//        }
+//
+//        Boolean isSub = false;
+//        for (OrderDto order : orderList) {
+//            if (order.getMonSubOrders().size() > 0) {
+//                isSub = true;
+//                lettrCountForRows = lettrCountForRows + order.getMonSubOrders().size();
+//            }
+//        }
+//
+//        for (OrderDto order : orderList) {
+//            if (order.getTekst() != null) {
+//                lettrCountForRows++;
+//            }
+//        }
+//
+//
+//        Font font3 = new Font(FontFamily.HELVETICA, 10.0F, 1);
+//        Font font4 = new Font(FontFamily.HELVETICA, 10.0F);
+//        PdfContentByte cb = writer.getDirectContent();
+//        float cb1Y1 = 311.0F;
+//        float cb2Y2 = 251.0F;
+//        float cb3Y3 = 341.0F;
+//        float cb4Y4 = 311.0F;
+//        float cb5Y5 = 281.0F;
+//        float cb6Y6 = 251.0F;
+//
+//        if (orderList.size() == 1) {
+//
+//            cb1Y1 -= 10.5F;
+//            cb2Y2 -= 10.5F;
+//            cb3Y3 -= 10.5F;
+//            cb4Y4 -= 10.5F;
+//            cb5Y5 -= 10.5F;
+//            cb6Y6 -= 10.5F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 13;
+//                if (isSub) {
+//                    lettrCountForRows += 20;
+//                } else {
+//                    lettrCountForRows -= 20;
+//                }
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            } else {
+//                cb1Y1 += 15.5F;
+//                cb2Y2 += 15.5F;
+//                cb3Y3 += 15.5F;
+//                cb4Y4 += 15.5F;
+//                cb5Y5 += 15.5F;
+//                cb6Y6 += 15.5F;
+//            }
+//        }
+//
+//        if (orderList.size() == 2) {
+//            cb1Y1 -= 13.5F;
+//            cb2Y2 -= 13.5F;
+//            cb3Y3 -= 13.5F;
+//            cb4Y4 -= 13.5F;
+//            cb5Y5 -= 13.5F;
+//            cb6Y6 -= 13.5F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 20;
+//                if (isSub) {
+//                    lettrCountForRows += 20;
+//                }
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            }
+//        }
+//
+//
+//        if (orderList.size() == 3) {
+//            cb1Y1 -= 28.5F;
+//            cb2Y2 -= 28.5F;
+//            cb3Y3 -= 28.5F;
+//            cb4Y4 -= 28.5F;
+//            cb5Y5 -= 28.5F;
+//            cb6Y6 -= 28.5F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 20;
+//
+//                if (isSub) {
+//                    lettrCountForRows += 20;
+//                }
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            }
+//        }
+//
+//        if (orderList.size() == 4) {
+//            cb1Y1 -= 42.5F;
+//            cb2Y2 -= 42.5F;
+//            cb3Y3 -= 42.5F;
+//            cb4Y4 -= 42.5F;
+//            cb5Y5 -= 42.5F;
+//            cb6Y6 -= 42.5F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 20;
+//                if (isSub) {
+//                    lettrCountForRows += 20;
+//                }
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            }
+//        }
+//
+//        if (orderList.size() == 5) {
+//            cb1Y1 -= 57.0F;
+//            cb2Y2 -= 57.0F;
+//            cb3Y3 -= 57.0F;
+//            cb4Y4 -= 57.0F;
+//            cb5Y5 -= 57.0F;
+//            cb6Y6 -= 57.0F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 20;
+//                if (isSub) {
+//                    lettrCountForRows += 20;
+//                }
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            }
+//        }
+//
+//        if (orderList.size() == 6) {
+//            cb1Y1 -= 72.0F;
+//            cb2Y2 -= 72.0F;
+//            cb3Y3 -= 72.0F;
+//            cb4Y4 -= 72.0F;
+//            cb5Y5 -= 72.0F;
+//            cb6Y6 -= 72.0F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 20;
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            }
+//        }
+//
+//        if (orderList.size() == 7) {
+//            cb1Y1 -= 93.0F;
+//            cb2Y2 -= 93.0F;
+//            cb3Y3 -= 93.0F;
+//            cb4Y4 -= 93.0F;
+//            cb5Y5 -= 93.0F;
+//            cb6Y6 -= 93.0F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 20;
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            }
+//        }
+//
+//        if (orderList.size() == 8) {
+//            cb1Y1 -= 113.0F;
+//            cb2Y2 -= 113.0F;
+//            cb3Y3 -= 113.0F;
+//            cb4Y4 -= 113.0F;
+//            cb5Y5 -= 113.0F;
+//            cb6Y6 -= 113.0F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 20;
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            }
+//        }
+//
+//        if (orderList.size() == 9) {
+//            cb1Y1 -= 134.0F;
+//            cb2Y2 -= 134.0F;
+//            cb3Y3 -= 134.0F;
+//            cb4Y4 -= 134.0F;
+//            cb5Y5 -= 134.0F;
+//            cb6Y6 -= 134.0F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 20;
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            }
+//        }
+//
+//        if (orderList.size() == 10) {
+//            cb1Y1 -= 155.0F;
+//            cb2Y2 -= 155.0F;
+//            cb3Y3 -= 155.0F;
+//            cb4Y4 -= 155.0F;
+//            cb5Y5 -= 155.0F;
+//            cb6Y6 -= 155.0F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 20;
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            }
+//        }
+//
+//        if (orderList.size() == 11) {
+//            cb1Y1 -= 175.0F;
+//            cb2Y2 -= 175.0F;
+//            cb3Y3 -= 175.0F;
+//            cb4Y4 -= 175.0F;
+//            cb5Y5 -= 175.0F;
+//            cb6Y6 -= 175.0F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 20;
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            }
+//        }
+//
+//        if (orderList.size() == 12) {
+//            cb1Y1 -= 195.0F;
+//            cb2Y2 -= 195.0F;
+//            cb3Y3 -= 195.0F;
+//            cb4Y4 -= 195.0F;
+//            cb5Y5 -= 195.0F;
+//            cb6Y6 -= 195.0F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 20;
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            }
+//        }
+//
+//        if (orderList.size() == 13) {
+//            cb1Y1 -= 215.0F;
+//            cb2Y2 -= 215.0F;
+//            cb3Y3 -= 215.0F;
+//            cb4Y4 -= 215.0F;
+//            cb5Y5 -= 215.0F;
+//            cb6Y6 -= 215.0F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 20;
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            }
+//        }
+//
+//        if (orderList.size() == 14) {
+//            cb1Y1 -= 235.0F;
+//            cb2Y2 -= 235.0F;
+//            cb3Y3 -= 235.0F;
+//            cb4Y4 -= 235.0F;
+//            cb5Y5 -= 235.0F;
+//            cb6Y6 -= 235.0F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 20;
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            }
+//        }
+//
+//        if (orderList.size() == 15) {
+//            cb1Y1 -= 255.0F;
+//            cb2Y2 -= 255.0F;
+//            cb3Y3 -= 255.0F;
+//            cb4Y4 -= 255.0F;
+//            cb5Y5 -= 255.0F;
+//            cb6Y6 -= 255.0F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 20;
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            }
+//        }
+//
+//        if (orderList.size() == 16) {
+//            cb1Y1 -= 275.0F;
+//            cb2Y2 -= 275.0F;
+//            cb3Y3 -= 275.0F;
+//            cb4Y4 -= 275.0F;
+//            cb5Y5 -= 275.0F;
+//            cb6Y6 -= 275.0F;
+//
+//            if (lettrCountForRows > 0) {
+//                lettrCountForRows *= 20;
+//
+//                cb1Y1 -= (lettrCountForRows * 0.5F);
+//                cb2Y2 -= (lettrCountForRows * 0.5F);
+//                cb3Y3 -= (lettrCountForRows * 0.5F);
+//                cb4Y4 -= (lettrCountForRows * 0.5F);
+//                cb5Y5 -= (lettrCountForRows * 0.5F);
+//                cb6Y6 -= (lettrCountForRows * 0.5F);
+//            }
+//        }
+//        cb.rectangle(195.0F, cb1Y1, 10.0F, 10.0F);
+//        cb.stroke();
+//        PdfContentByte cb2 = writer.getDirectContent();
+//        cb2.rectangle(195.0F, cb2Y2, 10.0F, 10.0F);
+//        cb2.stroke();
+//        PdfContentByte cb3 = writer.getDirectContent();
+//        cb3.rectangle(128.0F, cb3Y3, 10.0F, 10.0F);
+//        cb3.stroke();
+//        PdfContentByte cb4 = writer.getDirectContent();
+//        cb4.rectangle(128.0F, cb4Y4, 10.0F, 10.0F);
+//        cb4.stroke();
+//        PdfContentByte cb5 = writer.getDirectContent();
+//        cb5.rectangle(128.0F, cb5Y5, 10.0F, 10.0F);
+//        cb5.stroke();
+//        PdfContentByte cb6 = writer.getDirectContent();
+//        cb6.rectangle(128.0F, cb6Y6, 10.0F, 10.0F);
+//        cb6.stroke();
+//        Paragraph labelParagraph0 = new Paragraph("Product eindcontrole:", font3);
+//        Paragraph labelParagraph1 = new Paragraph(String.format("%-30s%-30s", "\nBand(en) schoon: ", "JA"), font4);
+//        Paragraph labelParagraph2 = new Paragraph("\n                                         NEE               Schoon gemaakt.", font4);
+//        Paragraph labelParagraph3 = new Paragraph(String.format("%-30s%-30s", "\nBeschadigingen: ", " NEE"), font4);
+//        Paragraph labelParagraph4 = new Paragraph("\n                                          JA                  Bijgewerkt.", font4);
+//        labelParagraph4.setSpacingAfter(20.0F);
+//        document.add(labelParagraph0);
+//        document.add(labelParagraph1);
+//        document.add(labelParagraph2);
+//        document.add(labelParagraph3);
+//        document.add(labelParagraph4);
 
         Font font3 = new Font(FontFamily.HELVETICA, 10.0F, 1);
-        Font font4 = new Font(FontFamily.HELVETICA, 10.0F);
-        PdfContentByte cb = writer.getDirectContent();
-        float cb1Y1 = 311.0F;
-        float cb2Y2 = 251.0F;
-        float cb3Y3 = 341.0F;
-        float cb4Y4 = 311.0F;
-        float cb5Y5 = 281.0F;
-        float cb6Y6 = 251.0F;
-
-        if (orderList.size() == 1) {
-
-            cb1Y1 -= 10.5F;
-            cb2Y2 -= 10.5F;
-            cb3Y3 -= 10.5F;
-            cb4Y4 -= 10.5F;
-            cb5Y5 -= 10.5F;
-            cb6Y6 -= 10.5F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 13;
-                if (isSub) {
-                    lettrCountForRows += 20;
-                } else {
-                    lettrCountForRows -= 20;
-                }
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            } else {
-                cb1Y1 += 15.5F;
-                cb2Y2 += 15.5F;
-                cb3Y3 += 15.5F;
-                cb4Y4 += 15.5F;
-                cb5Y5 += 15.5F;
-                cb6Y6 += 15.5F;
-            }
-        }
-
-        if (orderList.size() == 2) {
-            cb1Y1 -= 13.5F;
-            cb2Y2 -= 13.5F;
-            cb3Y3 -= 13.5F;
-            cb4Y4 -= 13.5F;
-            cb5Y5 -= 13.5F;
-            cb6Y6 -= 13.5F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 20;
-                if (isSub) {
-                    lettrCountForRows += 20;
-                }
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            }
-        }
-
-
-        if (orderList.size() == 3) {
-            cb1Y1 -= 28.5F;
-            cb2Y2 -= 28.5F;
-            cb3Y3 -= 28.5F;
-            cb4Y4 -= 28.5F;
-            cb5Y5 -= 28.5F;
-            cb6Y6 -= 28.5F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 20;
-
-                if (isSub) {
-                    lettrCountForRows += 20;
-                }
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            }
-        }
-
-        if (orderList.size() == 4) {
-            cb1Y1 -= 42.5F;
-            cb2Y2 -= 42.5F;
-            cb3Y3 -= 42.5F;
-            cb4Y4 -= 42.5F;
-            cb5Y5 -= 42.5F;
-            cb6Y6 -= 42.5F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 20;
-                if (isSub) {
-                    lettrCountForRows += 20;
-                }
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            }
-        }
-
-        if (orderList.size() == 5) {
-            cb1Y1 -= 57.0F;
-            cb2Y2 -= 57.0F;
-            cb3Y3 -= 57.0F;
-            cb4Y4 -= 57.0F;
-            cb5Y5 -= 57.0F;
-            cb6Y6 -= 57.0F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 20;
-                if (isSub) {
-                    lettrCountForRows += 20;
-                }
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            }
-        }
-
-        if (orderList.size() == 6) {
-            cb1Y1 -= 72.0F;
-            cb2Y2 -= 72.0F;
-            cb3Y3 -= 72.0F;
-            cb4Y4 -= 72.0F;
-            cb5Y5 -= 72.0F;
-            cb6Y6 -= 72.0F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 20;
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            }
-        }
-
-        if (orderList.size() == 7) {
-            cb1Y1 -= 93.0F;
-            cb2Y2 -= 93.0F;
-            cb3Y3 -= 93.0F;
-            cb4Y4 -= 93.0F;
-            cb5Y5 -= 93.0F;
-            cb6Y6 -= 93.0F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 20;
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            }
-        }
-
-        if (orderList.size() == 8) {
-            cb1Y1 -= 113.0F;
-            cb2Y2 -= 113.0F;
-            cb3Y3 -= 113.0F;
-            cb4Y4 -= 113.0F;
-            cb5Y5 -= 113.0F;
-            cb6Y6 -= 113.0F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 20;
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            }
-        }
-
-        if (orderList.size() == 9) {
-            cb1Y1 -= 134.0F;
-            cb2Y2 -= 134.0F;
-            cb3Y3 -= 134.0F;
-            cb4Y4 -= 134.0F;
-            cb5Y5 -= 134.0F;
-            cb6Y6 -= 134.0F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 20;
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            }
-        }
-
-        if (orderList.size() == 10) {
-            cb1Y1 -= 155.0F;
-            cb2Y2 -= 155.0F;
-            cb3Y3 -= 155.0F;
-            cb4Y4 -= 155.0F;
-            cb5Y5 -= 155.0F;
-            cb6Y6 -= 155.0F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 20;
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            }
-        }
-
-        if (orderList.size() == 11) {
-            cb1Y1 -= 175.0F;
-            cb2Y2 -= 175.0F;
-            cb3Y3 -= 175.0F;
-            cb4Y4 -= 175.0F;
-            cb5Y5 -= 175.0F;
-            cb6Y6 -= 175.0F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 20;
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            }
-        }
-
-        if (orderList.size() == 12) {
-            cb1Y1 -= 195.0F;
-            cb2Y2 -= 195.0F;
-            cb3Y3 -= 195.0F;
-            cb4Y4 -= 195.0F;
-            cb5Y5 -= 195.0F;
-            cb6Y6 -= 195.0F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 20;
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            }
-        }
-
-        if (orderList.size() == 13) {
-            cb1Y1 -= 215.0F;
-            cb2Y2 -= 215.0F;
-            cb3Y3 -= 215.0F;
-            cb4Y4 -= 215.0F;
-            cb5Y5 -= 215.0F;
-            cb6Y6 -= 215.0F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 20;
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            }
-        }
-
-        if (orderList.size() == 14) {
-            cb1Y1 -= 235.0F;
-            cb2Y2 -= 235.0F;
-            cb3Y3 -= 235.0F;
-            cb4Y4 -= 235.0F;
-            cb5Y5 -= 235.0F;
-            cb6Y6 -= 235.0F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 20;
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            }
-        }
-
-        if (orderList.size() == 15) {
-            cb1Y1 -= 255.0F;
-            cb2Y2 -= 255.0F;
-            cb3Y3 -= 255.0F;
-            cb4Y4 -= 255.0F;
-            cb5Y5 -= 255.0F;
-            cb6Y6 -= 255.0F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 20;
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            }
-        }
-
-        if (orderList.size() == 16) {
-            cb1Y1 -= 275.0F;
-            cb2Y2 -= 275.0F;
-            cb3Y3 -= 275.0F;
-            cb4Y4 -= 275.0F;
-            cb5Y5 -= 275.0F;
-            cb6Y6 -= 275.0F;
-
-            if (lettrCountForRows > 0) {
-                lettrCountForRows *= 20;
-
-                cb1Y1 -= (lettrCountForRows * 0.5F);
-                cb2Y2 -= (lettrCountForRows * 0.5F);
-                cb3Y3 -= (lettrCountForRows * 0.5F);
-                cb4Y4 -= (lettrCountForRows * 0.5F);
-                cb5Y5 -= (lettrCountForRows * 0.5F);
-                cb6Y6 -= (lettrCountForRows * 0.5F);
-            }
-        }
-        cb.rectangle(195.0F, cb1Y1, 10.0F, 10.0F);
-        cb.stroke();
-        PdfContentByte cb2 = writer.getDirectContent();
-        cb2.rectangle(195.0F, cb2Y2, 10.0F, 10.0F);
-        cb2.stroke();
-        PdfContentByte cb3 = writer.getDirectContent();
-        cb3.rectangle(128.0F, cb3Y3, 10.0F, 10.0F);
-        cb3.stroke();
-        PdfContentByte cb4 = writer.getDirectContent();
-        cb4.rectangle(128.0F, cb4Y4, 10.0F, 10.0F);
-        cb4.stroke();
-        PdfContentByte cb5 = writer.getDirectContent();
-        cb5.rectangle(128.0F, cb5Y5, 10.0F, 10.0F);
-        cb5.stroke();
-        PdfContentByte cb6 = writer.getDirectContent();
-        cb6.rectangle(128.0F, cb6Y6, 10.0F, 10.0F);
-        cb6.stroke();
         Paragraph labelParagraph0 = new Paragraph("Product eindcontrole:", font3);
-        Paragraph labelParagraph1 = new Paragraph(String.format("%-30s%-30s", "\nBand(en) schoon: ", "JA"), font4);
-        Paragraph labelParagraph2 = new Paragraph("\n                                         NEE               Schoon gemaakt.", font4);
-        Paragraph labelParagraph3 = new Paragraph(String.format("%-30s%-30s", "\nBeschadigingen: ", " NEE"), font4);
-        Paragraph labelParagraph4 = new Paragraph("\n                                          JA                  Bijgewerkt.", font4);
-        labelParagraph4.setSpacingAfter(20.0F);
+        PdfPTable table = new PdfPTable(6);
+        table.setWidthPercentage(75);
+        table.setHorizontalAlignment(Element.ALIGN_LEFT);
+        table.setWidths(new float[]{4,2,2,2,2,5});
+
+        table.addCell(createTextCell("Band(en) schoon: "));
+        table.addCell(createTextCell(""));
+        table.addCell(createCheckboxCell(false));
+        table.addCell(createTextCell("JA"));
+        table.addCell(createTextCell(""));
+        table.addCell(createTextCell(""));
+
+        PdfPCell spacerCell1 = new PdfPCell(new Phrase(""));
+        spacerCell1.setColspan(6);
+        spacerCell1.setFixedHeight(10f);
+        spacerCell1.setBorder(Rectangle.NO_BORDER);
+        table.addCell(spacerCell1);
+
+
+        table.addCell(createTextCell(""));
+        table.addCell(createTextCell(""));
+        table.addCell(createCheckboxCell(false));
+        table.addCell(createTextCell("NEE"));
+        table.addCell(createCheckboxCell(false));
+        table.addCell(createTextCell("Schoon gemaakt."));
+
+        PdfPCell spacerCell2 = new PdfPCell(new Phrase(""));
+        spacerCell2.setColspan(6);
+        spacerCell2.setFixedHeight(10f);
+        spacerCell2.setBorder(Rectangle.NO_BORDER);
+        table.addCell(spacerCell2);
+
+        table.addCell(createTextCell("Beschadigingen: "));
+        table.addCell(createTextCell(""));
+        table.addCell(createCheckboxCell(false));
+        table.addCell(createTextCell("NEE"));
+        table.addCell(createTextCell(""));
+        table.addCell(createTextCell(""));
+
+        PdfPCell spacerCell3 = new PdfPCell(new Phrase(""));
+        spacerCell3.setColspan(6);
+        spacerCell3.setFixedHeight(10f);
+        spacerCell3.setBorder(Rectangle.NO_BORDER);
+        table.addCell(spacerCell3);
+
+        table.addCell(createTextCell(""));
+        table.addCell(createTextCell(""));
+        table.addCell(createCheckboxCell(false));
+        table.addCell(createTextCell("JA"));
+        table.addCell(createCheckboxCell(false));
+        table.addCell(createTextCell("Bijgewerkt"));
+
+//        PdfPCell defaultCell = new PdfPCell(new Phrase());
+//        defaultCell.setBorder(Rectangle.NO_BORDER);
+
+//        table.addCell(createTextCell(""));
+//        table.addCell(defaultCell);
+
+//        labelParagraph12.setSpacingAfter(15.0F);
+
+
+        table.setSpacingAfter(15.0F);
         document.add(labelParagraph0);
-        document.add(labelParagraph1);
-        document.add(labelParagraph2);
-        document.add(labelParagraph3);
-        document.add(labelParagraph4);
+        document.add(table);
+    }
+
+    private PdfPCell createTextCell(String text) {
+        Font smallFont = new Font(Font.FontFamily.HELVETICA, 11); // Set font size
+        PdfPCell cell = new PdfPCell(new Phrase(text, smallFont));
+        cell.setBorder(Rectangle.NO_BORDER);
+        cell.setHorizontalAlignment(Element.ALIGN_MIDDLE); // Align text to the right
+        return cell;
+    }
+
+    private PdfPCell createCheckboxCell(boolean isChecked) {
+        PdfPCell cell = new PdfPCell();
+        cell.setBorder(Rectangle.NO_BORDER);
+        cell.setFixedHeight(12f);
+        cell.setCellEvent(new CheckboxCellEvent(isChecked));
+        return cell;
     }
 
     private void addSections(Document document) throws DocumentException {
