@@ -1228,8 +1228,16 @@ public class OrderServiceImp implements OrderService {
             System.out.println(query);
             try {
                 Connection connection = getConnection();
+                System.out.println("connection");
+                System.out.println(connection);
+
                 Statement statement = connection.createStatement();
+                System.out.println("statement");
+                System.out.println(statement);
+
                 ResultSet resultSet = statement.executeQuery(query);
+                System.out.println("resultSet");
+                System.out.println(resultSet);
 
                 if (activeConnections.isEmpty()) {
                     activeConnections.add(connection);
@@ -1273,19 +1281,31 @@ public class OrderServiceImp implements OrderService {
                         String finalOrderNumber = orderNumber;
 
                         if (this.archivedOrdersService.getAllArchivedOrders().stream().anyMatch((obj) -> {
+                            System.out.println("this ran getcrmorderinner ex 1");
                             return obj.getOrderNumber().equals(finalOrderNumber);
                         })) {
+                            System.out.println("this ran getcrmorderinner ex 2");
+
                             archivedOrdersService.deleteFromArchive(finalOrderNumber);
                         }
+                        System.out.println("this ran getcrmorderinner ex 3");
+
                         if (!this.ordersMap.containsKey(orderNumber + "," + regel)) {
+                            System.out.println("this ran getcrmorderinner ex 4");
+
                             String finalOrderNumber1 = orderNumber;
                             if (this.ordersMap.entrySet().stream().noneMatch((obj) -> {
                                 return ((OrderDto) obj.getValue()).getOrderNumber().equals(finalOrderNumber1);
                             })) {
+                                System.out.println("this ran getcrmorderinner ex 5");
+
                                 orderDto.setIsParent(1);
                             } else {
+                                System.out.println("this ran getcrmorderinner ex 6");
+
                                 orderDto.setIsParent(0);
                             }
+                            System.out.println("this ran getcrmorderinner ex 7");
 
                             int maxId = this.ordersMap.values().stream().mapToInt(OrderDto::getId).max().orElse(0);
                             ++maxId;
@@ -1316,15 +1336,26 @@ public class OrderServiceImp implements OrderService {
                             orderDto.setProduct(product);
                             orderDto.setOmsumin(omsumin);
                             deliveryDate2 = orderDto.getDeliveryDate();
+                            System.out.println("this ran getcrmorderinner ex 8");
+
                             if (!this.createOrder(orderDto)) {
+                                System.out.println("this ran getcrmorderinner ex 9");
+
                                 System.out.println("Failed to create record in app");
                             } else {
+                                System.out.println("this ran getcrmorderinner ex 10");
+
                                 this.ordersMap.put(orderNumber + "," + regel, orderDto);
                                 System.out.println("CREATED ORDER : " + orderDto.getOrderNumber());
                             }
+                            System.out.println("this ran getcrmorderinner ex 11");
+
                         }
+                        System.out.println("this ran getcrmorderinner ex 12");
 
                         if (this.ordersMap.containsKey(orderNumber + "," + regel)) {
+                            System.out.println("this ran getcrmorderinner ex 13");
+
                             OrderDto existingOrderDto = (OrderDto) this.ordersMap.get(orderNumber + "," + regel);
 
                             orderDto.setId(existingOrderDto.getId());
@@ -1353,13 +1384,17 @@ public class OrderServiceImp implements OrderService {
                             orderDto.setAantal(aantal);
                             orderDto.setProduct(product);
                             orderDto.setOmsumin(omsumin);
+                            System.out.println("this ran getcrmorderinner ex 14");
 
                             Map<String, Boolean> fieldsCheckMap = checkForFeildsChange(existingOrderDto, orderDto);
                             fieldsCheckMap.entrySet().stream()
                                     .forEach(entry -> System.out.println("Key: " + entry.getKey() + ", Value: " + entry.getValue()));
+                            System.out.println("this ran getcrmorderinner ex 15");
 
                             if (fieldsCheckMap.getOrDefault("cdProdGrp", false) || fieldsCheckMap.getOrDefault("orderType", false)) {
                                 try {
+                                    System.out.println("this ran getcrmorderinner ex 16");
+
                                     this.deleteOrderData(Collections.singletonList(existingOrderDto.getId()));
                                     System.out.println("DELETING : " + existingOrderDto.getId());
                                 } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
@@ -1380,8 +1415,12 @@ public class OrderServiceImp implements OrderService {
                                         e.printStackTrace();
                                     }
                                 }
+                                System.out.println("this ran getcrmorderinner ex 17");
+
                                 this.settingUpFlow(orderDto);
                                 try {
+                                    System.out.println("this ran getcrmorderinner ex 18");
+
                                     this.createOrder(orderDto);
                                 } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
                                     System.out.println("from getcrm createOrder : Caught ObjectOptimisticLockingFailureException:");
@@ -1401,7 +1440,11 @@ public class OrderServiceImp implements OrderService {
                                         e.printStackTrace();
                                     }
                                 }
+                                System.out.println("this ran getcrmorderinner ex 19");
+
                                 this.ordersMap.put(orderNumber + "," + regel, orderDto);
+                                System.out.println("this ran getcrmorderinner ex 20");
+
                             } else if (fieldsCheckMap.getOrDefault("aantal", false) ||
                                     fieldsCheckMap.getOrDefault("custName", false) ||
                                     fieldsCheckMap.getOrDefault("product", false) ||
@@ -1411,6 +1454,8 @@ public class OrderServiceImp implements OrderService {
                                     fieldsCheckMap.getOrDefault("country", false) ||
                                     (!existingOrderDto.getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.isEmpty())) {
                                 try {
+                                    System.out.println("this ran getcrmorderinner ex 21");
+
                                     this.updateOrder(orderDto, orderDto.getId(), false);
                                     System.out.println(existingOrderDto.getDeliveryDate() + ", " + deliveryDate2);
                                     System.out.println("UPDATING : " + orderDto.getId());

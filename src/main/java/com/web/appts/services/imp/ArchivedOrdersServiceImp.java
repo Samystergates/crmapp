@@ -105,7 +105,7 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
     public List<ArchivedOrdersDto> getAllArchivedOrders() {
         if (this.archivedOrdersMap.isEmpty()) {
             List<ArchivedOrders> allArchivedOrders = this.archivedOrdersRepo.findAll();
-            if (allArchivedOrders.isEmpty() || allArchivedOrders == null) {
+            if (allArchivedOrders == null || allArchivedOrders.isEmpty()) {
                 return new ArrayList();
             }
 
