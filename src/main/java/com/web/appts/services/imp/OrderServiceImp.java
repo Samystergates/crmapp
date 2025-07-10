@@ -93,7 +93,7 @@ public class OrderServiceImp implements OrderService {
 
     public static synchronized Connection getConnection() throws SQLException {
         if (connection == null || connection.isClosed()) {
-            //connection = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
+            connection = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
         }
         return connection;
     }
