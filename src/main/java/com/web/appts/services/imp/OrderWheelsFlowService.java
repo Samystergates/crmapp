@@ -13,6 +13,7 @@ import com.web.appts.DTO.OrderDto;
 import com.web.appts.DTO.OrderSMEDto;
 import com.web.appts.DTO.OrderSPUDto;
 import com.web.appts.DTO.WheelColorDto;
+import com.web.appts.configurations.JwtTokenHelper;
 import com.web.appts.controllers.CheckboxCellEvent;
 import com.web.appts.entities.OrderSME;
 import com.web.appts.entities.OrderSPU;
@@ -23,7 +24,10 @@ import com.web.appts.services.OrderSMEService;
 import com.web.appts.services.OrderSPUService;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.security.Principal;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -34,7 +38,11 @@ import java.util.stream.Collectors;
 import com.web.appts.utils.AanOptions;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+
+import javax.imageio.ImageIO;
 
 @Service
 public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService {
@@ -212,7 +220,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         }
     }
 
-    private void addSMEHeadingAndAddress(Document document, String heading) throws DocumentException {
+    private void addSMEHeadingAndAddress(Document document, String heading) throws DocumentException, IOException {
         Font font = new Font(FontFamily.HELVETICA, 18.0F, 1);
         Font font2 = new Font(FontFamily.COURIER, 25.0F, 1);
         Font font22 = new Font(FontFamily.COURIER, 15.0F, 1);
@@ -220,15 +228,33 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         Font font4 = new Font(FontFamily.HELVETICA, 10.0F);
         PdfPTable mainTable = new PdfPTable(3);
         mainTable.setWidthPercentage(100.0F);
+//        PdfPCell cell1 = new PdfPCell();
+//        Paragraph paragraph = new Paragraph("DE MOLEN", font2);
+//        Paragraph paragraphbanden = new Paragraph("    BANDEN", font22);
+//        paragraph.setAlignment(0);
+//        paragraphbanden.setAlignment(0);
+//        cell1.addElement(paragraph);
+//        cell1.addElement(paragraphbanden);
+//        cell1.setBorder(0);
+//        mainTable.addCell(cell1);
+
         PdfPCell cell1 = new PdfPCell();
-        Paragraph paragraph = new Paragraph("DE MOLEN", font2);
-        Paragraph paragraphbanden = new Paragraph("    BANDEN", font22);
-        paragraph.setAlignment(0);
-        paragraphbanden.setAlignment(0);
-        cell1.addElement(paragraph);
-        cell1.addElement(paragraphbanden);
         cell1.setBorder(0);
+        cell1.setPaddingTop(12);
+        cell1.setPaddingRight(22);
+        try (InputStream imageStream = getClass().getClassLoader().getResourceAsStream("images/demolen.jpg")) {
+            if (imageStream == null) {
+                throw new FileNotFoundException("Image not found: images/demolen.jpg");
+            }
+
+            Image logoImage = Image.getInstance(ImageIO.read(imageStream), null);
+            logoImage.scaleToFit(150, 150);
+            logoImage.setAlignment(Element.ALIGN_CENTER);
+            cell1.addElement(logoImage);
+        }
+
         mainTable.addCell(cell1);
+
         PdfPCell cell2 = new PdfPCell();
         Paragraph paragraph2 = new Paragraph(heading, font);
         paragraph2.setAlignment(1);
@@ -249,6 +275,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
     }
 
     private void addSMEBloeHeadingAndInfo(PdfWriter writer, Document document, String heading, OrderSMEDto orderSMEDto) throws DocumentException {
+
         Font font1 = new Font(FontFamily.HELVETICA, 9.2F);
         Font font2 = new Font(FontFamily.HELVETICA, 12.0F);
         Font font4 = new Font(FontFamily.HELVETICA, 10.0F);
@@ -277,11 +304,16 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         PdfPCell cell2 = new PdfPCell();
 //        Paragraph paragraphL1 = new Paragraph(String.format("%-13s%-13s", " Naam Klant:", " " + oda.getCustomerName()), font4);
         Paragraph paragraphL1 = new Paragraph("Naam Klant: " + oda.getCustomerName(), font1);
-        Paragraph paragraphL2 = new Paragraph(String.format("%-16s%-16s", "\n Verkoop order:   ", orderSMEDto.getOrderNumber()), font1);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Paragraph paragraphL2 = new Paragraph("Entered By: " + authentication.getName(), font1);
+        Paragraph paragraphL3 = new Paragraph(String.format("%-16s%-16s", "\n Verkoop order:   ", orderSMEDto.getOrderNumber()), font1);
         paragraphL1.setAlignment(0);
         paragraphL2.setAlignment(0);
+        paragraphL3.setAlignment(0);
+
         cell2.addElement(paragraphL1);
         cell2.addElement(paragraphL2);
+        cell2.addElement(paragraphL3);
         cell2.setBorder(0);
         mainTable.addCell(cell2);
         PdfPCell cell3 = new PdfPCell();
@@ -378,9 +410,10 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             orders.setOmsumin("");
         }
 
+
         Paragraph labelParagraph2 = new Paragraph("Machine:   " + orderSMEDto.getMerk() + "               Model:   " + orderSMEDto.getModel() + "               Type:   " + orderSMEDto.getType(), font5);
         labelParagraph2.setSpacingAfter(7.0F);
-        Paragraph labelParagraph3 = new Paragraph("\n                      Aantal:   " + orders.getAantal() + "\n           Omschrijving:   " + orders.getOmsumin(), font4);
+        Paragraph labelParagraph3 = new Paragraph("\n                      Aantal:   " + getFormattedAantal(orders.getAantal()) + "\n           Omschrijving:   " + orders.getOmsumin(), font4);
         labelParagraph3.setSpacingAfter(7.0F);
         Paragraph labelParagraph4 = new Paragraph("\n                   Naafgat:   " + orderSMEDto.getNaafgat() + "      mm                                   Steelcirkel:     " + orderSMEDto.getSteek() + "      mm", font4);
         labelParagraph4.setSpacingAfter(7.0F);
@@ -455,7 +488,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         PdfPTable table = new PdfPTable(4);
         table.setWidthPercentage(60);
         table.setHorizontalAlignment(Element.ALIGN_RIGHT);
-        table.setWidths(new float[]{6,2,6,2});
+        table.setWidths(new float[]{6, 2, 6, 2});
 
         table.addCell(createTextCell("Doorgezet:"));
         table.addCell(createCheckboxCell(orderSMEDto.getDoorgezet().equals("JA")));
@@ -495,6 +528,14 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         document.add(table);
 
     }
+
+    public String getFormattedAantal(String aantal) {
+        if (aantal != null && aantal.endsWith(".000")) {
+            return aantal.substring(0, aantal.length() - 4);
+        }
+        return aantal;
+    }
+
 
     private PdfPCell createTextCell(String text) {
         Font smallFont = new Font(Font.FontFamily.HELVETICA, 11); // Set font size

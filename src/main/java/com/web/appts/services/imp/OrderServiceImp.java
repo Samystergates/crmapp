@@ -36,8 +36,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.beans.factory.support.BeanDefinitionRegistry;
-import org.springframework.boot.SpringApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Lazy;
@@ -898,7 +896,23 @@ public class OrderServiceImp implements OrderService {
             System.out.println("data length : " + dataLength);
             System.out.println("mapOrders size : " + mapOrders.size());
             if (dataLength == (long) mapOrders.size()) {
-                return null;
+//                Iterator<Map.Entry<String, OrderDto>> var6 = this.ordersMap.entrySet().iterator();
+//
+//                while (var6.hasNext()) {
+//                    Map.Entry<String, OrderDto> entry = (Map.Entry) var6.next();
+//                    OrderDto orderDto = (OrderDto) entry.getValue();
+//                    orderDto.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
+//                    this.orderDtoList.add(orderDto);
+//                }
+                this.orderDtoList = new ArrayList<>();
+
+                for (Map.Entry<String, OrderDto> entry : this.ordersMap.entrySet()) {
+                    OrderDto orderDto = entry.getValue();
+                    orderDto.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
+                    this.orderDtoList.add(orderDto);
+                }
+
+                return this.orderDtoList;
             } else {
                 this.ordersMap.clear();
                 List<Order> allOrders = this.orderRepo.findAll();
