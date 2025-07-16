@@ -66,10 +66,23 @@ public class OrderController {
 
     @PutMapping({"/update/{flowUpdate}"})
     public ResponseEntity<List<OrderDto>> updatingOrder(@RequestBody OrderDto orderDto, @PathVariable("flowUpdate") Boolean flowUpdate) {
+        System.out.println("start, "+orderDto+", "+System.currentTimeMillis());
         List<OrderDto> updatedOrders = this.orderService.updateOrder(orderDto, orderDto.getId(), flowUpdate);
         this.sortUsingDate(updatedOrders);
-        this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
+//        this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
+
+        new Thread(() -> {
+            try {
+                Thread.sleep(200);
+                messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }).start();
+
+        System.out.println("end, "+ orderDto+", "+System.currentTimeMillis());
         return ResponseEntity.ok(updatedOrders);
+
     }
 
     @PutMapping({"/update/colors/{orderNumber}/{orderDep}/{flowVal}"})

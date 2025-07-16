@@ -12,7 +12,7 @@ public interface OrderService {
 
 	Boolean archiveOrder(OrderDto paramOrderDto);
 
-	List<OrderDto> updateOrder(OrderDto paramOrderDto, Integer paramInteger, Boolean paramBoolean);
+	List<OrderDto> updateOrder(OrderDto orderDto, Integer orderId, Boolean flowUpdate);
 
 	List<OrderDto> updateOrderColors(String paramOrderNumber, String paramorderDep, String paramOrderStatus, String paramFlowVal);
 
