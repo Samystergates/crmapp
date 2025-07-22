@@ -46,6 +46,7 @@ public class OrderController {
     @GetMapping({"/refresh/orders"})
     public ResponseEntity<List<OrderDto>> getCrmOrders() {
         List<OrderDto> orderDto = this.orderService.checkMap();
+        this.orderService.markExpired();
         orderDto = this.orderService.getCRMOrders();
         this.orderService.createMonSub();
         this.orderService.updateProductNotes();

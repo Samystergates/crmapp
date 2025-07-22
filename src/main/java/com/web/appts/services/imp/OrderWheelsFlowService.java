@@ -785,6 +785,10 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             orderSPUDto.setOntlakken("");
         }
 
+        if (orderSPUDto.getAflakken() == null) {
+            orderSPUDto.setAflakken("");
+        }
+
         if (orderSPUDto.getKleurOmschrijving() == null) {
             orderSPUDto.setKleurOmschrijving("");
         }
@@ -804,7 +808,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         }).findFirst().orElse(null);
         Paragraph labelParagraph2 = new Paragraph("Produkt            Aantal            Omschrijving", font5);
         Paragraph labelParagraph3 = new Paragraph(orderSPUDto.getProdNumber() + "          " + orders.getAantal() + "         " + orders.getOmsumin(), font5);
-        Paragraph labelParagraph4 = new Paragraph("\n                     Stralen: \n Gedeeltelijk Stralen:  \n          Poedercoaten:                                       Prijscode                 Afdeling  \n                       Kitten: \t\t\t\t\t\t\t      \t    \t\t\t\t  \t\t                  \t\t      \t      " + orderSPUDto.getPrijscode() + "                          " + orderSPUDto.getAfdeling() + " \n                      Primer:  \n                Ontlakken: \n                        Kleur:           RAL:  " + wheelColorDto.getId() + "        Naam Kleur:   " + orderSPUDto.getKleurOmschrijving() + " \n          \t      BlankeLak: \n          Verkoop order:  " + orderSPUDto.getOrderNumber() + " \n              Naam Klant:  " + orders.getCustomerName(), font5);
+        Paragraph labelParagraph4 = new Paragraph("\n                     Stralen: \n Gedeeltelijk Stralen:  \n          Poedercoaten:                                       Prijscode                 Afdeling  \n                       Kitten: \t\t\t\t\t\t\t      \t    \t\t\t\t  \t\t                  \t\t      \t      " + orderSPUDto.getPrijscode() + "                          " + orderSPUDto.getAfdeling() + " \n                      Primer:  \n                Ontlakken: \n                        Kleur:           RAL:  " + wheelColorDto.getId() + "        Naam Kleur:   " + orderSPUDto.getKleurOmschrijving() + " \n          \t      BlankeLak: \n                   Aflakken:  \n          Verkoop order:  " + orderSPUDto.getOrderNumber() + " \n              Naam Klant:  " + orders.getCustomerName(), font5);
 
 
         int lettrCountForRows = 0;
@@ -858,10 +862,10 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
                 cb2.moveTo(170.0F, 541.0F);
                 cb2.lineTo(180.0F, 531.0F);
             } else {
-                cb2.moveTo(170.0F, 540.0F);
-                cb2.lineTo(180.0F, 550.0F);
                 cb2.moveTo(170.0F, 550.0F);
-                cb2.lineTo(180.0F, 540.0F);
+                cb2.lineTo(180.0F, 560.0F);
+                cb2.moveTo(170.0F, 560.0F);
+                cb2.lineTo(180.0F, 550.0F);
             }
         }
 
@@ -994,6 +998,28 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
                 cb8.lineTo(180.0F, 445.0F);
                 cb8.moveTo(170.0F, 445.0F);
                 cb8.lineTo(180.0F, 435.0F);
+            }
+        }
+
+        PdfContentByte cb9 = writer.getDirectContent();
+        if (lettrCountForRows <= 0) {
+            cb9.rectangle(170.0F, 416.0F, 10.0F, 10.0F);
+        } else {
+            cb9.rectangle(170.0F, 397.0F, 10.0F, 10.0F);
+        }
+        cb9.stroke();
+        if (orderSPUDto.getAflakken().equals("JA")) {
+
+            if (lettrCountForRows > 0) {
+                cb9.moveTo(170.0F, 397.0F);
+                cb9.lineTo(180.0F, 406.0F);
+                cb9.moveTo(170.0F, 406.0F);
+                cb9.lineTo(180.0F, 397.0F);
+            } else {
+                cb9.moveTo(170.0F, 416.0F);
+                cb9.lineTo(180.0F, 426.0F);
+                cb9.moveTo(170.0F, 426.0F);
+                cb9.lineTo(180.0F, 416.0F);
             }
         }
 

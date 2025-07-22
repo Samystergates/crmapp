@@ -298,8 +298,8 @@ public class ApptsApplication {
 	//@Scheduled(fixedDelay = 180000) // 3 minutes in milliseconds
 	public void restartApplication() {
 		if (isAppStarted) {
-			int exitCode = SpringApplication.exit(context, () -> 0);
-			System.exit(exitCode);
+//			int exitCode = SpringApplication.exit(context, () -> 0);
+//			System.exit(exitCode);
 		}
 	}
 

@@ -82,15 +82,14 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
     }
 
     //@Transactional
-    public void deleteFromArchive(String orderNumber) {
+    public void deleteFromArchive(String orderNumber, String regel) {
         this.getAllArchivedOrders().forEach(ao -> {
-            if (ao.getOrderNumber().equals(orderNumber)) {
+            if (ao.getOrderNumber().equals(orderNumber) && ao.getRegel().equals((regel))) {
                 archivedOrdersRepo.deleteById(ao.getId());
             }
         });
-        archivedOrdersMap.entrySet().removeIf(entry -> entry.getValue().getOrderNumber().equals(orderNumber));
-        archivedOrderDtoList.removeIf(order -> order.getOrderNumber().equals(orderNumber));
-
+        archivedOrdersMap.entrySet().removeIf(entry -> entry.getValue().getOrderNumber().equals(orderNumber) && entry.getValue().getRegel().equals(regel));
+        archivedOrderDtoList.removeIf(order -> order.getOrderNumber().equals(orderNumber) && order.getRegel().equals((regel)));
     }
 
     @PostConstruct

@@ -21,11 +21,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.modelmapper.ModelMapper;
@@ -146,9 +142,20 @@ public class OrderTRAServiceImp implements OrderTRAService {
 		}
 
 		Map<String, OrderDto> ordersMap = this.orderServiceImp.getMap();
-		List<OrderDto> objects = (List)ordersMap.values().stream().filter((orderDto) -> {
-			return idList.contains(orderDto.getId());
-		}).collect(Collectors.toList());
+
+//		List<OrderDto> objects = (List)ordersMap.values().stream().filter((orderDto) -> {
+//			return idList.contains(orderDto.getId());
+//		}).collect(Collectors.toList());
+
+		List<OrderDto> objects = idList.stream()
+				.map(id -> ordersMap.values().stream()
+						.filter(order -> order.getId() == id)
+						.findFirst()
+						.orElse(null)
+				)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toList());
+
 
 		try {
 			ByteArrayOutputStream outputStream = new ByteArrayOutputStream();

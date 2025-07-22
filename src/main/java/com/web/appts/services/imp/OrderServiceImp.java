@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.boot.SpringApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Lazy;
@@ -77,8 +78,8 @@ public class OrderServiceImp implements OrderService {
 
     private final Set<Connection> activeConnections = new HashSet<>();
 
-    @Autowired
-    @Qualifier("secondaryDataSource")
+//    @Autowired
+//    @Qualifier("secondaryDataSource")
     private DataSource secondaryDataSource;
 
 //    public Connection getConnection() throws SQLException {
@@ -91,7 +92,8 @@ public class OrderServiceImp implements OrderService {
 
     public static synchronized Connection getConnection() throws SQLException {
         if (connection == null || connection.isClosed()) {
-            connection = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
+            logger.info("creating new connection");
+//            connection = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
         }
         return connection;
     }
@@ -131,13 +133,13 @@ public class OrderServiceImp implements OrderService {
                 }
                 if (connection != null && !connection.isClosed()) {
                     logger.info("Closing connection: " + connection);
-                    //connection.close();
+                    connection.close();
                     logger.info("Connection closed: " + connection);
                 }
             } catch (SQLException e) {
                 logger.error("Error closing connection: " + connection, e);
             } finally {
-                //iterator.remove(); // Remove from list even if it fails to close
+                iterator.remove(); // Remove from list even if it fails to close
             }
         }
 
@@ -185,7 +187,7 @@ public class OrderServiceImp implements OrderService {
     private void refreshDataSource() {
         try {
             closeConnections();
-            //forceCloseODBCConnections();
+//            forceCloseODBCConnections();
 
             ConfigurableListableBeanFactory beanFactory = configurableContext.getBeanFactory();
 
@@ -963,7 +965,7 @@ public class OrderServiceImp implements OrderService {
     @Async("taskExecutor")
     @Scheduled(fixedRate = 300000)
     public void markExpired() {
-        if (!ordersMap.isEmpty() && !this.archivedOrdersService.getAllArchivedOrders().isEmpty()) {
+        if (!ordersMap.isEmpty()) {
             int retry = 0;
             while (retry < 5 && retry != -1) {
                 try {
@@ -979,7 +981,7 @@ public class OrderServiceImp implements OrderService {
                         logger.info(e.getMessage());
                     }
                 } finally {
-                    closeConnections();
+                    //closeConnections();
                 }
             }
             if (retry == 5) {
@@ -998,10 +1000,10 @@ public class OrderServiceImp implements OrderService {
                         } else {
                             retry++;
                             e.printStackTrace();
-                            logger.info(e.getMessage());
+                            logger.info("retry num"+retry+", "+e.getMessage());
                         }
                     } finally {
-                        closeConnections();
+                        //closeConnections();
                     }
                 }
                 if (retry == 5) {
@@ -1018,8 +1020,9 @@ public class OrderServiceImp implements OrderService {
 //         System.exit(exitCode);
      }
 
-    public void markExpiredInner() {
 
+    public void markExpiredInner() {
+    //v0511719
         String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', " +
                 "\"va-211\".\"cdprodukt\" AS 'Product' , \"va-211\".\"nrordrgl\" AS 'Regel'" +
                 "FROM DATA.PUB.\"va-210\" " +
@@ -1042,7 +1045,6 @@ public class OrderServiceImp implements OrderService {
                 System.out.println(resultSet);
                 System.out.println(resultSet.next());
                 String orderNumber = null;
-
 
                 List<String> existingOrderNumbers = new ArrayList<>();
                 while (resultSet.next()) {
@@ -1068,39 +1070,45 @@ public class OrderServiceImp implements OrderService {
                         })
                         .collect(Collectors.toList());
 
-//                        for (Integer id : idList1) {
-//                            System.out.println("id1: " + id);
-//                        }
                 System.out.println("list1: " + orderList.size());
-                List<ArchivedOrdersDto> archivedOrdersList = this.archivedOrdersService.getAllArchivedOrders()
-                        .stream()
-                        .filter(ord -> {
-                            return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getRegel());
-                        })
-                        .collect(Collectors.toList());
-//                        for (Long id : idList2) {
-//                            System.out.println("id2: " + id);
-//                        }
-                System.out.println("list2: " + archivedOrdersList.size());
-                List<Integer> filteredOrders = orderList
-                        .stream()
-                        .filter(order ->
-                                archivedOrdersList.stream()
-                                        .noneMatch(archivedOrder ->
-                                                archivedOrder.getOrderNumber().equals(order.getOrderNumber()) &&
-                                                        archivedOrder.getRegel().equals(order.getRegel())
-                                        )
-                        ).map(OrderDto::getId)
-                        .collect(Collectors.toList());
+                List<Integer> filteredOrders = new ArrayList<>();
+                if(!this.archivedOrdersService.getAllArchivedOrders().isEmpty()) {
+                    List<ArchivedOrdersDto> archivedOrdersList = this.archivedOrdersService.getAllArchivedOrders()
+                            .stream()
+                            .filter(ord -> {
+                                return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getRegel());
+                            })
+                            .collect(Collectors.toList());
 
-//                        for (Integer id : idList3) {
-//                            System.out.println("id3: " + id);
-//                        }
-                System.out.println("list3: " + filteredOrders.size());
-                List<OrderDto> matchingObjects = ordersMap.values().stream()
-                        .filter(obj -> filteredOrders.contains(obj.getId()))
-                        .peek(obj -> obj.setIsExpired(true))
-                        .collect(Collectors.toList());
+                    System.out.println("list2: " + archivedOrdersList.size());
+                    filteredOrders = orderList
+                            .stream()
+                            .filter(order ->
+                                    archivedOrdersList.stream()
+                                            .noneMatch(archivedOrder ->
+                                                    archivedOrder.getOrderNumber().equals(order.getOrderNumber()) &&
+                                                            archivedOrder.getRegel().equals(order.getRegel())
+                                            )
+                            ).map(OrderDto::getId)
+                            .collect(Collectors.toList());
+
+                    System.out.println("list3: " + filteredOrders.size());
+                }else{
+                    filteredOrders = orderList
+                            .stream()
+                            .map(OrderDto::getId)
+                            .collect(Collectors.toList());
+                    System.out.println("list3.1: " + filteredOrders.size());
+                }
+
+                List<OrderDto> matchingObjects = new ArrayList<>();
+                if(!filteredOrders.isEmpty()) {
+                    List<Integer> finalFilteredOrders = filteredOrders;
+                    matchingObjects = ordersMap.values().stream()
+                            .filter(obj -> finalFilteredOrders.contains(obj.getId()))
+                            .peek(obj -> obj.setIsExpired(true))
+                            .collect(Collectors.toList());
+                }
 
 
                 matchingObjects.forEach(obj -> {
@@ -1126,9 +1134,7 @@ public class OrderServiceImp implements OrderService {
                         }
                     }
                 });
-
-
-                //this.moveToArchive(filteredOrders);
+                this.moveToArchive(filteredOrders);
             }
         } catch (SQLException e) {
 
@@ -1178,7 +1184,7 @@ public class OrderServiceImp implements OrderService {
                     logger.info(e.getMessage());
                 }
             } finally {
-                closeConnections();
+                //closeConnections();
             }
         }
         if (retry == 5) {
@@ -1200,7 +1206,7 @@ public class OrderServiceImp implements OrderService {
                         logger.info(e.getMessage());
                     }
                 } finally {
-                    closeConnections();
+                    //closeConnections();
                 }
             }
             if (retry == 5) {
@@ -1295,32 +1301,20 @@ public class OrderServiceImp implements OrderService {
                         String finalOrderNumber = orderNumber;
 
                         if (this.archivedOrdersService.getAllArchivedOrders().stream().anyMatch((obj) -> {
-                            System.out.println("this ran getcrmorderinner ex 1");
-                            return obj.getOrderNumber().equals(finalOrderNumber);
+                            return obj.getOrderNumber().equals(finalOrderNumber) && obj.getRegel().equals((regel));
                         })) {
-                            System.out.println("this ran getcrmorderinner ex 2");
-
-                            archivedOrdersService.deleteFromArchive(finalOrderNumber);
+                            archivedOrdersService.deleteFromArchive(finalOrderNumber,regel);
                         }
-                        System.out.println("this ran getcrmorderinner ex 3");
 
                         if (!this.ordersMap.containsKey(orderNumber + "," + regel)) {
-                            System.out.println("this ran getcrmorderinner ex 4");
-
                             String finalOrderNumber1 = orderNumber;
                             if (this.ordersMap.entrySet().stream().noneMatch((obj) -> {
                                 return ((OrderDto) obj.getValue()).getOrderNumber().equals(finalOrderNumber1);
                             })) {
-                                System.out.println("this ran getcrmorderinner ex 5");
-
                                 orderDto.setIsParent(1);
                             } else {
-                                System.out.println("this ran getcrmorderinner ex 6");
-
                                 orderDto.setIsParent(0);
                             }
-                            System.out.println("this ran getcrmorderinner ex 7");
-
                             int maxId = this.ordersMap.values().stream().mapToInt(OrderDto::getId).max().orElse(0);
                             ++maxId;
                             orderDto.setId(maxId);
@@ -1350,25 +1344,16 @@ public class OrderServiceImp implements OrderService {
                             orderDto.setProduct(product);
                             orderDto.setOmsumin(omsumin);
                             deliveryDate2 = orderDto.getDeliveryDate();
-                            System.out.println("this ran getcrmorderinner ex 8");
 
-                            if (!this.createOrder(orderDto)) {
-                                System.out.println("this ran getcrmorderinner ex 9");
-
-                                System.out.println("Failed to create record in app");
-                            } else {
-                                System.out.println("this ran getcrmorderinner ex 10");
-
+                            if (this.createOrder(orderDto)) {
                                 this.ordersMap.put(orderNumber + "," + regel, orderDto);
                                 System.out.println("CREATED ORDER : " + orderDto.getOrderNumber());
+                            } else {
+                                System.out.println("Failed to create record in app");
                             }
-                            System.out.println("this ran getcrmorderinner ex 11");
 
                         }
-                        System.out.println("this ran getcrmorderinner ex 12");
-
                         if (this.ordersMap.containsKey(orderNumber + "," + regel)) {
-                            System.out.println("this ran getcrmorderinner ex 13");
 
                             OrderDto existingOrderDto = (OrderDto) this.ordersMap.get(orderNumber + "," + regel);
 
@@ -1389,7 +1374,6 @@ public class OrderServiceImp implements OrderService {
                             } else {
                                 orderDto.setDeliveryDate(deliveryDate);
                             }
-
                             orderDto.setReferenceInfo(referenceInfo);
                             orderDto.setCreationDate(creationDate);
                             orderDto.setModificationDate(modificationDate);
@@ -1398,17 +1382,13 @@ public class OrderServiceImp implements OrderService {
                             orderDto.setAantal(aantal);
                             orderDto.setProduct(product);
                             orderDto.setOmsumin(omsumin);
-                            System.out.println("this ran getcrmorderinner ex 14");
 
                             Map<String, Boolean> fieldsCheckMap = checkForFeildsChange(existingOrderDto, orderDto);
                             fieldsCheckMap.entrySet().stream()
                                     .forEach(entry -> System.out.println("Key: " + entry.getKey() + ", Value: " + entry.getValue()));
-                            System.out.println("this ran getcrmorderinner ex 15");
 
                             if (fieldsCheckMap.getOrDefault("cdProdGrp", false) || fieldsCheckMap.getOrDefault("orderType", false)) {
                                 try {
-                                    System.out.println("this ran getcrmorderinner ex 16");
-
                                     this.deleteOrderData(Collections.singletonList(existingOrderDto.getId()));
                                     System.out.println("DELETING : " + existingOrderDto.getId());
                                 } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
@@ -1429,12 +1409,8 @@ public class OrderServiceImp implements OrderService {
                                         e.printStackTrace();
                                     }
                                 }
-                                System.out.println("this ran getcrmorderinner ex 17");
-
                                 this.settingUpFlow(orderDto);
                                 try {
-                                    System.out.println("this ran getcrmorderinner ex 18");
-
                                     this.createOrder(orderDto);
                                 } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
                                     System.out.println("from getcrm createOrder : Caught ObjectOptimisticLockingFailureException:");
@@ -1454,11 +1430,7 @@ public class OrderServiceImp implements OrderService {
                                         e.printStackTrace();
                                     }
                                 }
-                                System.out.println("this ran getcrmorderinner ex 19");
-
                                 this.ordersMap.put(orderNumber + "," + regel, orderDto);
-                                System.out.println("this ran getcrmorderinner ex 20");
-
                             } else if (fieldsCheckMap.getOrDefault("aantal", false) ||
                                     fieldsCheckMap.getOrDefault("custName", false) ||
                                     fieldsCheckMap.getOrDefault("product", false) ||
@@ -1468,8 +1440,6 @@ public class OrderServiceImp implements OrderService {
                                     fieldsCheckMap.getOrDefault("country", false) ||
                                     (!existingOrderDto.getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.isEmpty())) {
                                 try {
-                                    System.out.println("this ran getcrmorderinner ex 21");
-
                                     this.updateOrder(orderDto, orderDto.getId(), false);
                                     System.out.println(existingOrderDto.getDeliveryDate() + ", " + deliveryDate2);
                                     System.out.println("UPDATING : " + orderDto.getId());
@@ -1557,7 +1527,7 @@ public class OrderServiceImp implements OrderService {
             //new ResourceNotFoundException("Order", "CRM", "N/A");
             //return null;
         } finally {
-            closeConnections();
+            //closeConnections();
         }
     }
 
@@ -1895,7 +1865,7 @@ public class OrderServiceImp implements OrderService {
                     logger.info(e.getMessage());
                 }
             } finally {
-                closeConnections();
+//                closeConnections();
             }
         }
         if (retry == 5) {
@@ -1917,7 +1887,7 @@ public class OrderServiceImp implements OrderService {
                         logger.info(e.getMessage());
                     }
                 } finally {
-                    closeConnections();
+                    //closeConnections();
                 }
             }
             if (retry == 5) {
@@ -2010,7 +1980,7 @@ public class OrderServiceImp implements OrderService {
             System.out.println("updateProductNotes sql exc 1");
             e.printStackTrace();
         } finally {
-            closeConnections();
+            //closeConnections();
         }
     }
 
@@ -2032,7 +2002,7 @@ public class OrderServiceImp implements OrderService {
                     logger.info(e.getMessage());
                 }
             } finally {
-                closeConnections();
+                //closeConnections();
             }
         }
         if (retry == 5) {
@@ -2054,7 +2024,7 @@ public class OrderServiceImp implements OrderService {
                         logger.info(e.getMessage());
                     }
                 } finally {
-                    closeConnections();
+                    //closeConnections();
                 }
             }
             if (retry == 5) {
@@ -2149,7 +2119,7 @@ public class OrderServiceImp implements OrderService {
             e.printStackTrace();
             return null;
         } finally {
-            closeConnections();
+            //closeConnections();
         }
         return null;
     }
@@ -2173,7 +2143,7 @@ public class OrderServiceImp implements OrderService {
                     logger.info(e.getMessage());
                 }
             } finally {
-                closeConnections();
+                //closeConnections();
             }
         }
         if (retry == 5) {
@@ -2195,7 +2165,7 @@ public class OrderServiceImp implements OrderService {
                         logger.info(e.getMessage());
                     }
                 } finally {
-                    closeConnections();
+                    //closeConnections();
                 }
             }
             if (retry == 5) {
@@ -2381,7 +2351,7 @@ public class OrderServiceImp implements OrderService {
             List<OrderDto> orderList = this.getAllOrders();
             this.orderDtoList = orderList;
         } finally {
-            closeConnections();
+            //closeConnections();
         }
 
         return null;

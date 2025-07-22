@@ -16,5 +16,5 @@ public interface ArchivedOrdersService {
 
   void validateArchiveMap();
 
-  void deleteFromArchive(String orderNumber);
+  void deleteFromArchive(String orderNumber, String regel);
 }
