@@ -1,6 +1,8 @@
 
 package com.web.appts.controllers;
 
+import com.web.appts.DTO.CustomOrderDto;
+import com.web.appts.DTO.DeleteCustOrderDto;
 import com.web.appts.DTO.OrderDto;
 import com.web.appts.services.OrderService;
 
@@ -12,17 +14,12 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 
+import com.web.appts.services.OrderTRAService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping({"/api/index", "/api/home"})
@@ -30,6 +27,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderController {
     @Autowired
     private OrderService orderService;
+    @Autowired
+    private OrderTRAService orderTRAService;
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
@@ -67,11 +66,8 @@ public class OrderController {
 
     @PutMapping({"/update/{flowUpdate}"})
     public ResponseEntity<List<OrderDto>> updatingOrder(@RequestBody OrderDto orderDto, @PathVariable("flowUpdate") Boolean flowUpdate) {
-        System.out.println("start, "+orderDto+", "+System.currentTimeMillis());
         List<OrderDto> updatedOrders = this.orderService.updateOrder(orderDto, orderDto.getId(), flowUpdate);
         this.sortUsingDate(updatedOrders);
-//        this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
-
         new Thread(() -> {
             try {
                 Thread.sleep(200);
@@ -80,10 +76,44 @@ public class OrderController {
                 Thread.currentThread().interrupt();
             }
         }).start();
-
-        System.out.println("end, "+ orderDto+", "+System.currentTimeMillis());
         return ResponseEntity.ok(updatedOrders);
+    }
 
+    @PostMapping({"/create"})
+    public ResponseEntity<List<OrderDto>> creatingOrder(@RequestBody OrderDto orderDto) {
+        if(this.orderService.createOrder(orderDto)){
+            List<OrderDto> orderDtos = this.orderService.getAllOrders();
+            this.sortUsingDate(orderDtos);
+            messagingTemplate.convertAndSend("/topic/orderUpdate", orderDtos);
+            return ResponseEntity.ok(orderDtos);
+        }
+        else{
+            List<OrderDto> orderDtos = this.orderService.getAllOrders();
+            this.sortUsingDate(orderDtos);
+            messagingTemplate.convertAndSend("/topic/orderUpdate", orderDtos);
+            return ResponseEntity.ok(orderDtos);
+        }
+    }
+
+    @PostMapping({"/create/custom"})
+    public ResponseEntity<CustomOrderDto> creatingCustomOrder(@RequestBody CustomOrderDto customOrderDto) {
+        CustomOrderDto co = this.orderService.createCustomOrder(customOrderDto);
+        return ResponseEntity.ok(co);
+    }
+
+    @DeleteMapping({"/delete/custom"})
+    public ResponseEntity<Boolean> deletingCustomOrder(@RequestBody CustomOrderDto customOrderDto) {
+        DeleteCustOrderDto dto = this.orderService.deleteCustomOrder(customOrderDto);
+        if(dto.getTransportOrderLines() != null) {
+            Boolean result2 = this.orderTRAService.deleteLineFromTra(dto.getTransportOrderLines());
+        }
+        return ResponseEntity.ok(dto.getResult());
+    }
+
+    @GetMapping({"/custom"})
+    public ResponseEntity<List<CustomOrderDto>> getCustomOrders() {
+        List<CustomOrderDto> cOrders = this.orderService.getAllCustomOrders();
+        return ResponseEntity.ok(cOrders);
     }
 
     @PutMapping({"/update/colors/{orderNumber}/{orderDep}/{flowVal}"})

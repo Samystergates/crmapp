@@ -1,14 +1,10 @@
 
 package com.web.appts.services.imp;
 
-import com.web.appts.DTO.ArchivedOrdersDto;
-import com.web.appts.DTO.OrderDto;
-import com.web.appts.entities.MonSubOrders;
-import com.web.appts.entities.Order;
-import com.web.appts.entities.OrderDepartment;
+import com.web.appts.DTO.*;
+import com.web.appts.entities.*;
 import com.web.appts.exceptions.ResourceNotFoundException;
-import com.web.appts.repositories.MonSubOrdersRepo;
-import com.web.appts.repositories.OrderRepo;
+import com.web.appts.repositories.*;
 import com.web.appts.services.ArchivedOrdersService;
 import com.web.appts.services.OrderService;
 
@@ -27,6 +23,7 @@ import javax.sql.DataSource;
 import javax.transaction.Transactional;
 
 import com.web.appts.utils.OdbcConnectionMonitor;
+import com.web.appts.utils.OrderType;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.hibernate.StaleStateException;
@@ -62,6 +59,10 @@ public class OrderServiceImp implements OrderService {
     private ModelMapper modelMapper;
     @Autowired
     private OrderRepo orderRepo;
+    @Autowired
+    private CustomOrderRepo customOrderRepo;
+    @Autowired
+    TransportOrderLinesRepo transportOrderLinesRepo;
     @Autowired
     private MonSubOrdersRepo monSubOrdersRepo;
     @Autowired
@@ -361,6 +362,38 @@ public class OrderServiceImp implements OrderService {
             }
         }
         return savedOrder != null;
+    }
+
+    @Override
+    public CustomOrderDto createCustomOrder(CustomOrderDto customOrderDto) {
+        CustomOrder customOrder = modelMapper.map(customOrderDto, CustomOrder.class);
+        CustomOrder savedCustomOrder = customOrderRepo.save(customOrder);
+        return modelMapper.map(savedCustomOrder, CustomOrderDto.class);
+    }
+
+    @Override
+    public DeleteCustOrderDto deleteCustomOrder(CustomOrderDto customOrderDto) {
+        CustomOrder customOrder = modelMapper.map(customOrderDto, CustomOrder.class);
+        try {
+            customOrderRepo.delete(customOrder);
+            boolean exists = customOrderRepo.existsById(customOrder.getId());
+            boolean isDeleted = !exists ? true : false;
+            if (isDeleted) {
+                Optional<TransportOrderLines> transportOrderLines = transportOrderLinesRepo.findByOrderIdAndOrderType(customOrder.getId(), OrderType.CUSTOM);
+                if (transportOrderLines.isPresent()) {
+                    transportOrderLinesRepo.deleteById(transportOrderLines.get().getId());
+                    return new DeleteCustOrderDto(transportOrderLines.get(), isDeleted);
+                }
+            }
+            return new DeleteCustOrderDto(null, isDeleted);
+        } catch (Exception e) {
+            return new DeleteCustOrderDto(null, false);
+        }
+    }
+
+    @Override
+    public List<CustomOrderDto> getAllCustomOrders() {
+        return customOrderRepo.findAll().stream().map(co -> modelMapper.map(co, CustomOrderDto.class)).collect(Collectors.toList());
     }
 
     @Transactional
@@ -1000,7 +1033,7 @@ public class OrderServiceImp implements OrderService {
                         } else {
                             retry++;
                             e.printStackTrace();
-                            logger.info("retry num"+retry+", "+e.getMessage());
+                            logger.info("retry num" + retry + ", " + e.getMessage());
                         }
                     } finally {
                         //closeConnections();
@@ -1015,14 +1048,14 @@ public class OrderServiceImp implements OrderService {
             }
         }
     }
-     private void exitProgram(){
-//         int exitCode = SpringApplication.exit(context, () -> 0);
-//         System.exit(exitCode);
-     }
+
+    private void exitProgram() {
+//        int exitCode = SpringApplication.exit(context, () -> 0);
+//        System.exit(exitCode);
+    }
 
 
     public void markExpiredInner() {
-    //v0511719
         String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', " +
                 "\"va-211\".\"cdprodukt\" AS 'Product' , \"va-211\".\"nrordrgl\" AS 'Regel'" +
                 "FROM DATA.PUB.\"va-210\" " +
@@ -1072,7 +1105,7 @@ public class OrderServiceImp implements OrderService {
 
                 System.out.println("list1: " + orderList.size());
                 List<Integer> filteredOrders = new ArrayList<>();
-                if(!this.archivedOrdersService.getAllArchivedOrders().isEmpty()) {
+                if (!this.archivedOrdersService.getAllArchivedOrders().isEmpty()) {
                     List<ArchivedOrdersDto> archivedOrdersList = this.archivedOrdersService.getAllArchivedOrders()
                             .stream()
                             .filter(ord -> {
@@ -1093,7 +1126,7 @@ public class OrderServiceImp implements OrderService {
                             .collect(Collectors.toList());
 
                     System.out.println("list3: " + filteredOrders.size());
-                }else{
+                } else {
                     filteredOrders = orderList
                             .stream()
                             .map(OrderDto::getId)
@@ -1102,7 +1135,7 @@ public class OrderServiceImp implements OrderService {
                 }
 
                 List<OrderDto> matchingObjects = new ArrayList<>();
-                if(!filteredOrders.isEmpty()) {
+                if (!filteredOrders.isEmpty()) {
                     List<Integer> finalFilteredOrders = filteredOrders;
                     matchingObjects = ordersMap.values().stream()
                             .filter(obj -> finalFilteredOrders.contains(obj.getId()))
@@ -1210,7 +1243,7 @@ public class OrderServiceImp implements OrderService {
                 }
             }
             if (retry == 5) {
-               exitProgram();
+                exitProgram();
             }
             logger.info("fixed");
         } else {
@@ -1303,7 +1336,7 @@ public class OrderServiceImp implements OrderService {
                         if (this.archivedOrdersService.getAllArchivedOrders().stream().anyMatch((obj) -> {
                             return obj.getOrderNumber().equals(finalOrderNumber) && obj.getRegel().equals((regel));
                         })) {
-                            archivedOrdersService.deleteFromArchive(finalOrderNumber,regel);
+                            archivedOrdersService.deleteFromArchive(finalOrderNumber, regel);
                         }
 
                         if (!this.ordersMap.containsKey(orderNumber + "," + regel)) {

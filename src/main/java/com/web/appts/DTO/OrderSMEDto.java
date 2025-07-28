@@ -27,6 +27,7 @@ public class OrderSMEDto {
     private String aansluitnippel;
     private String optionVentielbeschermer;
     private String regel;
+    private String forgeNumber;
 
     public OrderSMEDto() {
     }
@@ -229,5 +230,12 @@ public class OrderSMEDto {
 
     public void setRegel(String regel) {
         this.regel = regel;
+    }
+    public String getForgeNumber() {
+        return forgeNumber;
+    }
+
+    public void setForgeNumber(String forgeNumber) {
+        this.forgeNumber = forgeNumber;
     }
 }

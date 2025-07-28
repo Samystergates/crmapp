@@ -1,6 +1,10 @@
 
 package com.web.appts.DTO;
 
+import com.web.appts.entities.TransportOrderLines;
+
+import java.util.List;
+
 public class OrderTRADto {
 	private long id;
 	private String routeDate;
@@ -8,7 +12,8 @@ public class OrderTRADto {
 	private String chauffeur;
 	private String truck;
 	private String trailer;
-	private String orderIds;
+	private List<TransportOrderLinesDto> orderIds;
+
 	private Boolean isCompleted;
 
 	public OrderTRADto() {
@@ -62,12 +67,20 @@ public class OrderTRADto {
 		this.trailer = trailer;
 	}
 
-	public String getOrderIds() {
-		return this.orderIds;
+	public List<TransportOrderLinesDto> getOrderIds() {
+		return orderIds;
 	}
 
-	public void setOrderIds(String orderIds) {
+	public void setOrderIds(List<TransportOrderLinesDto> orderIds) {
 		this.orderIds = orderIds;
+	}
+
+	public Boolean getCompleted() {
+		return isCompleted;
+	}
+
+	public void setCompleted(Boolean completed) {
+		isCompleted = completed;
 	}
 
 	public Boolean getIsCompleted() {

@@ -121,6 +121,9 @@ public class OrderSME {
 	@Column(name = "regel")
 	private String regel;
 
+	@Column(name ="forge_number")
+	private String forgeNumber;
+
 	public OrderSME() {
 	}
 
@@ -322,5 +325,13 @@ public class OrderSME {
 
 	public void setRegel(String regel) {
 		this.regel = regel;
+	}
+
+	public String getForgeNumber() {
+		return forgeNumber;
+	}
+
+	public void setForgeNumber(String forgeNumber) {
+		this.forgeNumber = forgeNumber;
 	}
 }

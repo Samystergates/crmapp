@@ -485,7 +485,39 @@ public class Order {
 			return true;
 		} else if (obj != null && this.getClass() == obj.getClass()) {
 			Order order = (Order)obj;
-			return this.id == order.id && this.isParent == order.isParent && Objects.equals(this.orderNumber, order.orderNumber) && Objects.equals(this.orderType, order.orderType) && Objects.equals(this.backOrder, order.backOrder) && Objects.equals(this.sme, order.sme) && Objects.equals(this.spu, order.spu) && Objects.equals(this.monLb, order.monLb) && Objects.equals(this.monTr, order.monTr) && Objects.equals(this.mwe, order.mwe) && Objects.equals(this.ser, order.ser) && Objects.equals(this.tra, order.tra) && Objects.equals(this.exp, order.exp) && Objects.equals(this.exclamation, order.exclamation) && Objects.equals(this.user, order.user) && Objects.equals(this.organization, order.organization) && Objects.equals(this.customerName, order.customerName) && Objects.equals(this.postCode, order.postCode) && Objects.equals(this.city, order.city) && Objects.equals(this.country, order.country) && Objects.equals(this.deliveryDate, order.deliveryDate) && Objects.equals(this.referenceInfo, order.referenceInfo) && Objects.equals(this.creationDate, order.creationDate) && Objects.equals(this.modificationDate, order.modificationDate) && Objects.equals(this.verifierUser, order.verifierUser) && Objects.equals(this.regel, order.regel) && Objects.equals(this.aantal, order.aantal) && Objects.equals(this.product, order.product) && Objects.equals(this.Omsumin, order.Omsumin) && Objects.equals(this.isExpired, order.isExpired) && Objects.equals(this.cdProdGrp, order.cdProdGrp) && Objects.equals(this.completed, order.completed) && Objects.equals(this.departments, order.departments);
+			return this.id == order.id &&
+					this.isParent == order.isParent &&
+					Objects.equals(this.orderNumber, order.orderNumber) &&
+					Objects.equals(this.orderType, order.orderType) &&
+					Objects.equals(this.backOrder, order.backOrder) &&
+					Objects.equals(this.sme, order.sme) &&
+					Objects.equals(this.spu, order.spu) &&
+					Objects.equals(this.monLb, order.monLb) &&
+					Objects.equals(this.monTr, order.monTr) &&
+					Objects.equals(this.mwe, order.mwe) &&
+					Objects.equals(this.ser, order.ser) &&
+					Objects.equals(this.tra, order.tra) &&
+					Objects.equals(this.exp, order.exp) &&
+					Objects.equals(this.exclamation, order.exclamation) &&
+					Objects.equals(this.user, order.user) &&
+					Objects.equals(this.organization, order.organization) &&
+					Objects.equals(this.customerName, order.customerName) &&
+					Objects.equals(this.postCode, order.postCode) &&
+					Objects.equals(this.city, order.city) &&
+					Objects.equals(this.country, order.country) &&
+					Objects.equals(this.deliveryDate, order.deliveryDate) &&
+					Objects.equals(this.referenceInfo, order.referenceInfo) &&
+					Objects.equals(this.creationDate, order.creationDate) &&
+					Objects.equals(this.modificationDate, order.modificationDate) &&
+					Objects.equals(this.verifierUser, order.verifierUser) &&
+					Objects.equals(this.regel, order.regel) &&
+					Objects.equals(this.aantal, order.aantal) &&
+					Objects.equals(this.product, order.product) &&
+					Objects.equals(this.Omsumin, order.Omsumin) &&
+					Objects.equals(this.isExpired, order.isExpired) &&
+					Objects.equals(this.cdProdGrp, order.cdProdGrp) &&
+					Objects.equals(this.completed, order.completed) &&
+					Objects.equals(this.departments, order.departments);
 		} else {
 			return false;
 		}

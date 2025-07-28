@@ -28,7 +28,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.Principal;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -110,6 +112,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             OrderDto orderDto = (OrderDto) this.orderServiceImp.getMap().get(orderSMEDto.getOrderNumber() + "," + orderSMEDto.getRegel());
             orderDto.setSme("R");
             this.orderServiceImp.updateOrder(orderDto, orderDto.getId(), true);
+            orderSMEDto.setForgeNumber(generateNextForgeNumber());
             OrderSME orderSMESaved = (OrderSME) this.orderSMERepo.save(this.dtoToSME(orderSMEDto));
             this.orderSMEMap.put(orderSMESaved.getOrderNumber() + " - " + orderSMESaved.getRegel(), this.smeToDto(orderSMESaved));
             return this.smeToDto(orderSMESaved);
@@ -118,6 +121,38 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             return this.updateOrderSME(orderSMEDto);
         }
     }
+
+    public String generateNextForgeNumber() {
+        OrderSME lastEntry = orderSMERepo.findTopByOrderByIdDesc();
+
+        int currentYear = LocalDate.now().getYear();
+        int yearSuffix = currentYear % 100;
+        int nextSequence = 1;
+
+        if (lastEntry != null) {
+            String lastForgeNumber = lastEntry.getForgeNumber();
+
+            if (lastForgeNumber != null && !lastForgeNumber.isEmpty() && lastForgeNumber.length() >= 6 && lastForgeNumber.startsWith("DM")) {
+                try {
+                    String lastYearStr = lastForgeNumber.substring(2, 4);
+                    String lastSeqStr = lastForgeNumber.substring(4);
+
+                    int lastYear = Integer.parseInt(lastYearStr);
+                    int lastSeq = Integer.parseInt(lastSeqStr);
+
+                    if (lastYear == yearSuffix) {
+                        nextSequence = lastSeq + 1;
+                    }
+                } catch (NumberFormatException e) {
+                    System.out.println(e.getMessage());
+                }
+            }
+        }
+
+        return String.format("DM%02d%04d", yearSuffix, nextSequence);
+    }
+
+
 
     public OrderSMEDto updateOrderSME(OrderSMEDto orderSMEDto) {
         OrderSME orderSMEUpdated = (OrderSME) this.orderSMERepo.save(this.dtoToSME(orderSMEDto));
@@ -193,7 +228,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
                 Document document = new Document();
                 PdfWriter writer = PdfWriter.getInstance(document, outputStream);
                 document.open();
-                this.addSMEHeadingAndAddress(document, "Smederij Order - DM251" + orderSMEDto.getId());
+                this.addSMEHeadingAndAddress(document, "Smederij Order - "+orderSMEDto.getForgeNumber());
                 this.addSMEBloeHeadingAndInfo(writer, document, "", orderSMEDto);
                 this.addSMEOptions(writer, document, orderSMEDto);
                 this.addSMESections(writer, document, orderSMEDto);
@@ -684,7 +719,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         mainTable.setWidthPercentage(100.0F);
         PdfPCell cell1 = new PdfPCell();
         Barcode128 barcode = new Barcode128();
-        barcode.setCode(orderSPUDto.getOrderNumber());
+        barcode.setCode(orderSPUDto.getOrderNumber()+"-"+orderSPUDto.getRegel());
         barcode.setFont((BaseFont) null);
         barcode.setBaseline(0.0F);
         barcode.setBarHeight(15.0F);
@@ -693,7 +728,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         image.setAlignment(0);
         image.scalePercent(120.0F);
         cell1.addElement(image);
-        Paragraph labelParagraph = new Paragraph(String.format("%-9s%-9s", " ", orderSPUDto.getOrderNumber()), font2);
+        Paragraph labelParagraph = new Paragraph(String.format("%-9s%-9s", "", "* "+orderSPUDto.getOrderNumber()+"-"+orderSPUDto.getRegel()+" *"), font2);
         labelParagraph.setAlignment(0);
         cell1.addElement(labelParagraph);
         cell1.setBorder(0);
@@ -806,8 +841,36 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         WheelColorDto wheelColorDto = (WheelColorDto) list.stream().filter((e) -> {
             return e.getColorName().equals(orderSPUDto.getKleurOmschrijving()) && (e.getRed() + "," + e.getGreen() + "," + e.getBlue()).equals(orderSPUDto.getRalCode());
         }).findFirst().orElse(null);
-        Paragraph labelParagraph2 = new Paragraph("Produkt            Aantal            Omschrijving", font5);
-        Paragraph labelParagraph3 = new Paragraph(orderSPUDto.getProdNumber() + "          " + orders.getAantal() + "         " + orders.getOmsumin(), font5);
+
+        PdfPTable productTable = new PdfPTable(4);
+        productTable.setWidthPercentage(100f);
+        productTable.setWidths(new float[] {13f, 9f, 63f, 15f}); // Third column is wide
+
+        Font fontLabel = new Font(Font.FontFamily.HELVETICA, 10f);
+        Font fontValue = new Font(Font.FontFamily.HELVETICA, 10f);
+
+// Header row
+        productTable.addCell(createHeaderCell("Product", fontLabel));
+        productTable.addCell(createHeaderCell("Aantal", fontLabel));
+        productTable.addCell(createHeaderCell("Omschrijving", fontLabel));
+        productTable.addCell(createHeaderCell("SM Nummer", fontLabel));
+
+// Data row
+        DecimalFormat df = new DecimalFormat("0.00");
+        String aantalRaw = orders.getAantal();
+        double aantalValue = Double.parseDouble(aantalRaw);
+        String formattedAantal = df.format(aantalValue);
+        productTable.addCell(createDataCell(orderSPUDto.getProdNumber(), fontValue));
+        productTable.addCell(createDataCell(formattedAantal, fontValue));
+        productTable.addCell(createDataCell(orders.getOmsumin(), fontValue));
+        String sm = "";
+        OrderSMEDto orderSMEDto = getOrderSME(orderSPUDto.getOrderNumber(), orderSPUDto.getRegel());
+        if (orderSMEDto != null && orderSMEDto.getForgeNumber() != null) {
+            sm = orderSMEDto.getForgeNumber();
+        }
+        productTable.addCell(createDataCell(sm, fontValue));
+
+
         Paragraph labelParagraph4 = new Paragraph("\n                     Stralen: \n Gedeeltelijk Stralen:  \n          Poedercoaten:                                       Prijscode                 Afdeling  \n                       Kitten: \t\t\t\t\t\t\t      \t    \t\t\t\t  \t\t                  \t\t      \t      " + orderSPUDto.getPrijscode() + "                          " + orderSPUDto.getAfdeling() + " \n                      Primer:  \n                Ontlakken: \n                        Kleur:           RAL:  " + wheelColorDto.getId() + "        Naam Kleur:   " + orderSPUDto.getKleurOmschrijving() + " \n          \t      BlankeLak: \n                   Aflakken:  \n          Verkoop order:  " + orderSPUDto.getOrderNumber() + " \n              Naam Klant:  " + orders.getCustomerName(), font5);
 
 
@@ -822,11 +885,12 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
                 lettrCountForRows++;
             }
         }
+
         PdfContentByte cb = writer.getDirectContent();
         if (lettrCountForRows <= 0) {
             cb.rectangle(170.0F, 570.0F, 10.0F, 10.0F);
         } else {
-            cb.rectangle(170.0F, 551.0F, 10.0F, 10.0F);
+            cb.rectangle(170.0F, 560.0F, 10.0F, 10.0F);
 
         }
         cb.stroke();
@@ -834,10 +898,10 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         if (orderSPUDto.getStralen().equals("JA")) {
 
             if (lettrCountForRows > 0) {
-                cb.moveTo(170.0F, 551.0F);
-                cb.lineTo(180.0F, 561.0F);
-                cb.moveTo(170.0F, 561.0F);
-                cb.lineTo(180.0F, 551.0F);
+                cb.moveTo(170.0F, 560.0F);
+                cb.lineTo(180.0F, 570.0F);
+                cb.moveTo(170.0F, 570.0F);
+                cb.lineTo(180.0F, 560.0F);
             } else {
 
                 cb.moveTo(170.0F, 570.0F);
@@ -851,16 +915,16 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         if (lettrCountForRows <= 0) {
             cb2.rectangle(170.0F, 550.0F, 10.0F, 10.0F);
         } else {
-            cb2.rectangle(170.0F, 531.0F, 10.0F, 10.0F);
+            cb2.rectangle(170.0F, 540.0F, 10.0F, 10.0F);
         }
         cb2.stroke();
         if (orderSPUDto.getStralenGedeeltelijk().equals("JA")) {
 
             if (lettrCountForRows > 0) {
-                cb2.moveTo(170.0F, 531.0F);
-                cb2.lineTo(180.0F, 541.0F);
-                cb2.moveTo(170.0F, 541.0F);
-                cb2.lineTo(180.0F, 531.0F);
+                cb2.moveTo(170.0F, 540.0F);
+                cb2.lineTo(180.0F, 550.0F);
+                cb2.moveTo(170.0F, 540.0F);
+                cb2.lineTo(180.0F, 550.0F);
             } else {
                 cb2.moveTo(170.0F, 550.0F);
                 cb2.lineTo(180.0F, 560.0F);
@@ -873,16 +937,16 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         if (lettrCountForRows <= 0) {
             cb3.rectangle(170.0F, 531.0F, 10.0F, 10.0F);
         } else {
-            cb3.rectangle(170.0F, 512.0F, 10.0F, 10.0F);
+            cb3.rectangle(170.0F, 521.0F, 10.0F, 10.0F);
         }
         cb3.stroke();
         if (orderSPUDto.getPoedercoaten().equals("JA")) {
 
             if (lettrCountForRows > 0) {
-                cb3.moveTo(170.0F, 512.0F);
-                cb3.lineTo(180.0F, 522.0F);
-                cb3.moveTo(170.0F, 522.0F);
-                cb3.lineTo(180.0F, 512.0F);
+                cb3.moveTo(170.0F, 521.0F);
+                cb3.lineTo(180.0F, 531.0F);
+                cb3.moveTo(170.0F, 531.0F);
+                cb3.lineTo(180.0F, 521.0F);
             } else {
                 cb3.moveTo(170.0F, 531.0F);
                 cb3.lineTo(180.0F, 541.0F);
@@ -895,16 +959,16 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         if (lettrCountForRows <= 0) {
             cb4.rectangle(170.0F, 512.0F, 10.0F, 10.0F);
         } else {
-            cb4.rectangle(170.0F, 493.0F, 10.0F, 10.0F);
+            cb4.rectangle(170.0F, 502.0F, 10.0F, 10.0F);
         }
         cb4.stroke();
         if (orderSPUDto.getKitten().equals("JA")) {
 
             if (lettrCountForRows > 0) {
-                cb4.moveTo(170.0F, 493.0F);
-                cb4.lineTo(180.0F, 503.0F);
-                cb4.moveTo(170.0F, 503.0F);
-                cb4.lineTo(180.0F, 493.0F);
+                cb4.moveTo(170.0F, 502.0F);
+                cb4.lineTo(180.0F, 512.0F);
+                cb4.moveTo(170.0F, 512.0F);
+                cb4.lineTo(180.0F, 502.0F);
             } else {
                 cb4.moveTo(170.0F, 512.0F);
                 cb4.lineTo(180.0F, 522.0F);
@@ -917,16 +981,16 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         if (lettrCountForRows <= 0) {
             cb5.rectangle(170.0F, 493.0F, 10.0F, 10.0F);
         } else {
-            cb5.rectangle(170.0F, 474.0F, 10.0F, 10.0F);
+            cb5.rectangle(170.0F, 483.0F, 10.0F, 10.0F);
         }
         cb5.stroke();
         if (orderSPUDto.getPrimer().equals("JA")) {
 
             if (lettrCountForRows > 0) {
-                cb5.moveTo(170.0F, 474.0F);
-                cb5.lineTo(180.0F, 484.0F);
-                cb5.moveTo(170.0F, 484.0F);
-                cb5.lineTo(180.0F, 474.0F);
+                cb5.moveTo(170.0F, 483.0F);
+                cb5.lineTo(180.0F, 493.0F);
+                cb5.moveTo(170.0F, 493.0F);
+                cb5.lineTo(180.0F, 483.0F);
             } else {
                 cb5.moveTo(170.0F, 493.0F);
                 cb5.lineTo(180.0F, 503.0F);
@@ -939,16 +1003,16 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         if (lettrCountForRows <= 0) {
             cb6.rectangle(170.0F, 474.0F, 10.0F, 10.0F);
         } else {
-            cb6.rectangle(170.0F, 455.0F, 10.0F, 10.0F);
+            cb6.rectangle(170.0F, 464.0F, 10.0F, 10.0F);
         }
         cb6.stroke();
         if (orderSPUDto.getOntlakken().equals("JA")) {
 
             if (lettrCountForRows > 0) {
-                cb6.moveTo(170.0F, 455.0F);
-                cb6.lineTo(180.0F, 465.0F);
-                cb6.moveTo(170.0F, 465.0F);
-                cb6.lineTo(180.0F, 455.0F);
+                cb6.moveTo(170.0F, 464.0F);
+                cb6.lineTo(180.0F, 474.0F);
+                cb6.moveTo(170.0F, 474.0F);
+                cb6.lineTo(180.0F, 464.0F);
             } else {
                 cb6.moveTo(170.0F, 474.0F);
                 cb6.lineTo(180.0F, 484.0F);
@@ -961,16 +1025,16 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         if (lettrCountForRows <= 0) {
             cb7.rectangle(170.0F, 455.0F, 10.0F, 10.0F);
         } else {
-            cb7.rectangle(170.0F, 436.0F, 10.0F, 10.0F);
+            cb7.rectangle(170.0F, 445.0F, 10.0F, 10.0F);
         }
         cb7.stroke();
         if (orderSPUDto.getKleurOmschrijving() != null) {
 
             if (lettrCountForRows > 0) {
-                cb7.moveTo(170.0F, 436.0F);
-                cb7.lineTo(180.0F, 446.0F);
-                cb7.moveTo(170.0F, 446.0F);
-                cb7.lineTo(180.0F, 436.0F);
+                cb7.moveTo(170.0F, 445.0F);
+                cb7.lineTo(180.0F, 455.0F);
+                cb7.moveTo(170.0F, 455.0F);
+                cb7.lineTo(180.0F, 445.0F);
             } else {
                 cb7.moveTo(170.0F, 455.0F);
                 cb7.lineTo(180.0F, 465.0F);
@@ -983,16 +1047,16 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         if (lettrCountForRows <= 0) {
             cb8.rectangle(170.0F, 435.0F, 10.0F, 10.0F);
         } else {
-            cb8.rectangle(170.0F, 416.0F, 10.0F, 10.0F);
+            cb8.rectangle(170.0F, 425.0F, 10.0F, 10.0F);
         }
         cb8.stroke();
         if (orderSPUDto.getBlankeLak().equals("JA")) {
 
             if (lettrCountForRows > 0) {
-                cb8.moveTo(170.0F, 416.0F);
-                cb8.lineTo(180.0F, 426.0F);
-                cb8.moveTo(170.0F, 426.0F);
-                cb8.lineTo(180.0F, 416.0F);
+                cb8.moveTo(170.0F, 425.0F);
+                cb8.lineTo(180.0F, 435.0F);
+                cb8.moveTo(170.0F, 435.0F);
+                cb8.lineTo(180.0F, 425.0F);
             } else {
                 cb8.moveTo(170.0F, 435.0F);
                 cb8.lineTo(180.0F, 445.0F);
@@ -1005,16 +1069,16 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         if (lettrCountForRows <= 0) {
             cb9.rectangle(170.0F, 416.0F, 10.0F, 10.0F);
         } else {
-            cb9.rectangle(170.0F, 397.0F, 10.0F, 10.0F);
+            cb9.rectangle(170.0F, 406.0F, 10.0F, 10.0F);
         }
         cb9.stroke();
         if (orderSPUDto.getAflakken().equals("JA")) {
 
             if (lettrCountForRows > 0) {
-                cb9.moveTo(170.0F, 397.0F);
-                cb9.lineTo(180.0F, 406.0F);
                 cb9.moveTo(170.0F, 406.0F);
-                cb9.lineTo(180.0F, 397.0F);
+                cb9.lineTo(180.0F, 416.0F);
+                cb9.moveTo(170.0F, 416.0F);
+                cb9.lineTo(180.0F, 406.0F);
             } else {
                 cb9.moveTo(170.0F, 416.0F);
                 cb9.lineTo(180.0F, 426.0F);
@@ -1024,10 +1088,29 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         }
 
         labelParagraph4.setSpacingAfter(30.0F);
-        document.add(labelParagraph2);
-        document.add(labelParagraph3);
+        document.add(productTable);
+//        document.add(labelParagraph3);
         document.add(labelParagraph4);
     }
+
+
+    private PdfPCell createHeaderCell(String text, Font font) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, font));
+        cell.setHorizontalAlignment(Element.ALIGN_LEFT);
+        cell.setBorder(Rectangle.NO_BORDER);
+//        cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
+        return cell;
+    }
+
+    private PdfPCell createDataCell(String text, Font font) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, font));
+        cell.setHorizontalAlignment(Element.ALIGN_LEFT);
+        cell.setBorder(Rectangle.NO_BORDER);
+        cell.setPaddingTop(5f);
+        cell.setPaddingBottom(10f);
+        return cell;
+    }
+
 
     private void addSPUSections(PdfWriter writer, Document document, OrderSPUDto orderSPUDto, OrderDto orderDto) throws DocumentException {
         Font font4 = new Font(FontFamily.HELVETICA, 10.0F);

@@ -1,6 +1,8 @@
 
 package com.web.appts.services;
 
+import com.web.appts.DTO.CustomOrderDto;
+import com.web.appts.DTO.DeleteCustOrderDto;
 import com.web.appts.DTO.OrderDto;
 
 import java.io.OutputStream;
@@ -9,6 +11,12 @@ import java.util.Map;
 
 public interface OrderService {
 	Boolean createOrder(OrderDto paramOrderDto);
+
+	CustomOrderDto createCustomOrder(CustomOrderDto customOrderDto);
+
+	DeleteCustOrderDto deleteCustomOrder(CustomOrderDto customOrderDto);
+
+	List<CustomOrderDto> getAllCustomOrders();
 
 	Boolean archiveOrder(OrderDto paramOrderDto);
 
