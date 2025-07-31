@@ -22,6 +22,7 @@ public class ArchivedOrdersDto {
     private String organization;
     private String customerName;
     private String cdProdGrp;
+    private String zoeknaam;
     private String postCode;
     private String city;
     private String country;
@@ -304,6 +305,14 @@ public class ArchivedOrdersDto {
 
     public void setCdProdGrp(String cdProdGrp) {
         this.cdProdGrp = cdProdGrp;
+    }
+
+    public String getZoeknaam() {
+        return zoeknaam;
+    }
+
+    public void setZoeknaam(String zoeknaam) {
+        this.zoeknaam = zoeknaam;
     }
 
     public Boolean getExpired() {

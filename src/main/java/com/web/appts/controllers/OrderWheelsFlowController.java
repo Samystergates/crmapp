@@ -1,9 +1,7 @@
 
 package com.web.appts.controllers;
 
-import com.web.appts.DTO.OrderDto;
-import com.web.appts.DTO.OrderSMEDto;
-import com.web.appts.DTO.OrderSPUDto;
+import com.web.appts.DTO.*;
 import com.web.appts.services.AppPrintService;
 import com.web.appts.services.OrderSMEService;
 import com.web.appts.services.OrderSPUService;
@@ -11,6 +9,7 @@ import com.web.appts.services.OrderService;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
@@ -93,6 +92,20 @@ public class OrderWheelsFlowController {
 	public ResponseEntity<List<OrderSPUDto>> getSPUOrders() {
 		List<OrderSPUDto> spuList = this.orderSPUService.getAllSpu();
 		return ResponseEntity.ok(spuList);
+	}
+
+	@GetMapping({"spu/price-code/getAll"})
+	public ResponseEntity<List<PriceCodesDto>> getAllPriceCodes() {
+		List<PriceCodesDto> priceCodesDtos = this.orderSPUService.getAllPriceCodes();
+		Collections.sort(priceCodesDtos, Comparator.comparing(PriceCodesDto::getId));
+		return ResponseEntity.ok(priceCodesDtos);
+	}
+
+	@GetMapping({"spu/spu-departments/getAll"})
+	public ResponseEntity<List<SpuDepartmentsDto>> getAllSpuDepartments() {
+		List<SpuDepartmentsDto> spuDepartmentsDtos = this.orderSPUService.getAllSpuDepartments();
+		Collections.sort(spuDepartmentsDtos, Comparator.comparing(SpuDepartmentsDto::getId));
+		return ResponseEntity.ok(spuDepartmentsDtos);
 	}
 
 	@GetMapping({"/spu/printPdf/{key}"})

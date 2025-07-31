@@ -28,6 +28,7 @@ public class OrderSMEDto {
     private String optionVentielbeschermer;
     private String regel;
     private String forgeNumber;
+    private String slipCreator;
 
     public OrderSMEDto() {
     }
@@ -231,6 +232,15 @@ public class OrderSMEDto {
     public void setRegel(String regel) {
         this.regel = regel;
     }
+
+    public String getSlipCreator() {
+        return slipCreator;
+    }
+
+    public void setSlipCreator(String slipCreator) {
+        this.slipCreator = slipCreator;
+    }
+
     public String getForgeNumber() {
         return forgeNumber;
     }

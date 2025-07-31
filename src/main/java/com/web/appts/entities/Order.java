@@ -149,6 +149,10 @@ public class Order {
 	)
 	private String cdProdGrp;
 	@Column(
+			name = "zoeknaam"
+	)
+	private String zoeknaam;
+	@Column(
 			name = "tekst"
 	)
 	private String tekst;
@@ -210,6 +214,14 @@ public class Order {
 
 	public void setCdProdGrp(String cdProdGrp) {
 		this.cdProdGrp = cdProdGrp;
+	}
+
+	public String getZoeknaam() {
+		return zoeknaam;
+	}
+
+	public void setZoeknaam(String zoeknaam) {
+		this.zoeknaam = zoeknaam;
 	}
 
 	public String getOrderType() {
@@ -516,6 +528,7 @@ public class Order {
 					Objects.equals(this.Omsumin, order.Omsumin) &&
 					Objects.equals(this.isExpired, order.isExpired) &&
 					Objects.equals(this.cdProdGrp, order.cdProdGrp) &&
+					Objects.equals(this.zoeknaam, order.zoeknaam) &&
 					Objects.equals(this.completed, order.completed) &&
 					Objects.equals(this.departments, order.departments);
 		} else {
@@ -636,6 +649,10 @@ public class Order {
 		}
 
 		if (!Objects.equals(this.cdProdGrp, other.cdProdGrp)) {
+			++differences;
+		}
+
+		if (!Objects.equals(this.zoeknaam, other.zoeknaam)) {
 			++differences;
 		}
 

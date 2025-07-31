@@ -39,6 +39,7 @@ public class OrderDto {
   private String Omsumin;
   private String tekst;
   private String cdProdGrp;
+  private String zoeknaam;
   private String completed;
   private int isParent;
   private List<OrderDepartment> departments;
@@ -334,6 +335,14 @@ public class OrderDto {
     isExpired = expired;
   }
 
+  public String getZoeknaam() {
+    return zoeknaam;
+  }
+
+  public void setZoeknaam(String zoeknaam) {
+    this.zoeknaam = zoeknaam;
+  }
+
   public List<MonSubOrders> getMonSubOrders() {
     return monSubOrders;
   }
@@ -378,6 +387,7 @@ public class OrderDto {
               Objects.equals(this.product, orderDto.product) &&
               Objects.equals(this.Omsumin, orderDto.Omsumin) &&
               Objects.equals(this.cdProdGrp, orderDto.cdProdGrp) &&
+              Objects.equals(this.zoeknaam, orderDto.zoeknaam) &&
               Objects.equals(this.completed, orderDto.completed) &&
               Objects.equals(this.departments, orderDto.departments);
     } else {

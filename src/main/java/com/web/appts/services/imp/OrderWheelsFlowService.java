@@ -9,10 +9,7 @@ import com.itextpdf.text.pdf.PdfContentByte;
 import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
-import com.web.appts.DTO.OrderDto;
-import com.web.appts.DTO.OrderSMEDto;
-import com.web.appts.DTO.OrderSPUDto;
-import com.web.appts.DTO.WheelColorDto;
+import com.web.appts.DTO.*;
 import com.web.appts.configurations.JwtTokenHelper;
 import com.web.appts.controllers.CheckboxCellEvent;
 import com.web.appts.entities.OrderSME;
@@ -20,6 +17,8 @@ import com.web.appts.entities.OrderSPU;
 import com.web.appts.exceptions.ResourceNotFoundException;
 import com.web.appts.repositories.OrderSMERepo;
 import com.web.appts.repositories.OrderSPURepo;
+import com.web.appts.repositories.PriceCodesRepo;
+import com.web.appts.repositories.SpuDepartmentsRepo;
 import com.web.appts.services.OrderSMEService;
 import com.web.appts.services.OrderSPUService;
 
@@ -56,6 +55,10 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
     OrderServiceImp orderServiceImp;
     @Autowired
     WheelServices wheelServices;
+    @Autowired
+    PriceCodesRepo priceCodesRepo;
+    @Autowired
+    SpuDepartmentsRepo spuDepartmentsRepo;
     Map<String, OrderSMEDto> orderSMEMap = new HashMap();
     Map<String, OrderSPUDto> orderSPUMap = new HashMap();
     @Autowired
@@ -113,6 +116,8 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             orderDto.setSme("R");
             this.orderServiceImp.updateOrder(orderDto, orderDto.getId(), true);
             orderSMEDto.setForgeNumber(generateNextForgeNumber());
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            orderSMEDto.setSlipCreator(authentication.getName());
             OrderSME orderSMESaved = (OrderSME) this.orderSMERepo.save(this.dtoToSME(orderSMEDto));
             this.orderSMEMap.put(orderSMESaved.getOrderNumber() + " - " + orderSMESaved.getRegel(), this.smeToDto(orderSMESaved));
             return this.smeToDto(orderSMESaved);
@@ -153,8 +158,9 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
     }
 
 
-
     public OrderSMEDto updateOrderSME(OrderSMEDto orderSMEDto) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        orderSMEDto.setSlipCreator(authentication.getName());
         OrderSME orderSMEUpdated = (OrderSME) this.orderSMERepo.save(this.dtoToSME(orderSMEDto));
         this.orderSMEMap.put(orderSMEUpdated.getOrderNumber() + " - " + orderSMEUpdated.getRegel(), orderSMEDto);
         return this.smeToDto(orderSMEUpdated);
@@ -182,6 +188,14 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         }
     }
 
+    public List<OrderSMEDto> getAllSme() {
+        List<OrderSME> listSme = this.orderSMERepo.findAll();
+        return (List) listSme.stream().map((sme) -> {
+            return this.smeToDto(sme);
+        }).collect(Collectors.toList());
+    }
+
+
     public List<OrderSPUDto> getAllSpu() {
         List<OrderSPU> listSpu = this.orderSPURepo.findAll();
         return (List) listSpu.stream().map((spu) -> {
@@ -189,11 +203,15 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         }).collect(Collectors.toList());
     }
 
-    public List<OrderSMEDto> getAllSme() {
-        List<OrderSME> listSme = this.orderSMERepo.findAll();
-        return (List) listSme.stream().map((sme) -> {
-            return this.smeToDto(sme);
-        }).collect(Collectors.toList());
+
+    @Override
+    public List<PriceCodesDto> getAllPriceCodes() {
+        return priceCodesRepo.findAll().stream().map(pc -> modelMapper.map(pc, PriceCodesDto.class)).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<SpuDepartmentsDto> getAllSpuDepartments() {
+        return spuDepartmentsRepo.findAll().stream().map(pc -> modelMapper.map(pc, SpuDepartmentsDto.class)).collect(Collectors.toList());
     }
 
     public OrderSME dtoToSME(OrderSMEDto orderSMEDto) {
@@ -228,7 +246,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
                 Document document = new Document();
                 PdfWriter writer = PdfWriter.getInstance(document, outputStream);
                 document.open();
-                this.addSMEHeadingAndAddress(document, "Smederij Order - "+orderSMEDto.getForgeNumber());
+                this.addSMEHeadingAndAddress(document, "Smederij Order - " + orderSMEDto.getForgeNumber());
                 this.addSMEBloeHeadingAndInfo(writer, document, "", orderSMEDto);
                 this.addSMEOptions(writer, document, orderSMEDto);
                 this.addSMESections(writer, document, orderSMEDto);
@@ -339,8 +357,8 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         PdfPCell cell2 = new PdfPCell();
 //        Paragraph paragraphL1 = new Paragraph(String.format("%-13s%-13s", " Naam Klant:", " " + oda.getCustomerName()), font4);
         Paragraph paragraphL1 = new Paragraph("Naam Klant: " + oda.getCustomerName(), font1);
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Paragraph paragraphL2 = new Paragraph("Entered By: " + authentication.getName(), font1);
+
+        Paragraph paragraphL2 = new Paragraph("Entered By: " + orderSMEDto.getSlipCreator(), font1);
         Paragraph paragraphL3 = new Paragraph(String.format("%-16s%-16s", "\n Verkoop order:   ", orderSMEDto.getOrderNumber()), font1);
         paragraphL1.setAlignment(0);
         paragraphL2.setAlignment(0);
@@ -719,7 +737,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         mainTable.setWidthPercentage(100.0F);
         PdfPCell cell1 = new PdfPCell();
         Barcode128 barcode = new Barcode128();
-        barcode.setCode(orderSPUDto.getOrderNumber()+"-"+orderSPUDto.getRegel());
+        barcode.setCode(orderSPUDto.getOrderNumber() + "-" + orderSPUDto.getRegel());
         barcode.setFont((BaseFont) null);
         barcode.setBaseline(0.0F);
         barcode.setBarHeight(15.0F);
@@ -728,7 +746,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         image.setAlignment(0);
         image.scalePercent(120.0F);
         cell1.addElement(image);
-        Paragraph labelParagraph = new Paragraph(String.format("%-9s%-9s", "", "* "+orderSPUDto.getOrderNumber()+"-"+orderSPUDto.getRegel()+" *"), font2);
+        Paragraph labelParagraph = new Paragraph(String.format("%-9s%-9s", "", "* " + orderSPUDto.getOrderNumber() + "-" + orderSPUDto.getRegel() + " *"), font2);
         labelParagraph.setAlignment(0);
         cell1.addElement(labelParagraph);
         cell1.setBorder(0);
@@ -844,7 +862,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
 
         PdfPTable productTable = new PdfPTable(4);
         productTable.setWidthPercentage(100f);
-        productTable.setWidths(new float[] {13f, 9f, 63f, 15f}); // Third column is wide
+        productTable.setWidths(new float[]{13f, 9f, 63f, 15f}); // Third column is wide
 
         Font fontLabel = new Font(Font.FontFamily.HELVETICA, 10f);
         Font fontValue = new Font(Font.FontFamily.HELVETICA, 10f);
@@ -870,8 +888,11 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         }
         productTable.addCell(createDataCell(sm, fontValue));
 
-
-        Paragraph labelParagraph4 = new Paragraph("\n                     Stralen: \n Gedeeltelijk Stralen:  \n          Poedercoaten:                                       Prijscode                 Afdeling  \n                       Kitten: \t\t\t\t\t\t\t      \t    \t\t\t\t  \t\t                  \t\t      \t      " + orderSPUDto.getPrijscode() + "                          " + orderSPUDto.getAfdeling() + " \n                      Primer:  \n                Ontlakken: \n                        Kleur:           RAL:  " + wheelColorDto.getId() + "        Naam Kleur:   " + orderSPUDto.getKleurOmschrijving() + " \n          \t      BlankeLak: \n                   Aflakken:  \n          Verkoop order:  " + orderSPUDto.getOrderNumber() + " \n              Naam Klant:  " + orders.getCustomerName(), font5);
+        String spacingForAfdeling = "";
+        if (orderSPUDto.getPrijscode().equals("")) {
+            spacingForAfdeling = "        ";
+        }
+        Paragraph labelParagraph4 = new Paragraph("\n                     Stralen: \n Gedeeltelijk Stralen:  \n          Poedercoaten:                                       Prijscode                 Afdeling  \n                       Kitten: \t\t\t\t\t\t\t      \t    \t\t\t\t  \t\t                  \t\t      \t      " + orderSPUDto.getPrijscode() + "                  "+spacingForAfdeling+"" + orderSPUDto.getAfdeling() + " \n                      Primer:  \n                Ontlakken: \n                        Kleur:           RAL:  " + wheelColorDto.getId() + "        Naam Kleur:   " + orderSPUDto.getKleurOmschrijving() + " \n          \t      BlankeLak: \n                   Aflakken:  \n               Nat Lakken:  \n          Verkoop order:  " + orderSPUDto.getOrderNumber() + " \n              Naam Klant:  " + orders.getCustomerName(), font5);
 
 
         int lettrCountForRows = 0;
@@ -1084,6 +1105,28 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
                 cb9.lineTo(180.0F, 426.0F);
                 cb9.moveTo(170.0F, 426.0F);
                 cb9.lineTo(180.0F, 416.0F);
+            }
+        }
+
+        PdfContentByte cb10 = writer.getDirectContent();
+        if (lettrCountForRows <= 0) {
+            cb10.rectangle(170.0F, 397.0F, 10.0F, 10.0F);
+        } else {
+            cb10.rectangle(170.0F, 387.0F, 10.0F, 10.0F);
+        }
+        cb10.stroke();
+        if (orderSPUDto.getNatLakken().equals("JA")) {
+
+            if (lettrCountForRows > 0) {
+                cb10.moveTo(170.0F, 387.0F);
+                cb10.lineTo(180.0F, 397.0F);
+                cb10.moveTo(170.0F, 397.0F);
+                cb10.lineTo(180.0F, 387.0F);
+            } else {
+                cb10.moveTo(170.0F, 397.0F);
+                cb10.lineTo(180.0F, 407.0F);
+                cb10.moveTo(170.0F, 407.0F);
+                cb10.lineTo(180.0F, 397.0F);
             }
         }
 

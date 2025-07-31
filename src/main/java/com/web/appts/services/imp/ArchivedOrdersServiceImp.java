@@ -8,6 +8,7 @@ import com.web.appts.exceptions.ResourceNotFoundException;
 import com.web.appts.repositories.ArchivedOrderRepo;
 import com.web.appts.services.ArchivedOrdersService;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -16,6 +17,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.modelmapper.ModelMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -31,6 +34,8 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
     private ModelMapper modelMapper;
     @Autowired
     private ArchivedOrderRepo archivedOrdersRepo;
+    private static final Logger logger = LoggerFactory.getLogger(ArchivedOrdersServiceImp.class);
+
 
     public ArchivedOrdersServiceImp() {
     }
@@ -83,6 +88,11 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
 
     //@Transactional
     public void deleteFromArchive(String orderNumber, String regel) {
+
+        LocalDateTime currentDateTime = LocalDateTime.now();
+        logger.info("Current DateTime: " + currentDateTime);
+        logger.info("deleting from archive: " + orderNumber + ", " + regel);
+
         this.getAllArchivedOrders().forEach(ao -> {
             if (ao.getOrderNumber().equals(orderNumber) && ao.getRegel().equals((regel))) {
                 archivedOrdersRepo.deleteById(ao.getId());

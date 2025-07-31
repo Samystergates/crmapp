@@ -121,6 +121,9 @@ public class OrderSME {
 	@Column(name = "regel")
 	private String regel;
 
+	@Column(name = "slip_creator")
+	private String slipCreator;
+
 	@Column(name ="forge_number")
 	private String forgeNumber;
 
@@ -325,6 +328,14 @@ public class OrderSME {
 
 	public void setRegel(String regel) {
 		this.regel = regel;
+	}
+
+	public String getSlipCreator() {
+		return slipCreator;
+	}
+
+	public void setSlipCreator(String slipCreator) {
+		this.slipCreator = slipCreator;
 	}
 
 	public String getForgeNumber() {

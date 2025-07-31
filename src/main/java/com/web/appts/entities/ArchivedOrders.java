@@ -36,6 +36,11 @@ public class ArchivedOrders {
 	private String cdProdGrp;
 
 	@Column(
+			name = "zoeknaam"
+	)
+	private String zoeknaam;
+
+	@Column(
 			name = "SME"
 	)
 	private String sme;
@@ -419,6 +424,14 @@ public class ArchivedOrders {
 
 	public void setCdProdGrp(String cdProdGrp) {
 		this.cdProdGrp = cdProdGrp;
+	}
+
+	public String getZoeknaam() {
+		return zoeknaam;
+	}
+
+	public void setZoeknaam(String zoeknaam) {
+		this.zoeknaam = zoeknaam;
 	}
 
 	public Boolean getExpired() {
