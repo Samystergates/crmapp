@@ -153,16 +153,35 @@ public class OrderServiceImp implements OrderService {
     @Async
     @Scheduled(fixedRate = 200000)
     protected void keepConnectionAlive() {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
         try {
-            PreparedStatement ps = getConnection().prepareStatement("SELECT count(*) AS CNT FROM \"sysprogress\".\"syscalctable\"");
+            ps = getConnection().prepareStatement("SELECT count(*) AS CNT FROM \"sysprogress\".\"syscalctable\"");
             getConnection().clearWarnings();
 
-            ResultSet rs = ps.executeQuery();
+            rs = ps.executeQuery();
             if (rs.next()) {
                 logger.info("ODBC connection is active.");
             }
         } catch (SQLException e) {
             logger.warn("Connection check failed: " + e.getMessage());
+        } finally {
+            if (rs != null) {
+                try {
+                    rs.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    logger.info(e.getMessage());
+                }
+            }
+            if (ps != null) {
+                try {
+                    ps.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    logger.info(e.getMessage());
+                }
+            }
         }
     }
 
@@ -1028,6 +1047,7 @@ public class OrderServiceImp implements OrderService {
                     logger.info("markExpired sql exc 2");
                     if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
                         retry++;
+                        logger.info(e.getMessage());
                     } else {
                         retry++;
                         e.printStackTrace();
@@ -1050,10 +1070,13 @@ public class OrderServiceImp implements OrderService {
                         if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
                             retry++;
                             logger.info("3 exp retry is: " + retry);
+                            logger.info(e.getMessage());
                         } else {
                             retry++;
                             e.printStackTrace();
                             logger.info("retry num" + retry + ", " + e.getMessage());
+                            logger.info(e.getMessage());
+
                         }
                     } finally {
                         //closeConnections();
@@ -1085,23 +1108,21 @@ public class OrderServiceImp implements OrderService {
                 "AND \"va-210\".\"cdvestiging\" = 'ree'";
 
         System.out.println(query);
+        Statement statement = null;
+        ResultSet resultSet = null;
         try {
             Connection connection = getConnection();
             connection.clearWarnings();
 
-//            try (Statement isolationStmt = connection.createStatement()) {
-//                isolationStmt.execute("SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED");
-//                logger.info("Isolation level set to READ UNCOMMITTED");
-//            }
 
-            Statement statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
-            ResultSet resultSet = statement.executeQuery(query);
+            statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+            resultSet = statement.executeQuery(query);
             if (activeConnections.isEmpty()) {
                 activeConnections.add(connection);
             }
             if (statement != null && resultSet != null) {
                 logger.info("----------resultSet----------");
-                logger.info(""+resultSet);
+                logger.info("" + resultSet);
                 String orderNumber = null;
 
                 List<String> existingOrderNumbers = new ArrayList<>();
@@ -1205,6 +1226,23 @@ public class OrderServiceImp implements OrderService {
             logger.info("markExpired sql exc 1");
             logger.info(e.getMessage());
             throw new RuntimeException(e);
+        } finally {
+            if (resultSet != null) {
+                try {
+                    resultSet.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    logger.info(e.getMessage());
+                }
+            }
+            if (statement != null) {
+                try {
+                    statement.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    logger.info(e.getMessage());
+                }
+            }
         }
     }
 
@@ -1242,6 +1280,7 @@ public class OrderServiceImp implements OrderService {
                 logger.info("getCRMOrders sql exc 2");
                 if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
                     retry++;
+                    logger.info(e.getMessage());
                 } else {
                     retry++;
                     e.printStackTrace();
@@ -1264,6 +1303,7 @@ public class OrderServiceImp implements OrderService {
                     if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
                         retry++;
                         logger.info("3 exp retry is: " + retry);
+                        logger.info(e.getMessage());
                     } else {
                         retry++;
                         e.printStackTrace();
@@ -1325,26 +1365,21 @@ public class OrderServiceImp implements OrderService {
 
             System.out.println("----------query----------");
             System.out.println(query);
+            Statement statement = null;
+            ResultSet resultSet = null;
             try {
                 Connection connection = getConnection();
                 connection.clearWarnings();
 
-//                try (Statement isolationStmt = connection.createStatement()) {
-//                    isolationStmt.execute("SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED");
-//                    logger.info("Isolation level set to READ UNCOMMITTED");
-//                }
+                statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 
 
-                Statement statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
-
-
-                ResultSet resultSet = statement.executeQuery(query);
+                resultSet = statement.executeQuery(query);
 
 
                 if (activeConnections.isEmpty()) {
                     activeConnections.add(connection);
                 }
-                //Class.forName(driver);
 
                 if (statement != null) {
                     System.out.println("----------resultSet----------");
@@ -1572,6 +1607,7 @@ public class OrderServiceImp implements OrderService {
 
                 logger.info("getCRMOrders sql exc 1");
                 var35.printStackTrace();
+                logger.info(var35.getMessage());
                 if (adjustParentCalled != true && createMonCalled != true && productNotesCalled != true) {
 
                     //this.adjustParentOrders();
@@ -1607,6 +1643,23 @@ public class OrderServiceImp implements OrderService {
                 return this.orderDtoList;
                 //new ResourceNotFoundException("Order", "CRM", "N/A");
                 //return null;
+            } finally {
+                if (resultSet != null) {
+                    try {
+                        resultSet.close();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                        logger.info(e.getMessage());
+                    }
+                }
+                if (statement != null) {
+                    try {
+                        statement.close();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                        logger.info(e.getMessage());
+                    }
+                }
             }
 
             if (createMonCalled != true && productNotesCalled != true) {
@@ -1623,9 +1676,10 @@ public class OrderServiceImp implements OrderService {
 
 
         } catch (Exception var39) {
-           logger.info("getCRMOrders sql exc 3");
+            logger.info("getCRMOrders sql exc 3");
             Exception e = var39;
             e.printStackTrace();
+            logger.info(e.getMessage());
             if (adjustParentCalled != true || (createMonCalled != true && productNotesCalled != true)) {
 //                this.updateProductNotes();
 //                this.createMonSub();
@@ -1982,6 +2036,7 @@ public class OrderServiceImp implements OrderService {
                 logger.info("updateProductNotes sql exc 2");
                 if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
                     retry++;
+                    logger.info(e.getMessage());
                 } else {
                     retry++;
                     e.printStackTrace();
@@ -2003,6 +2058,7 @@ public class OrderServiceImp implements OrderService {
                     logger.info("updateProductNotes sql exc 3");
                     if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
                         retry++;
+                        logger.info(e.getMessage());
                         logger.info("3 exp retry is: " + retry);
                     } else {
                         retry++;
@@ -2043,6 +2099,8 @@ public class OrderServiceImp implements OrderService {
                 System.out.println("----------query----------");
                 System.out.println(query);
 
+                Statement statement = null;
+                ResultSet resultSet = null;
                 try {
                     Connection connection = getConnection();
                     connection.clearWarnings();
@@ -2052,9 +2110,9 @@ public class OrderServiceImp implements OrderService {
 //                        logger.info("Isolation level set to READ UNCOMMITTED");
 //                    }
 
-                    Statement statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                    statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 
-                    ResultSet resultSet = statement.executeQuery(query);
+                    resultSet = statement.executeQuery(query);
                     if (activeConnections.isEmpty()) {
                         activeConnections.add(connection);
                     }
@@ -2107,6 +2165,23 @@ public class OrderServiceImp implements OrderService {
                     Exception e = var39;
                     logger.info(e.getMessage());
                     e.printStackTrace();
+                } finally {
+                    if (resultSet != null) {
+                        try {
+                            resultSet.close();
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                            logger.info(e.getMessage());
+                        }
+                    }
+                    if (statement != null) {
+                        try {
+                            statement.close();
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                            logger.info(e.getMessage());
+                        }
+                    }
                 }
             }
         } catch (Exception e) {
@@ -2129,6 +2204,7 @@ public class OrderServiceImp implements OrderService {
             } catch (Exception e) {
                 logger.info("updateTextForOrders sql exc 2");
                 if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                    logger.info(e.getMessage());
                     retry++;
                 } else {
                     retry++;
@@ -2151,6 +2227,7 @@ public class OrderServiceImp implements OrderService {
                     logger.info("updateTextForOrders sql exc 3");
                     if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
                         retry++;
+                        logger.info(e.getMessage());
                         logger.info("3 exp retry is: " + retry);
                     } else {
                         retry++;
@@ -2190,6 +2267,8 @@ public class OrderServiceImp implements OrderService {
 
             System.out.println("----------query----------");
             System.out.println(query);
+            Statement statement = null;
+            ResultSet resultSet = null;
             try {
 
                 Connection connection = getConnection();
@@ -2200,9 +2279,9 @@ public class OrderServiceImp implements OrderService {
 //                    logger.info("Isolation level set to READ UNCOMMITTED");
 //                }
 
-                Statement statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 
-                ResultSet resultSet = statement.executeQuery(query);
+                resultSet = statement.executeQuery(query);
 
                 if (activeConnections.isEmpty()) {
                     activeConnections.add(connection);
@@ -2218,7 +2297,7 @@ public class OrderServiceImp implements OrderService {
                         }
 
                         boolean hasRows = resultSet.isBeforeFirst();
-                       logger.info("ResultSet has rows: " + hasRows);
+                        logger.info("ResultSet has rows: " + hasRows);
 
                         if (hasRows) {
                             System.out.println("----------resultSet Rows----------");
@@ -2256,6 +2335,23 @@ public class OrderServiceImp implements OrderService {
                 logger.info(e.getMessage());
                 e.printStackTrace();
                 return null;
+            } finally {
+                if (resultSet != null) {
+                    try {
+                        resultSet.close();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                        logger.info(e.getMessage());
+                    }
+                }
+                if (statement != null) {
+                    try {
+                        statement.close();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                        logger.info(e.getMessage());
+                    }
+                }
             }
         } catch (Exception e) {
             System.out.println("updateTextForOrders sql exc 2");
@@ -2280,6 +2376,7 @@ public class OrderServiceImp implements OrderService {
             } catch (Exception e) {
                 logger.info("createMonSub sql exc 2");
                 if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                    logger.info(e.getMessage());
                     retry++;
                 } else {
                     retry++;
@@ -2302,6 +2399,7 @@ public class OrderServiceImp implements OrderService {
                     logger.info("createMonSub sql exc 3");
                     if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
                         retry++;
+                        logger.info(e.getMessage());
                         logger.info("3 exp retry is: " + retry);
                     } else {
                         retry++;
@@ -2358,6 +2456,9 @@ public class OrderServiceImp implements OrderService {
 
                 System.out.println("----------query----------");
                 System.out.println(query);
+
+                Statement statement = null;
+                ResultSet resultSet = null;
                 try {
                     Connection connection = getConnection();
                     connection.clearWarnings();
@@ -2367,9 +2468,9 @@ public class OrderServiceImp implements OrderService {
 //                        logger.info("Isolation level set to READ UNCOMMITTED");
 //                    }
 
-                    Statement statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                    statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 
-                    ResultSet resultSet = statement.executeQuery(query);
+                    resultSet = statement.executeQuery(query);
 
                     if (activeConnections.isEmpty()) {
                         activeConnections.add(connection);
@@ -2507,6 +2608,23 @@ public class OrderServiceImp implements OrderService {
                     e.printStackTrace();
                     List<OrderDto> orderList = this.getAllOrders();
                     this.orderDtoList = orderList;
+                } finally {
+                    if (resultSet != null) {
+                        try {
+                            resultSet.close();
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                            logger.info(e.getMessage());
+                        }
+                    }
+                    if (statement != null) {
+                        try {
+                            statement.close();
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                            logger.info(e.getMessage());
+                        }
+                    }
                 }
             }
         } catch (Exception var39) {
