@@ -69,6 +69,10 @@ public class OrderServiceImp implements OrderService {
     @Autowired
     private ArchivedOrdersService archivedOrdersService;
     @Autowired
+    private OrderSMERepo orderSMERepo;
+    @Autowired
+    private OrderSPURepo orderSPURepo;
+    @Autowired
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private OdbcConnectionMonitor connectionMonitor;
@@ -80,8 +84,8 @@ public class OrderServiceImp implements OrderService {
 
     private final Set<Connection> activeConnections = new HashSet<>();
 
-    @Autowired
-    @Qualifier("secondaryDataSource")
+//    @Autowired
+//    @Qualifier("secondaryDataSource")
     private DataSource secondaryDataSource;
 
 //    public Connection getConnection() throws SQLException {
@@ -95,9 +99,9 @@ public class OrderServiceImp implements OrderService {
     public static synchronized Connection getConnection() throws SQLException {
         if (connection == null || connection.isClosed()) {
             logger.info("creating new connection");
-            connection = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
-            connection.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
-            connection.setAutoCommit(true);
+//            connection = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
+//            connection.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
+//            connection.setAutoCommit(true);
         }
         return connection;
     }
@@ -431,6 +435,26 @@ public class OrderServiceImp implements OrderService {
     @Transactional
     public void moveToArchive(List<Integer> ids) {
         logger.info("removing: ");
+
+        ordersMap.values().forEach(o -> {
+            if (ids.contains(o.getId())) {
+                String originalOrderNumber = o.getOrderNumber();
+
+                OrderSPU orderSPU = this.orderSPURepo.findByOrderNumberAndRegel(originalOrderNumber, o.getRegel());
+                if (orderSPU != null) {
+                    orderSPU.setOrderNumber("X" + originalOrderNumber);
+                    orderSPURepo.save(orderSPU);
+                }
+
+                OrderSME orderSME = this.orderSMERepo.findByOrderNumberAndRegel(originalOrderNumber, o.getRegel());
+                if (orderSME != null) {
+                    orderSME.setOrderNumber("X" + originalOrderNumber);
+                    orderSMERepo.save(orderSME);
+                }
+            }
+        });
+
+
         for (Integer i : ids) {
             logger.info(i + ",");
         }
@@ -443,12 +467,12 @@ public class OrderServiceImp implements OrderService {
             if (ids.contains(orderDto.getId())) {
                 isMoved = this.archiveOrder(orderDto);
                 if (isMoved) {
+
                     iterator.remove();
                     logger.info("removed: " + orderDto.getId());
                 }
             }
         }
-
         if (isMoved) {
             this.deleteOrderData(ids);
         }
@@ -461,6 +485,14 @@ public class OrderServiceImp implements OrderService {
             this.orderRepo.deleteMonSubsForIds(ids);
             this.orderRepo.deleteODForIds(ids);
             this.orderRepo.deleteOrdersByIds(ids);
+
+            try {
+                Boolean yeah = ordersMap.entrySet().stream().anyMatch(order -> ids.contains(order.getValue().getId()));
+                logger.info("{} and Deleting order data for IDs: {}", yeah, ids);
+            } catch (Exception e) {
+                logger.info("failed operation :'(");
+            }
+
         } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
             System.out.println("from deleteOrderData : Caught ObjectOptimisticLockingFailureException:");
             System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
@@ -535,10 +567,10 @@ public class OrderServiceImp implements OrderService {
                 return "C".equals(ord.getCompleted());
             });
             if (updatedOrder.getCompleted().equals("C") && allOrdersComplete) {
-                List<Integer> idList = (List) this.ordersMap.values().stream().filter((ord) -> {
-                    return ord.getOrderNumber().equals(updatedOrderDto.getOrderNumber());
-                }).map(OrderDto::getId).collect(Collectors.toList());
-                this.moveToArchive(idList);
+//                List<Integer> idList = (List) this.ordersMap.values().stream().filter((ord) -> {
+//                    return ord.getOrderNumber().equals(updatedOrderDto.getOrderNumber());
+//                }).map(OrderDto::getId).collect(Collectors.toList());
+//                this.moveToArchive(idList);
                 this.orderDtoList = new ArrayList();
                 Iterator var13 = this.ordersMap.entrySet().iterator();
 
@@ -595,6 +627,7 @@ public class OrderServiceImp implements OrderService {
             List<OrderDto> lo = this.checkMap();
             String color = "";
             String prev = "";
+            OrderDepartment dep;
             List<Integer> matchingIds = new ArrayList();
             Iterator var9 = this.ordersMap.values().iterator();
 
@@ -632,12 +665,22 @@ public class OrderServiceImp implements OrderService {
                     } else if ("R".equals(getterMethod.invoke(orderDto)) && "R".equals(orderStatus) && flowVal.equals("HLT")) {
                         setterMethod.invoke(orderDto, "B");
                         color = "B";
+                    } else if ("Y".equals(getterMethod.invoke(orderDto)) && "Y".equals(orderStatus) && flowVal.equals("HLT")) {
+                        setterMethod.invoke(orderDto, "B");
+                        color = "B";
                     } else if ("Y".equals(getterMethod.invoke(orderDto)) && "Y".equals(orderStatus)) {
                         setterMethod.invoke(orderDto, "G");
                         color = "G";
                     } else if ("B".equals(getterMethod.invoke(orderDto)) && "B".equals(orderStatus)) {
-                        setterMethod.invoke(orderDto, "R");
-                        color = "R";
+                        List<OrderDepartment> depList1 = orderDto.getDepartments();
+                        Optional<OrderDepartment> dep1 = depList1.stream().filter(dp -> dp.getDepName().equals(orderDep.toUpperCase())).findFirst();
+                        if(dep1.isPresent()){
+                            setterMethod.invoke(orderDto, dep1.get().getPrevStatus());
+                            color = dep1.get().getPrevStatus();
+                        }else{
+                            setterMethod.invoke(orderDto, "R");
+                            color = "R";
+                        }
                     }
 
                     List<OrderDepartment> depList = orderDto.getDepartments();
@@ -645,7 +688,6 @@ public class OrderServiceImp implements OrderService {
 
                     while (true) {
                         while (true) {
-                            OrderDepartment dep;
                             do {
                                 if (!var17.hasNext()) {
                                     boolean allStatusGOrEmpty = orderDto.getDepartments().stream().allMatch((department) -> {
@@ -670,12 +712,20 @@ public class OrderServiceImp implements OrderService {
                                 dep.setStatus("B");
                                 dep.setPrevStatus("R");
                                 prev = dep.getPrevStatus();
+                            } else if ("Y".equals(dep.getStatus()) && flowVal.equals("HLT")) {
+                                dep.setStatus("B");
+                                dep.setPrevStatus("Y");
+                                prev = dep.getPrevStatus();
                             } else if ("Y".equals(dep.getStatus())) {
                                 dep.setStatus("G");
                                 dep.setPrevStatus("Y");
                                 prev = dep.getPrevStatus();
                             } else if ("B".equals(dep.getStatus())) {
-                                dep.setStatus("R");
+                                if (dep.getPrevStatus() != null && !dep.getPrevStatus().isEmpty()) {
+                                    dep.setStatus(dep.getPrevStatus());
+                                }else {
+                                    dep.setStatus("R");
+                                }
                                 dep.setPrevStatus("B");
                                 prev = dep.getPrevStatus();
                             }
@@ -819,7 +869,7 @@ public class OrderServiceImp implements OrderService {
                     return order.getOrderNumber().equals(orderNumber);
                 }).count();
                 if (allCompleted) {
-                    this.moveToArchive(matchingIds);
+//                    this.moveToArchive(matchingIds);
                 }
 
                 this.orderDtoList = new ArrayList();
@@ -1093,27 +1143,37 @@ public class OrderServiceImp implements OrderService {
     }
 
     private void exitProgram() {
-        int exitCode = SpringApplication.exit(context, () -> 0);
-        System.exit(exitCode);
+//        int exitCode = SpringApplication.exit(context, () -> 0);
+//        System.exit(exitCode);
     }
 
     public void markExpiredInner() {
+
+        List<String> formattedOrders = new ArrayList<>();
+        for (Map.Entry<String, OrderDto> entry : ordersMap.entrySet()) {
+            String orderNumbers = entry.getValue().getOrderNumber();
+            formattedOrders.add("'" + orderNumbers + "'");
+        }
+
+        String stringOfOrdersWithCommaAndQuotations = String.join(",", formattedOrders);
+
         String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', " +
-                "\"va-211\".\"cdprodukt\" AS 'Product' , \"va-211\".\"nrordrgl\" AS 'Regel'" +
+                "\"va-211\".\"cdprodukt\" AS 'Product' , \"va-211\".\"nrordrgl\" AS 'Regel', " +
+                "\"va-210\".\"cdstatus\" AS 'Status' " +
                 "FROM DATA.PUB.\"va-210\" " +
                 "JOIN DATA.PUB.\"va-211\" ON \"va-210\".\"cdorder\" = \"va-211\".\"cdorder\" " +
                 "AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" " +
-                "WHERE (\"va-210\".\"cdstatus\" <> 'Z' And \"va-210\".\"cdstatus\" <> 'B') " +
-                "AND \"va-210\".\"cdadmin\" = '01' " +
-                "AND \"va-210\".\"cdvestiging\" = 'ree'";
+                "WHERE \"va-210\".\"cdadmin\" = '01' " +
+                "AND \"va-210\".\"cdvestiging\" = 'ree' " +
+                "AND \"va-210\".\"cdorder\" IN (" + stringOfOrdersWithCommaAndQuotations + ")";
 
         System.out.println(query);
+
         Statement statement = null;
         ResultSet resultSet = null;
         try {
             Connection connection = getConnection();
             connection.clearWarnings();
-
 
             statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
             resultSet = statement.executeQuery(query);
@@ -1134,64 +1194,47 @@ public class OrderServiceImp implements OrderService {
                     orderNumber = resultSet.getString("Verkooporder");
                     String product = resultSet.getString("Product");
                     String regel = resultSet.getString("Regel");
-                    existingOrderNumbers.add(orderNumber + "," + regel);
+                    String status = resultSet.getString("Status");
+                    if (status.equals("Z")) {
+                        logger.info("mei1: " + status + ", for order: " + orderNumber + "-" + regel);
+                        existingOrderNumbers.add(orderNumber + "," + regel);
+                    }
+                    if (!status.equals("Z")) {
+                        logger.info("mei2: " + status + ", for order: " + orderNumber + "-" + regel);
+                    }
                 }
-                Set<String> uniqueones = new HashSet<>(existingOrderNumbers);
-                logger.info("unique ones: ");
-                logger.info("" + uniqueones.size());
+                if (existingOrderNumbers.isEmpty()) {
+                    return;
+                }
                 logger.info("total: ");
                 logger.info("" + existingOrderNumbers.size());
                 LocalDateTime currentDateTime = LocalDateTime.now();
                 logger.info("Current DateTime: " + currentDateTime);
                 existingOrderNumbers.forEach(logger::info);
-                logger.info("" + ordersMap.values().size());
+
                 List<OrderDto> orderList = this.ordersMap.values()
                         .stream()
-                        .filter(ord -> {
-                            return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getRegel());
-                        })
+                        .filter(ord -> existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getRegel()))
                         .collect(Collectors.toList());
 
                 logger.info("list1: " + orderList.size());
-                List<Integer> filteredOrders = new ArrayList<>();
-                if (!this.archivedOrdersService.getAllArchivedOrders().isEmpty()) {
-                    List<ArchivedOrdersDto> archivedOrdersList = this.archivedOrdersService.getAllArchivedOrders()
-                            .stream()
-                            .filter(ord -> {
-                                return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getRegel());
-                            })
-                            .collect(Collectors.toList());
 
-                    logger.info("list2: " + archivedOrdersList.size());
-                    filteredOrders = orderList
-                            .stream()
-                            .filter(order ->
-                                    archivedOrdersList.stream()
-                                            .noneMatch(archivedOrder ->
-                                                    archivedOrder.getOrderNumber().equals(order.getOrderNumber()) &&
-                                                            archivedOrder.getRegel().equals(order.getRegel())
-                                            )
-                            ).map(OrderDto::getId)
-                            .collect(Collectors.toList());
+                List<Integer> filteredOrders = orderList
+                        .stream()
+                        .map(OrderDto::getId)
+                        .collect(Collectors.toList());
 
-                    logger.info("list3: " + filteredOrders.size());
-                } else {
-                    filteredOrders = orderList
-                            .stream()
-                            .map(OrderDto::getId)
-                            .collect(Collectors.toList());
-                    logger.info("list3.1: " + filteredOrders.size());
-                }
+                logger.info("list2: " + filteredOrders.size());
 
                 List<OrderDto> matchingObjects = new ArrayList<>();
                 if (!filteredOrders.isEmpty()) {
                     List<Integer> finalFilteredOrders = filteredOrders;
+
                     matchingObjects = ordersMap.values().stream()
                             .filter(obj -> finalFilteredOrders.contains(obj.getId()))
                             .peek(obj -> obj.setIsExpired(true))
                             .collect(Collectors.toList());
                 }
-
 
                 matchingObjects.forEach(obj -> {
                     logger.info("Got Expired: " + obj.getExpired() + "," + obj.getId());
@@ -1246,28 +1289,177 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
-    //    @Async("taskExecutor")
+//    public void markExpiredInner() {
+//        String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', " +
+//                "\"va-211\".\"cdprodukt\" AS 'Product' , \"va-211\".\"nrordrgl\" AS 'Regel'" +
+//                "FROM DATA.PUB.\"va-210\" " +
+//                "JOIN DATA.PUB.\"va-211\" ON \"va-210\".\"cdorder\" = \"va-211\".\"cdorder\" " +
+//                "AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" " +
+//                "WHERE (\"va-210\".\"cdstatus\" <> 'Z' And \"va-210\".\"cdstatus\" <> 'B') " +
+//                "AND \"va-210\".\"cdadmin\" = '01' " +
+//                "AND \"va-210\".\"cdvestiging\" = 'ree'";
+//
+//        System.out.println(query);
+//        Statement statement = null;
+//        ResultSet resultSet = null;
+//        try {
+//            Connection connection = getConnection();
+//            connection.clearWarnings();
+//
+//
+//            statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+//            resultSet = statement.executeQuery(query);
+//            if (activeConnections.isEmpty()) {
+//                activeConnections.add(connection);
+//            }
+//            if (statement != null && resultSet != null) {
+//                logger.info("----------resultSet----------");
+//                logger.info("" + resultSet);
+//                String orderNumber = null;
+//
+//                List<String> existingOrderNumbers = new ArrayList<>();
+//                while (resultSet.next()) {
+//                    if (resultSet.wasNull()) {
+//                        logger.info("no ordernumer");
+//                        continue;
+//                    }
+//                    orderNumber = resultSet.getString("Verkooporder");
+//                    String product = resultSet.getString("Product");
+//                    String regel = resultSet.getString("Regel");
+//                    existingOrderNumbers.add(orderNumber + "," + regel);
+//                }
+//                Set<String> uniqueones = new HashSet<>(existingOrderNumbers);
+//                logger.info("unique ones: ");
+//                logger.info("" + uniqueones.size());
+//                logger.info("total: ");
+//                logger.info("" + existingOrderNumbers.size());
+//                LocalDateTime currentDateTime = LocalDateTime.now();
+//                logger.info("Current DateTime: " + currentDateTime);
+//                existingOrderNumbers.forEach(logger::info);
+//                logger.info("" + ordersMap.values().size());
+//                List<OrderDto> orderList = this.ordersMap.values()
+//                        .stream()
+//                        .filter(ord -> {
+//                            return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getRegel());
+//                        })
+//                        .collect(Collectors.toList());
+//
+//                logger.info("list1: " + orderList.size());
+//                List<Integer> filteredOrders = new ArrayList<>();
+//                if (!this.archivedOrdersService.getAllArchivedOrders().isEmpty()) {
+//                    List<ArchivedOrdersDto> archivedOrdersList = this.archivedOrdersService.getAllArchivedOrders()
+//                            .stream()
+//                            .filter(ord -> {
+//                                return !existingOrderNumbers.contains(ord.getOrderNumber() + "," + ord.getRegel());
+//                            })
+//                            .collect(Collectors.toList());
+//
+//                    logger.info("list2: " + archivedOrdersList.size());
+//                    filteredOrders = orderList
+//                            .stream()
+//                            .filter(order ->
+//                                    archivedOrdersList.stream()
+//                                            .noneMatch(archivedOrder ->
+//                                                    archivedOrder.getOrderNumber().equals(order.getOrderNumber()) &&
+//                                                            archivedOrder.getRegel().equals(order.getRegel())
+//                                            )
+//                            ).map(OrderDto::getId)
+//                            .collect(Collectors.toList());
+//
+//                    logger.info("list3: " + filteredOrders.size());
+//                } else {
+//                    filteredOrders = orderList
+//                            .stream()
+//                            .map(OrderDto::getId)
+//                            .collect(Collectors.toList());
+//                    logger.info("list3.1: " + filteredOrders.size());
+//                }
+//
+//                List<OrderDto> matchingObjects = new ArrayList<>();
+//                if (!filteredOrders.isEmpty()) {
+//                    List<Integer> finalFilteredOrders = filteredOrders;
+//                    matchingObjects = ordersMap.values().stream()
+//                            .filter(obj -> finalFilteredOrders.contains(obj.getId()))
+//                            .peek(obj -> obj.setIsExpired(true))
+//                            .collect(Collectors.toList());
+//                }
+//
+//
+//                matchingObjects.forEach(obj -> {
+//                    logger.info("Got Expired: " + obj.getExpired() + "," + obj.getId());
+//                    try {
+//                        this.updateOrder(obj, obj.getId(), false);
+//                    } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
+//                        System.out.println("from markexpired : Caught ObjectOptimisticLockingFailureException:");
+//                        System.out.println("Optimistic locking failed. Possible concurrent update or stale entity.");
+//                        System.out.println(obj.getId() + " could not be saved due to version mismatch or no matching record.");
+//                        e.printStackTrace();
+//                        logger.info(e.getMessage());
+//                    } catch (DataIntegrityViolationException e) {
+//                        Throwable rootCause = e.getRootCause();
+//                        if (rootCause instanceof SQLIntegrityConstraintViolationException) {
+//                            System.out.println("Caught markexpired SQLIntegrityConstraintViolationException:");
+//                            System.out.println(rootCause.getMessage());
+//                            System.out.println(obj.getId() + " is not saved");
+//                            logger.info(e.getMessage());
+//                            e.printStackTrace();
+//                        } else {
+//                            System.out.println("Caught markexpired DataIntegrityViolationException:");
+//                            System.out.println(e.getMessage());
+//                            logger.info(e.getMessage());
+//                            e.printStackTrace();
+//                        }
+//                    }
+//                });
+//                this.moveToArchive(filteredOrders);
+//            }
+//            connection.clearWarnings();
+//        } catch (SQLException e) {
+//            logger.info("markExpired sql exc 1");
+//            logger.info(e.getMessage());
+//            throw new RuntimeException(e);
+//        } finally {
+//            if (resultSet != null) {
+//                try {
+//                    resultSet.close();
+//                } catch (SQLException e) {
+//                    e.printStackTrace();
+//                    logger.info(e.getMessage());
+//                }
+//            }
+//            if (statement != null) {
+//                try {
+//                    statement.close();
+//                } catch (SQLException e) {
+//                    e.printStackTrace();
+//                    logger.info(e.getMessage());
+//                }
+//            }
+//        }
+//    }
+
+//    @Async("taskExecutor")
 //    @Scheduled(fixedRate = 380000)
-    public void archiveExpiredOrders() {
-        List<OrderDto> orderList = new ArrayList<>(ordersMap.values());
-
-        // Group by orderNumber
-        Map<String, List<OrderDto>> groupedByOrderNumber = orderList.stream()
-                .collect(Collectors.groupingBy(OrderDto::getOrderNumber));
-
-        // Process each group
-        List<Integer> resultIds = new ArrayList<>();
-        for (Map.Entry<String, List<OrderDto>> entry : groupedByOrderNumber.entrySet()) {
-            List<OrderDto> orders = entry.getValue();
-            boolean allExpired = orders.stream()
-                    .allMatch(order -> Boolean.TRUE.equals(order.getIsExpired()));
-
-            if (allExpired) {
-                resultIds.addAll(orders.stream().map(OrderDto::getId).collect(Collectors.toList()));
-            }
-        }
-        this.moveToArchive(resultIds);
-    }
+//    public void archiveExpiredOrders() {
+//        List<OrderDto> orderList = new ArrayList<>(ordersMap.values());
+//
+//        // Group by orderNumber
+//        Map<String, List<OrderDto>> groupedByOrderNumber = orderList.stream()
+//                .collect(Collectors.groupingBy(OrderDto::getOrderNumber));
+//
+//        // Process each group
+//        List<Integer> resultIds = new ArrayList<>();
+//        for (Map.Entry<String, List<OrderDto>> entry : groupedByOrderNumber.entrySet()) {
+//            List<OrderDto> orders = entry.getValue();
+//            boolean allExpired = orders.stream()
+//                    .allMatch(order -> Boolean.TRUE.equals(order.getIsExpired()));
+//
+//            if (allExpired) {
+//                resultIds.addAll(orders.stream().map(OrderDto::getId).collect(Collectors.toList()));
+//            }
+//        }
+//        this.moveToArchive(resultIds);
+//    }
 
     public List<OrderDto> getCRMOrders() {
         List<OrderDto> orderDtos = null;
@@ -1302,7 +1494,7 @@ public class OrderServiceImp implements OrderService {
                     logger.info("getCRMOrders sql exc 3");
                     if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
                         retry++;
-                        logger.info("3 exp retry is: " + retry);
+                        logger.info("3 exc retry is: " + retry);
                         logger.info(e.getMessage());
                     } else {
                         retry++;
@@ -1514,6 +1706,9 @@ public class OrderServiceImp implements OrderService {
 
                             if (fieldsCheckMap.getOrDefault("cdProdGrp", false) || fieldsCheckMap.getOrDefault("orderType", false)) {
                                 try {
+                                    logger.info("CDPRODGRP innercrm: " + fieldsCheckMap.getOrDefault("cdProdGrp", false));
+                                    logger.info("orderType innercrm: " + fieldsCheckMap.getOrDefault("orderType", false));
+
                                     this.deleteOrderData(Collections.singletonList(existingOrderDto.getId()));
                                     logger.info("DELETING : " + existingOrderDto.getId());
                                 } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
@@ -1608,6 +1803,9 @@ public class OrderServiceImp implements OrderService {
                 logger.info("getCRMOrders sql exc 1");
                 var35.printStackTrace();
                 logger.info(var35.getMessage());
+                if (var35.getMessage().equals("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                    throw new RuntimeException(var35.getMessage(), var35);
+                }
                 if (adjustParentCalled != true && createMonCalled != true && productNotesCalled != true) {
 
                     //this.adjustParentOrders();
@@ -1680,6 +1878,9 @@ public class OrderServiceImp implements OrderService {
             Exception e = var39;
             e.printStackTrace();
             logger.info(e.getMessage());
+            if (var39.getMessage().equals("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                throw new RuntimeException(var39.getMessage(), var39);
+            }
             if (adjustParentCalled != true || (createMonCalled != true && productNotesCalled != true)) {
 //                this.updateProductNotes();
 //                this.createMonSub();
@@ -1787,6 +1988,16 @@ public class OrderServiceImp implements OrderService {
         }
 
         if (orderType.equals("LSO")) {
+            orderDto.setSer("R");
+            depList.add(new OrderDepartment(7, "SER", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("LSL")) {
+            orderDto.setSer("R");
+            depList.add(new OrderDepartment(7, "SER", "R", this.dtoToOrder(orderDto)));
+        }
+
+        if (orderType.equals("LPL")) {
             orderDto.setSer("R");
             depList.add(new OrderDepartment(7, "SER", "R", this.dtoToOrder(orderDto)));
         }
@@ -2731,6 +2942,54 @@ public class OrderServiceImp implements OrderService {
             }
         }
 
+        if (orderType.equals(orderTypeDto) && orderType.equals("LSL")) {
+            order.setSer(orderDto.getSer());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 7;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getSer())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getSer());
+                }
+            }
+        }
+
+        if (orderType.equals(orderTypeDto) && orderType.equals("LPL")) {
+            order.setSer(orderDto.getSer());
+            index = IntStream.range(0, depList.size()).filter((i) -> {
+                return ((OrderDepartment) depList.get(i)).getDepId() == 7;
+            }).findFirst().orElse(-1);
+            if (index != -1) {
+                if (((OrderDepartment) depList.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus("n");
+                }
+
+                if (((OrderDepartment) depListDto.get(index)).getPrevStatus() == null) {
+                    ((OrderDepartment) depListDto.get(index)).setPrevStatus("n");
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getPrevStatus().equals(((OrderDepartment) depListDto.get(index)).getPrevStatus())) {
+                    ((OrderDepartment) depList.get(index)).setPrevStatus(((OrderDepartment) depList.get(index)).getStatus());
+                }
+
+                if (!((OrderDepartment) depList.get(index)).getStatus().equals(orderDto.getSer())) {
+                    ((OrderDepartment) depList.get(index)).setStatus(orderDto.getSer());
+                }
+            }
+        }
+
         int index2;
         if (orderType.equals(orderTypeDto) && orderType.equals("MAO")) {
             order.setMonLb(orderDto.getMonLb());
@@ -3576,7 +3835,7 @@ public class OrderServiceImp implements OrderService {
                         if (color.equals("G")) {
                             this.orderRepo.updateFieldForYIds(color, idList);
                             this.orderRepo.updateOrderDepartmentStatusY(color, prev, idList);
-                            this.moveToArchive(idList);
+//                            this.moveToArchive(idList);
                             return true;
                         }
 

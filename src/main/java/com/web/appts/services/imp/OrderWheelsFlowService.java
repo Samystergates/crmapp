@@ -358,8 +358,8 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
 //        Paragraph paragraphL1 = new Paragraph(String.format("%-13s%-13s", " Naam Klant:", " " + oda.getCustomerName()), font4);
         Paragraph paragraphL1 = new Paragraph("Naam Klant: " + oda.getCustomerName(), font1);
 
-        Paragraph paragraphL2 = new Paragraph("Entered By: " + orderSMEDto.getSlipCreator(), font1);
-        Paragraph paragraphL3 = new Paragraph(String.format("%-16s%-16s", "\n Verkoop order:   ", orderSMEDto.getOrderNumber()), font1);
+        Paragraph paragraphL2 = new Paragraph("Ingevoerd doo: " + orderSMEDto.getSlipCreator(), font1);
+        Paragraph paragraphL3 = new Paragraph(String.format("%-16s%-16s", "Verkoop order:   ", orderSMEDto.getOrderNumber() + " - " + orderSMEDto.getRegel()), font1);
         paragraphL1.setAlignment(0);
         paragraphL2.setAlignment(0);
         paragraphL3.setAlignment(0);
@@ -379,207 +379,334 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         document.add(mainTable);
     }
 
+//    private void addSMEOptions(PdfWriter writer, Document document, OrderSMEDto orderSMEDto) throws DocumentException {
+//        Font font4 = new Font(FontFamily.HELVETICA, 10.0F);
+//        Font font5 = new Font(FontFamily.HELVETICA, 12.0F);
+//        if (orderSMEDto.getMerk() == null) {
+//            orderSMEDto.setMerk("");
+//        }
+//
+//        if (orderSMEDto.getModel() == null) {
+//            orderSMEDto.setModel("");
+//        }
+//
+//        if (orderSMEDto.getType() == null) {
+//            orderSMEDto.setType("");
+//        }
+//
+//        if (orderSMEDto.getNaafgat() == null) {
+//            orderSMEDto.setNaafgat("");
+//        }
+//
+//        if (orderSMEDto.getSteek() == null) {
+//            orderSMEDto.setSteek("");
+//        }
+//
+//        if (orderSMEDto.getAantalBoutgat() == null) {
+//            orderSMEDto.setAantalBoutgat("");
+//        }
+//
+//        if (orderSMEDto.getVerdlingBoutgaten() == null) {
+//            orderSMEDto.setVerdlingBoutgaten("");
+//        }
+//
+//        if (orderSMEDto.getDiameter() == null) {
+//            orderSMEDto.setDiameter("");
+//        }
+//
+//        if (orderSMEDto.getTypeBoutgat() == null) {
+//            orderSMEDto.setTypeBoutgat("");
+//        }
+//
+//        if (orderSMEDto.getEt() == null) {
+//            orderSMEDto.setEt("");
+//        }
+//
+//        if (orderSMEDto.getAfstandVV() == null) {
+//            orderSMEDto.setAfstandVV("");
+//        }
+//
+//        if (orderSMEDto.getAfstandVA() == null) {
+//            orderSMEDto.setAfstandVA("");
+//        }
+//
+//        if (orderSMEDto.getDikte() == null) {
+//            orderSMEDto.setDikte("");
+//        }
+//
+//        if (orderSMEDto.getDoorgezet() == null) {
+//            orderSMEDto.setDoorgezet("");
+//        }
+//
+//        if (orderSMEDto.getKoelgaten() == null) {
+//            orderSMEDto.setKoelgaten("");
+//        }
+//
+//        if (orderSMEDto.getVerstevigingsringen() == null) {
+//            orderSMEDto.setVerstevigingsringen("");
+//        }
+//
+//        if (orderSMEDto.getAansluitnippel() == null) {
+//            orderSMEDto.setAansluitnippel("");
+//        }
+//
+//        if (orderSMEDto.getVentielbeschermer() == null) {
+//            orderSMEDto.setVentielbeschermer("");
+//        }
+//
+//        if (orderSMEDto.getOptionVentielbeschermer() == null) {
+//            orderSMEDto.setOptionVentielbeschermer("");
+//        }
+//
+//        OrderDto orders = (OrderDto) this.orderServiceImp.getMap().get(orderSMEDto.getOrderNumber() + "," + orderSMEDto.getRegel());
+//        if (orders.getOmsumin() == null) {
+//            orders.setOmsumin("");
+//        }
+//
+//
+//        Paragraph labelParagraph2 = new Paragraph("Machine:   " + orderSMEDto.getMerk() + "               Model:   " + orderSMEDto.getModel() + "               Type:   " + orderSMEDto.getType(), font5);
+//        labelParagraph2.setSpacingAfter(7.0F);
+//        Paragraph labelParagraph3 = new Paragraph("\n                      Aantal:   " + getFormattedAantal(orders.getAantal()) + "\n           Omschrijving:   " + orders.getOmsumin(), font4);
+//        labelParagraph3.setSpacingAfter(7.0F);
+//        Paragraph labelParagraph4 = new Paragraph("\n                   Naafgat:   " + orderSMEDto.getNaafgat() + "      mm                                   Steelcirkel:     " + orderSMEDto.getSteek() + "      mm", font4);
+//        labelParagraph4.setSpacingAfter(7.0F);
+//        Paragraph labelParagraph5 = new Paragraph("    Aantal Boutgaten:   " + orderSMEDto.getAantalBoutgat() + "                                  Verdeling Boutgaten:     " + orderSMEDto.getVerdlingBoutgaten(), font4);
+//        labelParagraph5.setSpacingAfter(7.0F);
+//        Paragraph labelParagraph6 = new Paragraph("    Boutgat Diameter:   " + orderSMEDto.getDiameter() + "      mm                    Uitvoering:     " + orderSMEDto.getTypeBoutgat() + "        Maat Verzinking:    " + orderSMEDto.getMaatVerzinking() + "      mm", font4);
+//        labelParagraph6.setSpacingAfter(7.0F);
+//        Paragraph labelParagraph7 = new Paragraph(String.format("%-49s%-49s", " \n                           ET:     " + orderSMEDto.getEt(), "mm"), font4);
+//        labelParagraph7.setSpacingAfter(7.0F);
+//        Paragraph labelParagraph8 = new Paragraph(String.format("%-41s%-41s", "    Afstand Voorzijde:     " + orderSMEDto.getAfstandVV(), "mm"), font4);
+//        labelParagraph8.setSpacingAfter(7.0F);
+//        Paragraph labelParagraph9 = new Paragraph(String.format("%-39s%-39s", " Afstand Achterzijde:     " + orderSMEDto.getAfstandVA(), "mm"), font4);
+//        labelParagraph9.setSpacingAfter(7.0F);
+//
+//        PdfPTable table = new PdfPTable(4);
+//        table.setWidthPercentage(60);
+//        table.setHorizontalAlignment(Element.ALIGN_RIGHT);
+//        table.setWidths(new float[]{6, 2, 6, 2});
+//
+//        table.addCell(createTextCell("Doorgezet:"));
+//        table.addCell(createCheckboxCell(orderSMEDto.getDoorgezet().equals("JA")));
+//
+//        table.addCell(createTextCell("Koelgaten:"));
+//        table.addCell(createCheckboxCell(orderSMEDto.getKoelgaten().equals("JA")));
+//
+//        table.addCell(createTextCell("Verstevigingsringen:"));
+//        table.addCell(createCheckboxCell(orderSMEDto.getVerstevigingsringen().equals("JA")));
+//
+//        table.addCell(createTextCell("Nippel (D/W systeem):"));
+//        table.addCell(createCheckboxCell(orderSMEDto.getAansluitnippel().equals("JA")));
+//
+//        table.addCell(createTextCell("Ventielbeschermer:"));
+//        table.addCell(createCheckboxCell(orderSMEDto.getVentielbeschermer().equals("JA")));
+//
+//        PdfPCell defaultCell = new PdfPCell(new Phrase());
+//        defaultCell.setBorder(Rectangle.NO_BORDER);
+//
+//        table.addCell(createTextCell(orderSMEDto.getOptionVentielbeschermer()));
+//        table.addCell(defaultCell);
+//
+//        document.add(labelParagraph2);
+//        document.add(labelParagraph3);
+//        document.add(labelParagraph4);
+//        document.add(labelParagraph5);
+//        document.add(labelParagraph6);
+//        document.add(labelParagraph7);
+//        document.add(labelParagraph8);
+//        document.add(labelParagraph9);
+//
+//        table.setSpacingAfter(15.0F);
+//        document.add(table);
+//
+//    }
+//
+//    private PdfPCell createTextCell(String text) {
+//        Font smallFont = new Font(Font.FontFamily.HELVETICA, 11); // Set font size
+//        PdfPCell cell = new PdfPCell(new Phrase(text, smallFont));
+//        cell.setBorder(Rectangle.NO_BORDER);
+//        cell.setHorizontalAlignment(Element.ALIGN_RIGHT); // Align text to the right
+//        return cell;
+//    }
+
+
     private void addSMEOptions(PdfWriter writer, Document document, OrderSMEDto orderSMEDto) throws DocumentException {
-        Font font4 = new Font(FontFamily.HELVETICA, 10.0F);
-        Font font5 = new Font(FontFamily.HELVETICA, 12.0F);
-        if (orderSMEDto.getMerk() == null) {
-            orderSMEDto.setMerk("");
-        }
+        Font font4 = new Font(Font.FontFamily.HELVETICA, 10.0F);
+        Font font5 = new Font(Font.FontFamily.HELVETICA, 12.0F);
 
-        if (orderSMEDto.getModel() == null) {
-            orderSMEDto.setModel("");
-        }
-
-        if (orderSMEDto.getType() == null) {
-            orderSMEDto.setType("");
-        }
-
-        if (orderSMEDto.getNaafgat() == null) {
-            orderSMEDto.setNaafgat("");
-        }
-
-        if (orderSMEDto.getSteek() == null) {
-            orderSMEDto.setSteek("");
-        }
-
-        if (orderSMEDto.getAantalBoutgat() == null) {
-            orderSMEDto.setAantalBoutgat("");
-        }
-
-        if (orderSMEDto.getVerdlingBoutgaten() == null) {
-            orderSMEDto.setVerdlingBoutgaten("");
-        }
-
-        if (orderSMEDto.getDiameter() == null) {
-            orderSMEDto.setDiameter("");
-        }
-
-        if (orderSMEDto.getTypeBoutgat() == null) {
-            orderSMEDto.setTypeBoutgat("");
-        }
-
-        if (orderSMEDto.getEt() == null) {
-            orderSMEDto.setEt("");
-        }
-
-        if (orderSMEDto.getAfstandVV() == null) {
-            orderSMEDto.setAfstandVV("");
-        }
-
-        if (orderSMEDto.getAfstandVA() == null) {
-            orderSMEDto.setAfstandVA("");
-        }
-
-        if (orderSMEDto.getDikte() == null) {
-            orderSMEDto.setDikte("");
-        }
-
-        if (orderSMEDto.getDoorgezet() == null) {
-            orderSMEDto.setDoorgezet("");
-        }
-
-        if (orderSMEDto.getKoelgaten() == null) {
-            orderSMEDto.setKoelgaten("");
-        }
-
-        if (orderSMEDto.getVerstevigingsringen() == null) {
-            orderSMEDto.setVerstevigingsringen("");
-        }
-
-        if (orderSMEDto.getAansluitnippel() == null) {
-            orderSMEDto.setAansluitnippel("");
-        }
-
-        if (orderSMEDto.getVentielbeschermer() == null) {
-            orderSMEDto.setVentielbeschermer("");
-        }
-
-        if (orderSMEDto.getOptionVentielbeschermer() == null) {
-            orderSMEDto.setOptionVentielbeschermer("");
-        }
+        if (orderSMEDto.getMerk() == null) orderSMEDto.setMerk("");
+        if (orderSMEDto.getModel() == null) orderSMEDto.setModel("");
+        if (orderSMEDto.getType() == null) orderSMEDto.setType("");
+        if (orderSMEDto.getNaafgat() == null) orderSMEDto.setNaafgat("");
+        if (orderSMEDto.getSteek() == null) orderSMEDto.setSteek("");
+        if (orderSMEDto.getAantalBoutgat() == null) orderSMEDto.setAantalBoutgat("");
+        if (orderSMEDto.getVerdlingBoutgaten() == null) orderSMEDto.setVerdlingBoutgaten("");
+        if (orderSMEDto.getDiameter() == null) orderSMEDto.setDiameter("");
+        if (orderSMEDto.getTypeBoutgat() == null) orderSMEDto.setTypeBoutgat("");
+        if (orderSMEDto.getEt() == null) orderSMEDto.setEt("");
+        if (orderSMEDto.getAfstandVV() == null) orderSMEDto.setAfstandVV("");
+        if (orderSMEDto.getAfstandVA() == null) orderSMEDto.setAfstandVA("");
+        if (orderSMEDto.getDikte() == null) orderSMEDto.setDikte("");
+        if (orderSMEDto.getDoorgezet() == null) orderSMEDto.setDoorgezet("");
+        if (orderSMEDto.getKoelgaten() == null) orderSMEDto.setKoelgaten("");
+        if (orderSMEDto.getVerstevigingsringen() == null) orderSMEDto.setVerstevigingsringen("");
+        if (orderSMEDto.getAansluitnippel() == null) orderSMEDto.setAansluitnippel("");
+        if (orderSMEDto.getVentielbeschermer() == null) orderSMEDto.setVentielbeschermer("");
+        if (orderSMEDto.getOptionVentielbeschermer() == null) orderSMEDto.setOptionVentielbeschermer("");
 
         OrderDto orders = (OrderDto) this.orderServiceImp.getMap().get(orderSMEDto.getOrderNumber() + "," + orderSMEDto.getRegel());
-        if (orders.getOmsumin() == null) {
-            orders.setOmsumin("");
-        }
-
+        if (orders.getOmsumin() == null) orders.setOmsumin("");
 
         Paragraph labelParagraph2 = new Paragraph("Machine:   " + orderSMEDto.getMerk() + "               Model:   " + orderSMEDto.getModel() + "               Type:   " + orderSMEDto.getType(), font5);
-        labelParagraph2.setSpacingAfter(7.0F);
-        Paragraph labelParagraph3 = new Paragraph("\n                      Aantal:   " + getFormattedAantal(orders.getAantal()) + "\n           Omschrijving:   " + orders.getOmsumin(), font4);
-        labelParagraph3.setSpacingAfter(7.0F);
-        Paragraph labelParagraph4 = new Paragraph("\n                   Naafgat:   " + orderSMEDto.getNaafgat() + "      mm                                   Steelcirkel:     " + orderSMEDto.getSteek() + "      mm", font4);
-        labelParagraph4.setSpacingAfter(7.0F);
-        Paragraph labelParagraph5 = new Paragraph("    Aantal Boutgaten:   " + orderSMEDto.getAantalBoutgat() + "                                  Verdeling Boutgaten:     " + orderSMEDto.getVerdlingBoutgaten(), font4);
-        labelParagraph5.setSpacingAfter(7.0F);
-        Paragraph labelParagraph6 = new Paragraph("    Boutgat Diameter:   " + orderSMEDto.getDiameter() + "      mm                    Uitvoering:     " + orderSMEDto.getTypeBoutgat() + "        Maat Verzinking:    " + orderSMEDto.getMaatVerzinking() + "      mm", font4);
-        labelParagraph6.setSpacingAfter(7.0F);
-        Paragraph labelParagraph7 = new Paragraph(String.format("%-49s%-49s", " \n                           ET:     " + orderSMEDto.getEt(), "mm"), font4);
-        labelParagraph7.setSpacingAfter(7.0F);
-        Paragraph labelParagraph8 = new Paragraph(String.format("%-41s%-41s", "    Afstand Voorzijde:     " + orderSMEDto.getAfstandVV(), "mm"), font4);
-        labelParagraph8.setSpacingAfter(7.0F);
-        Paragraph labelParagraph9 = new Paragraph(String.format("%-39s%-39s", " Afstand Achterzijde:     " + orderSMEDto.getAfstandVA(), "mm"), font4);
-        labelParagraph9.setSpacingAfter(7.0F);
-//        Paragraph labelParagraph10 = new Paragraph(String.format("%-43s%-43s", "              Dikte Schijf:     " + orderSMEDto.getDikte(), "mm                   \t                          Doorgezet:                                  Koelgaten:  "), font4);
-//        labelParagraph10.setSpacingAfter(5.0F);
-//        Paragraph labelParagraph11 = new Paragraph(String.format("%-43s%-43s", "                                                                                        Verstevigingsringen:     ", "          Nippel (D/W systeem):  "), font4);
-//        labelParagraph11.setSpacingAfter(5.0F);
-//        Paragraph labelParagraph12 = new Paragraph(String.format("%-43s%-43s", "                                                                                          Ventielbeschermer:     ", "                    " + orderSMEDto.getOptionVentielbeschermer()), font4);
+        labelParagraph2.setSpacingAfter(14.0F);
+        document.add(labelParagraph2);
 
-        //        PdfContentByte cb = writer.getDirectContent();
-//        cb.rectangle(380.0F, 383.0F, 10.0F, 10.0F);
-//        cb.stroke();
-//        if (orderSMEDto.getDoorgezet().equals("JA")) {
-//            cb.moveTo(380.0F, 383.0F);
-//            cb.lineTo(390.0F, 393.0F);
-//            cb.moveTo(380.0F, 393.0F);
-//            cb.lineTo(390.0F, 383.0F);
-//        }
-//
-//        PdfContentByte cb2 = writer.getDirectContent();
-//        cb2.rectangle(380.0F, 363.0F, 10.0F, 10.0F);
-//        cb2.stroke();
-//        if (orderSMEDto.getVerstevigingsringen().equals("JA")) {
-//            cb2.moveTo(380.0F, 363.0F);
-//            cb2.lineTo(390.0F, 373.0F);
-//            cb2.moveTo(380.0F, 373.0F);
-//            cb2.lineTo(390.0F, 363.0F);
-//        }
-//
-//        PdfContentByte cb4 = writer.getDirectContent();
-//        cb4.rectangle(520.0F, 383.0F, 10.0F, 10.0F);
-//        cb4.stroke();
-//        if (orderSMEDto.getKoelgaten().equals("JA")) {
-//            cb4.moveTo(520.0F, 383.0F);
-//            cb4.lineTo(530.0F, 393.0F);
-//            cb4.moveTo(520.0F, 393.0F);
-//            cb4.lineTo(530.0F, 383.0F);
-//        }
-//
-//        PdfContentByte cb5 = writer.getDirectContent();
-//        cb5.rectangle(520.0F, 363.0F, 10.0F, 10.0F);
-//        cb5.stroke();
-//        if (orderSMEDto.getAansluitnippel().equals("JA")) {
-//            cb5.moveTo(520.0F, 363.0F);
-//            cb5.lineTo(530.0F, 373.0F);
-//            cb5.moveTo(520.0F, 373.0F);
-//            cb5.lineTo(530.0F, 363.0F);
-//        }
-//
-//
-//        PdfContentByte cb3 = writer.getDirectContent();
-//        cb3.rectangle(380.0F, 343.0F, 10.0F, 10.0F);
-//        cb3.stroke();
-//        if (orderSMEDto.getVentielbeschermer().equals("JA")) {
-//            cb3.moveTo(380.0F, 343.0F);
-//            cb3.lineTo(390.0F, 353.0F);
-//            cb3.moveTo(380.0F, 353.0F);
-//            cb3.lineTo(390.0F, 343.0F);
-//        }
-//
+        // ---------------- Table 1: Aantal & Omschrijving ----------------
+        PdfPTable table1 = new PdfPTable(2);
+        table1.setWidthPercentage(100);
+        table1.setWidths(new float[]{1, 4});
+        table1.addCell(createRightAlignedTextCell("Aantal:"));
+        table1.addCell(createLeftAlignedTextCell((getFormattedAantal(orders.getAantal()))));
+        table1.addCell(createRightAlignedTextCell("Omschrijving:"));
+        table1.addCell(createLeftAlignedTextCell((orders.getOmsumin())));
+        table1.setSpacingAfter(14f);
+        document.add(table1);
 
+        // ---------------- Table 2: Naafgat, Steelcirkel, Aantal Boutgaten, Verdeling ----------------
+        PdfPTable table2 = new PdfPTable(6);
+        table2.setWidthPercentage(100);
+        table2.setWidths(new float[]{4, 3, 2, 5, 3, 3});
+        table2.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+        // Row 1
+        table2.addCell(createRightAlignedTextCell("Naafgat:"));
+        table2.addCell(createRightAlignedTextCell(orderSMEDto.getNaafgat()));
+        table2.addCell(createTextCell("mm"));
+        table2.addCell(createRightAlignedTextCell("Steelcirkel:"));
+        table2.addCell(createTextCell(orderSMEDto.getSteek()));
+        table2.addCell(createTextCell("mm"));
+        // Row 2
+        table2.addCell(createRightAlignedTextCell("Aantal Boutgaten:"));
+        table2.addCell(createRightAlignedTextCell(orderSMEDto.getAantalBoutgat()));
+        table2.addCell(createLeftAlignedTextCell(""));
+        table2.addCell(createRightAlignedTextCell("Verdeling Boutgaten:"));
+        table2.addCell(createTextCell(orderSMEDto.getVerdlingBoutgaten()));
+        table2.addCell(createTextCell(""));
+        document.add(table2);
+
+        // ---------------- Table 3: Boutgat Diameter, Uitvoering, Maat Verzinking ----------------
+        PdfPTable table3 = new PdfPTable(8);
+        table3.setWidthPercentage(100);
+        table3.setWidths(new float[]{7, 3, 3, 4, 2, 5, 2, 3});
+        table3.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+        table3.addCell(createLeftAlignedTextCell("     Boutgat Diameter:"));
+        table3.addCell(custRightAlignedTextCell(orderSMEDto.getDiameter()));
+        table3.addCell(customeMM("mm"));
+        table3.addCell(custRightAlignedTextCell("Uitvoering:"));
+        table3.addCell(createTextCell(orderSMEDto.getTypeBoutgat()));
+        table3.addCell(createTextCell("Maat Verzinking:"));
+        table3.addCell(createTextCell(orderSMEDto.getMaatVerzinking()));
+        table3.addCell(createLeftAlignedTextCell("  mm"));
+        table3.setSpacingAfter(14f);
+        document.add(table3);
+
+        // ---------------- Table 4: ET, Afstand Voorzijde, Afstand Achterzijde ----------------
+        PdfPTable table4 = new PdfPTable(6);
+        table4.setWidthPercentage(100);
+        table4.setWidths(new float[]{4, 3, 2, 5, 3, 3});
+        table4.getDefaultCell().setBorder(Rectangle.NO_BORDER);
+        // Row 1
+        table4.addCell(createRightAlignedTextCell("ET:"));
+        table4.addCell(createRightAlignedTextCell(orderSMEDto.getEt()));
+        table4.addCell(createTextCell("mm"));
+        table4.addCell(createTextCell(""));
+        table4.addCell(createTextCell(""));
+        table4.addCell(createTextCell(""));
+
+        // Row 2
+        table4.addCell(createRightAlignedTextCell("Afstand Voorzijde:"));
+        table4.addCell(createRightAlignedTextCell(orderSMEDto.getAfstandVV()));
+        table4.addCell(createTextCell("mm"));
+        table4.addCell(createTextCell(""));
+        table4.addCell(createTextCell(""));
+        table4.addCell(createTextCell(""));
+
+        // Row 3
+        table4.addCell(createRightAlignedTextCell("Afstand Achterzijde:"));
+        table4.addCell(createRightAlignedTextCell(orderSMEDto.getAfstandVA()));
+        table4.addCell(createTextCell("mm"));
+        table4.addCell(createTextCell(""));
+        table4.addCell(createTextCell(""));
+        table4.addCell(createTextCell(""));
+
+        document.add(table4);
+
+        // ---------------- Existing Checkboxes Table ----------------
         PdfPTable table = new PdfPTable(4);
         table.setWidthPercentage(60);
         table.setHorizontalAlignment(Element.ALIGN_RIGHT);
         table.setWidths(new float[]{6, 2, 6, 2});
-
         table.addCell(createTextCell("Doorgezet:"));
         table.addCell(createCheckboxCell(orderSMEDto.getDoorgezet().equals("JA")));
-
         table.addCell(createTextCell("Koelgaten:"));
         table.addCell(createCheckboxCell(orderSMEDto.getKoelgaten().equals("JA")));
-
         table.addCell(createTextCell("Verstevigingsringen:"));
         table.addCell(createCheckboxCell(orderSMEDto.getVerstevigingsringen().equals("JA")));
-
         table.addCell(createTextCell("Nippel (D/W systeem):"));
         table.addCell(createCheckboxCell(orderSMEDto.getAansluitnippel().equals("JA")));
-
         table.addCell(createTextCell("Ventielbeschermer:"));
         table.addCell(createCheckboxCell(orderSMEDto.getVentielbeschermer().equals("JA")));
-
         PdfPCell defaultCell = new PdfPCell(new Phrase());
         defaultCell.setBorder(Rectangle.NO_BORDER);
-
         table.addCell(createTextCell(orderSMEDto.getOptionVentielbeschermer()));
         table.addCell(defaultCell);
-
-//        labelParagraph12.setSpacingAfter(15.0F);
-        document.add(labelParagraph2);
-        document.add(labelParagraph3);
-        document.add(labelParagraph4);
-        document.add(labelParagraph5);
-        document.add(labelParagraph6);
-        document.add(labelParagraph7);
-        document.add(labelParagraph8);
-        document.add(labelParagraph9);
-//        document.add(labelParagraph10);
-//        document.add(labelParagraph11);
-//        document.add(labelParagraph12);
-
         table.setSpacingAfter(15.0F);
         document.add(table);
+    }
 
+    private PdfPCell createTextCell(String text) {
+        Font smallFont = new Font(Font.FontFamily.HELVETICA, 10);
+        PdfPCell cell = new PdfPCell(new Phrase(text == null ? "" : text, smallFont));
+        cell.setBorder(Rectangle.NO_BORDER);
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        return cell;
+    }
+
+    private PdfPCell createLeftAlignedTextCell(String text) {
+        Font smallFont = new Font(Font.FontFamily.HELVETICA, 10);
+        PdfPCell cell = new PdfPCell(new Phrase(text == null ? "" : text, smallFont));
+        cell.setBorder(Rectangle.NO_BORDER);
+        cell.setHorizontalAlignment(Element.ALIGN_LEFT);
+        return cell;
+    }
+
+    private PdfPCell createRightAlignedTextCell(String text) {
+        Font smallFont = new Font(Font.FontFamily.HELVETICA, 10);
+        PdfPCell cell = new PdfPCell(new Phrase(text == null ? "" : text, smallFont));
+        cell.setBorder(Rectangle.NO_BORDER);
+        cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        cell.setPaddingRight(8f);
+        cell.setPaddingBottom(12f);
+        return cell;
+    }
+
+
+    private PdfPCell custRightAlignedTextCell(String text) {
+        Font smallFont = new Font(Font.FontFamily.HELVETICA, 10);
+        PdfPCell cell = new PdfPCell(new Phrase(text == null ? "" : text, smallFont));
+        cell.setBorder(Rectangle.NO_BORDER);
+        cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        cell.setPaddingRight(5f);
+        cell.setPaddingBottom(12f);
+        return cell;
+    }
+
+    private PdfPCell customeMM(String text) {
+        Font smallFont = new Font(Font.FontFamily.HELVETICA, 10);
+        PdfPCell cell = new PdfPCell(new Phrase(text == null ? "" : text, smallFont));
+        cell.setBorder(Rectangle.NO_BORDER);
+        cell.setPaddingLeft(5f);
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        return cell;
     }
 
     public String getFormattedAantal(String aantal) {
@@ -587,15 +714,6 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             return aantal.substring(0, aantal.length() - 4);
         }
         return aantal;
-    }
-
-
-    private PdfPCell createTextCell(String text) {
-        Font smallFont = new Font(Font.FontFamily.HELVETICA, 11); // Set font size
-        PdfPCell cell = new PdfPCell(new Phrase(text, smallFont));
-        cell.setBorder(Rectangle.NO_BORDER);
-        cell.setHorizontalAlignment(Element.ALIGN_RIGHT); // Align text to the right
-        return cell;
     }
 
     private PdfPCell createCheckboxCell(boolean isChecked) {
@@ -634,9 +752,10 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         cell2.addElement(textParagraph2);
         table2.addCell(cell2);
         Date currentDate = new Date();
-        SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy");
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
         String formattedDate = sdf.format(currentDate);
-        Paragraph printedDatePara = new Paragraph("Printed:    " + formattedDate);
+        Paragraph printedDatePara = new Paragraph("Afgedrukt op:    " + formattedDate);
+        printedDatePara.setSpacingAfter(12f);
         document.add(table);
         document.add(table2);
         document.add(printedDatePara);
@@ -661,6 +780,8 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
     public byte[] generateSPUPdf(String key) {
         String[] parts = key.split(",");
         OrderSPUDto orderSPUDto = this.getOrderSPU(parts[0], parts[1]);
+        orderServiceImp.getMap().clear();
+
         OrderDto orderDto = (OrderDto) this.orderServiceImp.getMap().get(parts[0] + "," + parts[1]);
 
         try {
@@ -892,45 +1013,69 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         if (orderSPUDto.getPrijscode().equals("")) {
             spacingForAfdeling = "        ";
         }
-        Paragraph labelParagraph4 = new Paragraph("\n                     Stralen: \n Gedeeltelijk Stralen:  \n          Poedercoaten:                                       Prijscode                 Afdeling  \n                       Kitten: \t\t\t\t\t\t\t      \t    \t\t\t\t  \t\t                  \t\t      \t      " + orderSPUDto.getPrijscode() + "                  "+spacingForAfdeling+"" + orderSPUDto.getAfdeling() + " \n                      Primer:  \n                Ontlakken: \n                        Kleur:           RAL:  " + wheelColorDto.getId() + "        Naam Kleur:   " + orderSPUDto.getKleurOmschrijving() + " \n          \t      BlankeLak: \n                   Aflakken:  \n               Nat Lakken:  \n          Verkoop order:  " + orderSPUDto.getOrderNumber() + " \n              Naam Klant:  " + orders.getCustomerName(), font5);
+
+        String toDisplay = "";
+        if (orderSPUDto.getPoedercoaten() != null && orderSPUDto.getPoedercoaten().equals("JA")) {
+            toDisplay = "Poedercoaten";
+        }
+        if (orderSPUDto.getNatLakken() != null && orderSPUDto.getNatLakken().equals("JA")) {
+            toDisplay = "Nat Lakken";
+
+        }
+        Paragraph labelParagraph4 = new Paragraph("\n                     " + toDisplay + " \n                     Stralen: \n Gedeeltelijk Stralen:  \n                  Aflakken:                                       Prijscode                 Afdeling  \n                       Kitten: \t\t\t\t\t\t\t      \t    \t\t\t\t  \t\t                  \t\t      \t      " + orderSPUDto.getPrijscode() + "                  " + spacingForAfdeling + "" + orderSPUDto.getAfdeling() + " \n                      Primer:  \n                Ontlakken: \n                        Kleur:           RAL:  " + wheelColorDto.getId() + "        Naam Kleur:   " + orderSPUDto.getKleurOmschrijving() + " \n          \t      BlankeLak: \n          Verkoop order:  " + orderSPUDto.getOrderNumber() + " \n              Naam Klant:  " + orders.getCustomerName(), font5);
 
 
         int lettrCountForRows = 0;
-        long letterCount = 0;
 
-        if (orders.getOmsumin().length() > 55) {
-            letterCount = orders.getOmsumin().chars()
-                    .filter(Character::isLetter)
-                    .count();
-            if (letterCount >= 18) {
-                lettrCountForRows++;
-            }
+        Rectangle pageSize = document.getPageSize();
+        float contentWidth = pageSize.getWidth() - document.leftMargin() - document.rightMargin();
+
+        float totalParts = 13f + 9f + 63f + 15f;
+        float omschrijvingWidth = contentWidth * (63f / totalParts);
+
+        String text = orders.getOmsumin();
+        int breakIndex = 0;
+        try {
+            breakIndex = getLineBreakIndex(text, FontFamily.HELVETICA, 10f, omschrijvingWidth);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
 
-        PdfContentByte cb = writer.getDirectContent();
-        if (lettrCountForRows <= 0) {
-            cb.rectangle(170.0F, 570.0F, 10.0F, 10.0F);
-        } else {
-            cb.rectangle(170.0F, 560.0F, 10.0F, 10.0F);
-
+        System.out.println("bi: "+breakIndex);
+        if(text.substring(breakIndex) != null && !text.substring(breakIndex).equals("")){
+            ++lettrCountForRows;
         }
-        cb.stroke();
+        System.out.println("Column width points: " + omschrijvingWidth);
+        System.out.println("Line will break at index: " + breakIndex);
+        System.out.println("First line: " + text.substring(0, breakIndex));
+        System.out.println("Remaining: " + text.substring(breakIndex));
 
-        if (orderSPUDto.getStralen().equals("JA")) {
 
-            if (lettrCountForRows > 0) {
-                cb.moveTo(170.0F, 560.0F);
-                cb.lineTo(180.0F, 570.0F);
-                cb.moveTo(170.0F, 570.0F);
-                cb.lineTo(180.0F, 560.0F);
-            } else {
 
-                cb.moveTo(170.0F, 570.0F);
-                cb.lineTo(180.0F, 580.0F);
-                cb.moveTo(170.0F, 580.0F);
-                cb.lineTo(180.0F, 570.0F);
-            }
-        }
+//        PdfContentByte cb = writer.getDirectContent();
+//        if (lettrCountForRows <= 0) {
+//            cb.rectangle(170.0F, 570.0F, 10.0F, 10.0F);
+//        } else {
+//            cb.rectangle(170.0F, 560.0F, 10.0F, 10.0F);
+//
+//        }
+//        cb.stroke();
+//
+//        if (orderSPUDto.getStralen().equals("JA")) {
+//
+//            if (lettrCountForRows > 0) {
+//                cb.moveTo(170.0F, 560.0F);
+//                cb.lineTo(180.0F, 570.0F);
+//                cb.moveTo(170.0F, 570.0F);
+//                cb.lineTo(180.0F, 560.0F);
+//            } else {
+//
+//                cb.moveTo(170.0F, 570.0F);
+//                cb.lineTo(180.0F, 580.0F);
+//                cb.moveTo(170.0F, 580.0F);
+//                cb.lineTo(180.0F, 570.0F);
+//            }
+//        }
 
         PdfContentByte cb2 = writer.getDirectContent();
         if (lettrCountForRows <= 0) {
@@ -939,7 +1084,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             cb2.rectangle(170.0F, 540.0F, 10.0F, 10.0F);
         }
         cb2.stroke();
-        if (orderSPUDto.getStralenGedeeltelijk().equals("JA")) {
+        if (orderSPUDto.getStralen().equals("JA")) {
 
             if (lettrCountForRows > 0) {
                 cb2.moveTo(170.0F, 540.0F);
@@ -954,6 +1099,51 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             }
         }
 
+
+//        PdfContentByte cb3 = writer.getDirectContent();
+//        if (lettrCountForRows <= 0) {
+//            cb3.rectangle(170.0F, 531.0F, 10.0F, 10.0F);
+//        } else {
+//            cb3.rectangle(170.0F, 521.0F, 10.0F, 10.0F);
+//        }
+//        cb3.stroke();
+//        if (orderSPUDto.getPoedercoaten().equals("JA")) {
+//
+//            if (lettrCountForRows > 0) {
+//                cb3.moveTo(170.0F, 521.0F);
+//                cb3.lineTo(180.0F, 531.0F);
+//                cb3.moveTo(170.0F, 531.0F);
+//                cb3.lineTo(180.0F, 521.0F);
+//            } else {
+//                cb3.moveTo(170.0F, 531.0F);
+//                cb3.lineTo(180.0F, 541.0F);
+//                cb3.moveTo(170.0F, 541.0F);
+//                cb3.lineTo(180.0F, 531.0F);
+//            }
+//        }
+
+//        PdfContentByte cb9 = writer.getDirectContent();
+//        if (lettrCountForRows <= 0) {
+//            cb9.rectangle(170.0F, 416.0F, 10.0F, 10.0F);
+//        } else {
+//            cb9.rectangle(170.0F, 406.0F, 10.0F, 10.0F);
+//        }
+//        cb9.stroke();
+//        if (orderSPUDto.getAflakken().equals("JA")) {
+//
+//            if (lettrCountForRows > 0) {
+//                cb9.moveTo(170.0F, 406.0F);
+//                cb9.lineTo(180.0F, 416.0F);
+//                cb9.moveTo(170.0F, 416.0F);
+//                cb9.lineTo(180.0F, 406.0F);
+//            } else {
+//                cb9.moveTo(170.0F, 416.0F);
+//                cb9.lineTo(180.0F, 426.0F);
+//                cb9.moveTo(170.0F, 426.0F);
+//                cb9.lineTo(180.0F, 416.0F);
+//            }
+//        }
+
         PdfContentByte cb3 = writer.getDirectContent();
         if (lettrCountForRows <= 0) {
             cb3.rectangle(170.0F, 531.0F, 10.0F, 10.0F);
@@ -961,7 +1151,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             cb3.rectangle(170.0F, 521.0F, 10.0F, 10.0F);
         }
         cb3.stroke();
-        if (orderSPUDto.getPoedercoaten().equals("JA")) {
+        if (orderSPUDto.getStralenGedeeltelijk().equals("JA")) {
 
             if (lettrCountForRows > 0) {
                 cb3.moveTo(170.0F, 521.0F);
@@ -983,7 +1173,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             cb4.rectangle(170.0F, 502.0F, 10.0F, 10.0F);
         }
         cb4.stroke();
-        if (orderSPUDto.getKitten().equals("JA")) {
+        if (orderSPUDto.getAflakken().equals("JA")) {
 
             if (lettrCountForRows > 0) {
                 cb4.moveTo(170.0F, 502.0F);
@@ -1005,7 +1195,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             cb5.rectangle(170.0F, 483.0F, 10.0F, 10.0F);
         }
         cb5.stroke();
-        if (orderSPUDto.getPrimer().equals("JA")) {
+        if (orderSPUDto.getKitten().equals("JA")) {
 
             if (lettrCountForRows > 0) {
                 cb5.moveTo(170.0F, 483.0F);
@@ -1027,7 +1217,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             cb6.rectangle(170.0F, 464.0F, 10.0F, 10.0F);
         }
         cb6.stroke();
-        if (orderSPUDto.getOntlakken().equals("JA")) {
+        if (orderSPUDto.getPrimer().equals("JA")) {
 
             if (lettrCountForRows > 0) {
                 cb6.moveTo(170.0F, 464.0F);
@@ -1049,7 +1239,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             cb7.rectangle(170.0F, 445.0F, 10.0F, 10.0F);
         }
         cb7.stroke();
-        if (orderSPUDto.getKleurOmschrijving() != null) {
+        if (orderSPUDto.getOntlakken().equals("JA")) {
 
             if (lettrCountForRows > 0) {
                 cb7.moveTo(170.0F, 445.0F);
@@ -1071,7 +1261,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             cb8.rectangle(170.0F, 425.0F, 10.0F, 10.0F);
         }
         cb8.stroke();
-        if (orderSPUDto.getBlankeLak().equals("JA")) {
+        if (orderSPUDto.getKleurOmschrijving() != null) {
 
             if (lettrCountForRows > 0) {
                 cb8.moveTo(170.0F, 425.0F);
@@ -1085,7 +1275,6 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
                 cb8.lineTo(180.0F, 435.0F);
             }
         }
-
         PdfContentByte cb9 = writer.getDirectContent();
         if (lettrCountForRows <= 0) {
             cb9.rectangle(170.0F, 416.0F, 10.0F, 10.0F);
@@ -1093,7 +1282,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             cb9.rectangle(170.0F, 406.0F, 10.0F, 10.0F);
         }
         cb9.stroke();
-        if (orderSPUDto.getAflakken().equals("JA")) {
+        if (orderSPUDto.getBlankeLak().equals("JA")) {
 
             if (lettrCountForRows > 0) {
                 cb9.moveTo(170.0F, 406.0F);
@@ -1107,28 +1296,27 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
                 cb9.lineTo(180.0F, 416.0F);
             }
         }
-
-        PdfContentByte cb10 = writer.getDirectContent();
-        if (lettrCountForRows <= 0) {
-            cb10.rectangle(170.0F, 397.0F, 10.0F, 10.0F);
-        } else {
-            cb10.rectangle(170.0F, 387.0F, 10.0F, 10.0F);
-        }
-        cb10.stroke();
-        if (orderSPUDto.getNatLakken().equals("JA")) {
-
-            if (lettrCountForRows > 0) {
-                cb10.moveTo(170.0F, 387.0F);
-                cb10.lineTo(180.0F, 397.0F);
-                cb10.moveTo(170.0F, 397.0F);
-                cb10.lineTo(180.0F, 387.0F);
-            } else {
-                cb10.moveTo(170.0F, 397.0F);
-                cb10.lineTo(180.0F, 407.0F);
-                cb10.moveTo(170.0F, 407.0F);
-                cb10.lineTo(180.0F, 397.0F);
-            }
-        }
+//        PdfContentByte cb10 = writer.getDirectContent();
+//        if (lettrCountForRows <= 0) {
+//            cb10.rectangle(170.0F, 397.0F, 10.0F, 10.0F);
+//        } else {
+//            cb10.rectangle(170.0F, 387.0F, 10.0F, 10.0F);
+//        }
+//        cb10.stroke();
+//        if (orderSPUDto.getBlankeLak().equals("JA")) {
+//
+//            if (lettrCountForRows > 0) {
+//                cb10.moveTo(170.0F, 387.0F);
+//                cb10.lineTo(180.0F, 397.0F);
+//                cb10.moveTo(170.0F, 397.0F);
+//                cb10.lineTo(180.0F, 387.0F);
+//            } else {
+//                cb10.moveTo(170.0F, 397.0F);
+//                cb10.lineTo(180.0F, 407.0F);
+//                cb10.moveTo(170.0F, 407.0F);
+//                cb10.lineTo(180.0F, 397.0F);
+//            }
+//        }
 
         labelParagraph4.setSpacingAfter(30.0F);
         document.add(productTable);
@@ -1154,6 +1342,143 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         return cell;
     }
 
+//    public static int getLineBreakIndex(String text, Font.FontFamily fontFamily, float fontSize, float maxWidthPoints) throws Exception {
+//        BaseFont baseFont = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED);
+//        float accumulatedWidth = 0f;
+//
+//        for (int i = 0; i < text.length(); i++) {
+//            char ch = text.charAt(i);
+//            float charWidth = baseFont.getWidthPoint(String.valueOf(ch), fontSize);
+//            if (accumulatedWidth + charWidth > maxWidthPoints) {
+//                return i; // Break here
+//            }
+//            accumulatedWidth += charWidth;
+//        }
+//        return text.length(); // No break needed
+//    }
+
+
+
+//    public static int getLineBreakIndex(String text, Font.FontFamily fontFamily, float fontSize, float maxWidthPoints) throws Exception {
+//        BaseFont baseFont = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED);
+//
+//        float accumulatedWidth = 0f;
+//        int lastSpaceIndex = -1;
+//        float tolerance = 0.0f; // we now handle half-space logic separately
+//
+//        for (int i = 0; i < text.length(); i++) {
+//            char ch = text.charAt(i);
+//            float charWidth = baseFont.getWidthPoint(String.valueOf(ch), fontSize);
+//
+//            // If adding this char exceeds max width, break
+//            if (accumulatedWidth + charWidth > maxWidthPoints - tolerance) {
+//                return (lastSpaceIndex != -1) ? lastSpaceIndex : i;
+//            }
+//
+//            accumulatedWidth += charWidth;
+//
+//            // Handle space: look ahead to see if next word will fit
+//            if (Character.isWhitespace(ch)) {
+//                lastSpaceIndex = i;
+//
+//                // Look ahead to next word
+//                int j = i + 1;
+//                float nextWordWidth = 0f;
+//                while (j < text.length() && !Character.isWhitespace(text.charAt(j))) {
+//                    nextWordWidth += baseFont.getWidthPoint(String.valueOf(text.charAt(j)), fontSize);
+//                    j++;
+//                }
+//
+//                // If space + half of it + next word won't fit, break here
+//                if (accumulatedWidth + nextWordWidth > maxWidthPoints - (charWidth / 2f)) {
+//                    return lastSpaceIndex;
+//                }
+//            }
+//        }
+//        return text.length();
+//    }
+
+
+//    public static int getLineBreakIndex(String text, Font.FontFamily fontFamily, float fontSize, float maxWidthPoints) throws Exception {
+//        BaseFont baseFont = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED);
+//
+//        float accumulatedWidth = 0f;
+//        int lastSpaceIndex = -1;
+//        float tolerance = 0.0f; // keeping zero here, we handle it via charWidth adjustment
+//
+//        for (int i = 0; i < text.length(); i++) {
+//            char ch = text.charAt(i);
+//            float charWidth = baseFont.getWidthPoint(String.valueOf(ch), fontSize);
+//
+//            // If adding this char exceeds max width, break
+//            if (accumulatedWidth + charWidth > maxWidthPoints - tolerance) {
+//                return (lastSpaceIndex != -1) ? lastSpaceIndex : i;
+//            }
+//
+//            accumulatedWidth += charWidth;
+//
+//            // Handle space: look ahead to see if next word will fit
+//            if (Character.isWhitespace(ch)) {
+//                lastSpaceIndex = i;
+//
+//                // Look ahead to next word
+//                int j = i + 1;
+//                float nextWordWidth = 0f;
+//                while (j < text.length() && !Character.isWhitespace(text.charAt(j))) {
+//                    nextWordWidth += baseFont.getWidthPoint(String.valueOf(text.charAt(j)), fontSize);
+//                    j++;
+//                }
+//
+//                // If space + full of it + next word won't fit, break here
+//                if (accumulatedWidth + nextWordWidth > maxWidthPoints - charWidth) {
+//                    return lastSpaceIndex;
+//                }
+//            }
+//        }
+//        return text.length();
+//    }
+
+    public static int getLineBreakIndex(String text, Font.FontFamily fontFamily, float fontSize, float maxWidthPoints) throws Exception {
+        BaseFont baseFont = BaseFont.createFont(BaseFont.HELVETICA, BaseFont.WINANSI, BaseFont.NOT_EMBEDDED);
+
+        float accumulatedWidth = 0f;
+        int lastSpaceIndex = -1;
+
+        // Minimal change: use one space width as an extra safety margin.
+        float spaceWidth = baseFont.getWidthPoint("  ", fontSize);
+        // You can increase this multiplier (e.g. 1.2f) if you still see misses.
+        float extraMargin = spaceWidth * 1.0f;
+
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            float charWidth = baseFont.getWidthPoint(String.valueOf(ch), fontSize);
+
+            // Check against a slightly narrower threshold (subtract extraMargin)
+            if (accumulatedWidth + charWidth > maxWidthPoints - extraMargin) {
+                return (lastSpaceIndex != -1) ? lastSpaceIndex : i;
+            }
+
+            accumulatedWidth += charWidth;
+
+            if (Character.isWhitespace(ch)) {
+                lastSpaceIndex = i;
+
+                // Look ahead to next word
+                int j = i + 1;
+                float nextWordWidth = 0f;
+                while (j < text.length() && !Character.isWhitespace(text.charAt(j))) {
+                    nextWordWidth += baseFont.getWidthPoint(String.valueOf(text.charAt(j)), fontSize);
+                    j++;
+                }
+
+                // Use same narrower threshold for deciding break at space
+                if (accumulatedWidth + nextWordWidth > maxWidthPoints - extraMargin) {
+                    return lastSpaceIndex;
+                }
+            }
+        }
+        return text.length();
+    }
 
     private void addSPUSections(PdfWriter writer, Document document, OrderSPUDto orderSPUDto, OrderDto orderDto) throws DocumentException {
         Font font4 = new Font(FontFamily.HELVETICA, 10.0F);
@@ -1183,9 +1508,10 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         cell2.addElement(textParagraph2);
         table2.addCell(cell2);
         Date currentDate = new Date();
-        SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy");
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
         String formattedDate = sdf.format(currentDate);
-        Paragraph printedDatePara = new Paragraph("Printed:    " + formattedDate);
+        Paragraph printedDatePara = new Paragraph("Afgedrukt op:    " + formattedDate);
+        printedDatePara.setSpacingAfter(12f);
         document.add(table);
         document.add(table2);
         document.add(printedDatePara);

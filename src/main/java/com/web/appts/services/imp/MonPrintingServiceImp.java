@@ -3,12 +3,7 @@ package com.web.appts.services.imp;
 
 import com.itextpdf.text.*;
 import com.itextpdf.text.Font.FontFamily;
-import com.itextpdf.text.pdf.Barcode128;
-import com.itextpdf.text.pdf.BaseFont;
-import com.itextpdf.text.pdf.PdfContentByte;
-import com.itextpdf.text.pdf.PdfPCell;
-import com.itextpdf.text.pdf.PdfPTable;
-import com.itextpdf.text.pdf.PdfWriter;
+import com.itextpdf.text.pdf.*;
 import com.web.appts.DTO.OrderDto;
 
 import java.io.ByteArrayOutputStream;
@@ -57,7 +52,7 @@ public class MonPrintingServiceImp {
                 this.addBloeHeadingAndInfo(writer, document, "Klantnaam", orderList);
                 this.addOrdersTable(document, orderList);
                 this.addOptions(writer, document, orderList);
-                this.addSections(document);
+                this.addSectionsAtFixedPosition(writer);
                 System.out.println("Closing Document");
                 document.close();
                 var7 = outputStream.toByteArray();
@@ -139,18 +134,14 @@ public class MonPrintingServiceImp {
         Paragraph paragraphL1 = new Paragraph(String.format("%-12s%-12s", heading + ":", ((OrderDto) list.get(0)).getCustomerName()), font4);
 
         paragraphL1.setAlignment(Element.ALIGN_CENTER);
-        //        Paragraph paragraphL2 = new Paragraph(String.format("%-23s%-23s", "", "Rustvenseweg 2"), font4);
-        //        Paragraph paragraphL3 = new Paragraph(String.format("%-23s%-23s", "", "5375 KW REEK"), font4);
-        //        paragraphL2.setAlignment(0);
-        //        paragraphL3.setAlignment(0);
+
         cell2.addElement(paragraphL1);
-//        cell2.addElement(paragraphL2);
-//        cell2.addElement(paragraphL3);
+
         cell2.setBorder(0);
         cell2.setHorizontalAlignment(Element.ALIGN_CENTER);
         mainTable.addCell(cell2);
         PdfPCell cell3 = new PdfPCell();
-        Paragraph paragraphR1 = new Paragraph(String.format("%-10s%-10s", "Oplegger: ", ((OrderDto) list.get(0)).getOrderNumber()), font4);
+        Paragraph paragraphR1 = new Paragraph(String.format("%-10s%-10s", "Verkooporder: ", ((OrderDto) list.get(0)).getOrderNumber()), font4);
         Paragraph paragraphR2 = new Paragraph(String.format("%-10s%-10s", "Behandelaar: ", ((OrderDto) list.get(0)).getUser()), font4);
         Paragraph paragraphR3 = new Paragraph(String.format("%-10s%-10s", "Leverdatum: ", ((OrderDto) list.get(0)).getDeliveryDate()), font4);
         paragraphR1.setAlignment(2);
@@ -165,85 +156,20 @@ public class MonPrintingServiceImp {
         document.add(mainTable);
     }
 
-//    private void addOrdersTable(Document document, List<OrderDto> orderList) throws DocumentException {
-//        PdfPTable table = new PdfPTable(4);
-//        table.setWidthPercentage(100.0F);
-//        float[] columnWidths = new float[]{11.0F, 11.0F, 18.0F, 60.0F};
-//        table.setWidths(columnWidths);
-//        table.setSpacingBefore(3.0F);
-//        table.setSpacingAfter(250.0F);
-//        Font font2 = new Font(FontFamily.HELVETICA, 10.0F);
-//        Font font3 = new Font(FontFamily.HELVETICA, 10.0F, 1);
-//        PdfPCell headerCell = this.createHeaderCell("Rgl", font3);
-//        PdfPCell headerCell2 = this.createHeaderCell("Best", font3);
-//        PdfPCell headerCell3 = this.createHeaderCell("Product", font3);
-//        PdfPCell headerCell4 = this.createHeaderCell("Omschrijving", font3);
-//        table.addCell(headerCell);
-//        table.addCell(headerCell2);
-//        table.addCell(headerCell3);
-//        table.addCell(headerCell4);
-//
-//        orderList.sort(Comparator.comparing(order -> Integer.parseInt(order.getRegel())));
-//
-//        for (int i = 0; i < orderList.size(); ++i) {
-//            if (i < orderList.size()) {
-//                List<MonSubOrders> list = orderList.get(i).getMonSubOrders();
-//
-//                PdfPCell cell1 = this.createCell(((OrderDto) orderList.get(i)).getRegel(), font2);
-//                PdfPCell cell2 = this.createCell(((OrderDto) orderList.get(i)).getAantal(), font2);
-//                PdfPCell cell3 = this.createCell(((OrderDto) orderList.get(i)).getProduct(), font2);
-//
-//                if(list.size() != 0){
-//
-//                }
-//
-//                PdfPCell cell4 = this.createCell(((OrderDto) orderList.get(i)).getOmsumin(), font2);
-//
-//
-//                table.addCell(cell1);
-//                table.addCell(cell2);
-//                table.addCell(cell3);
-//                table.addCell(cell4);
-//                cell1.setFixedHeight(20.0F);
-//                cell2.setFixedHeight(20.0F);
-//                cell3.setFixedHeight(20.0F);
-//                cell4.setFixedHeight(20.0F);
-//            }
-//        }
-//
-//        document.add(table);
-//    }
-//
-//    private PdfPCell createHeaderCell(String text, Font font) {
-//        PdfPCell headerCell = new PdfPCell(new Phrase(text, font));
-//        headerCell.setBackgroundColor(BaseColor.LIGHT_GRAY);
-//        headerCell.setHorizontalAlignment(1);
-//        headerCell.setBorderWidth(0.3F);
-//        headerCell.setPadding(2.0F);
-//        return headerCell;
-//    }
-//
-//    private PdfPCell createCell(String text, Font font) {
-//        PdfPCell cell = new PdfPCell(new Phrase(text, font));
-//        cell.setHorizontalAlignment(1);
-//        cell.setVerticalAlignment(5);
-//        cell.setBorderWidth(0.3F);
-//        cell.setPadding(2.0F);
-//        return cell;
-//    }
 
     private void addOrdersTable(Document document, List<OrderDto> orderList) throws DocumentException {
 
         PdfPTable table = new PdfPTable(4);
+        table.setKeepTogether(false);
+        table.setSplitLate(false);
+        table.setSplitRows(true);
+
         table.setWidthPercentage(100.0F);
         float[] columnWidths = new float[]{4.0F, 5.0F, 11.0F, 80.0F};
         table.setWidths(columnWidths);
-        //table.setSpacingBefore(3.0F);
-        //table.setSpacingAfter(250.0F);
 
         Font font2 = new Font(FontFamily.HELVETICA, 10.0F);
         Font font3 = new Font(FontFamily.HELVETICA, 10.0F, 1);
-        //Font font4 = new Font(FontFamily.HELVETICA, 8.0F);
         PdfPCell headerCell = this.createHeaderCell("Rgl", font3);
         PdfPCell headerCell2 = this.createHeaderCell("Best", font3);
         PdfPCell headerCell3 = this.createHeaderCell("Product", font3);
@@ -256,6 +182,8 @@ public class MonPrintingServiceImp {
         orderList.sort(Comparator.comparing(order -> Integer.parseInt(order.getRegel())));
         Stack<Integer> orderTrack = new Stack<>();
         for (int i = 0; i < orderList.size(); ++i) {
+//        for (int i = 0; i < 9; ++i) {
+
             Boolean isRepeat = false;
             if (!orderTrack.empty() && orderTrack.peek() == i) {
                 isRepeat = true;
@@ -271,10 +199,10 @@ public class MonPrintingServiceImp {
                 PdfPCell cell4;
                 if (!isRepeat) {
                     String[] aantal;
-                    if(orderList.get(i).getAantal().contains(".")){
+                    if (orderList.get(i).getAantal().contains(".")) {
                         aantal = orderList.get(i).getAantal().split("\\.");
                         cell2 = this.createCell(aantal[0], font2);
-                    } else{
+                    } else {
                         cell2 = this.createCell(((OrderDto) orderList.get(i)).getAantal(), font2);
                     }
                     cell1 = this.createCell(((OrderDto) orderList.get(i)).getRegel(), font2);
@@ -282,7 +210,7 @@ public class MonPrintingServiceImp {
                     if (orderList.get(i).getTekst() != null && !orderList.get(i).getTekst().isEmpty()) {
                         cell4 = this.createCellWithNewLine(((OrderDto) orderList.get(i)).getOmsumin(), orderList.get(i).getTekst(), font2);
                     } else {
-                        cell4 = this.createCell(((OrderDto) orderList.get(i)).getOmsumin(), font2);
+                        cell4 = this.createCellOms(((OrderDto) orderList.get(i)).getOmsumin(), font2);
                     }
                 } else {
                     cell1 = this.createCell("", font2);
@@ -291,8 +219,6 @@ public class MonPrintingServiceImp {
                     cell4 = this.createCell("", font2);
                 }
 
-                // If MonSubOrders list is not empty, create a nested table inside this cell
-
                 if (list.size() != 0 && !isRepeat) {
                     --i;
                     table.addCell(cell1);
@@ -300,7 +226,6 @@ public class MonPrintingServiceImp {
                     table.addCell(cell3);
                     table.addCell(cell4);
 
-                    // Set fixed height for all cells
                     cell1.setFixedHeight(20.0F);
                     cell2.setFixedHeight(20.0F);
                     cell3.setFixedHeight(20.0F);
@@ -311,19 +236,18 @@ public class MonPrintingServiceImp {
 
                 if (list.size() != 0 && isRepeat) {
                     orderTrack.pop();
-                    PdfPTable nestedTable = new PdfPTable(3); // 3 columns for Best, Product, and Description
+                    PdfPTable nestedTable = new PdfPTable(3);
                     nestedTable.setWidthPercentage(100.0F);
-                    float[] nestedColumnWidths = new float[]{6.0F, 12.0F, 82.0F}; // Distribute space equally for the 3 columns
+                    float[] nestedColumnWidths = new float[]{6.0F, 12.0F, 82.0F};
                     nestedTable.setWidths(nestedColumnWidths);
                     nestedTable.getDefaultCell().setBorder(Rectangle.NO_BORDER);
-                    // Iterate over the list and add rows to the nested table
                     for (MonSubOrders subOrder : list) {
                         PdfPCell nestedCell1 = null;
                         String[] aantal;
-                        if(orderList.get(i).getAantal().contains(".")){
+                        if (orderList.get(i).getAantal().contains(".")) {
                             aantal = orderList.get(i).getAantal().split("\\.");
                             nestedCell1 = this.createCell(aantal[0], font2);
-                        } else{
+                        } else {
                             nestedCell1 = this.createCell(subOrder.getAantal(), font2);
                         }
                         PdfPCell nestedCell2 = this.createCell(subOrder.getProduct(), font2);
@@ -331,37 +255,34 @@ public class MonPrintingServiceImp {
                         nestedCell1.setBorder(Rectangle.RIGHT | Rectangle.BOTTOM);
                         nestedCell2.setBorder(Rectangle.RIGHT | Rectangle.BOTTOM);
                         nestedCell3.setBorder(Rectangle.BOTTOM);
-                        nestedTable.addCell(nestedCell1); // Best
-                        nestedTable.addCell(nestedCell2); // Product
-                        nestedTable.addCell(nestedCell3); // Description
+                        nestedTable.addCell(nestedCell1);
+                        nestedTable.addCell(nestedCell2);
+                        nestedTable.addCell(nestedCell3);
                     }
 
-                    // Add the nested table inside the regular cell
-                    cell4.addElement(nestedTable); // Add the nested table to the Omsumin cell
+                    cell4.addElement(nestedTable);
                 }
 
-                // Add the cells to the main table
                 table.addCell(cell1);
                 table.addCell(cell2);
                 table.addCell(cell3);
                 table.addCell(cell4);
 
-                // Set fixed height for all cells
                 cell1.setFixedHeight(20.0F);
                 cell2.setFixedHeight(20.0F);
                 cell3.setFixedHeight(20.0F);
                 cell4.setFixedHeight(20.0F);
             }
         }
-//        table.getDefaultCell().setBorder(Rectangle.TOP);
 
-        PdfPTable outerTable = new PdfPTable(1); // Single column to wrap the table
+        PdfPTable outerTable = new PdfPTable(1);
         outerTable.setWidthPercentage(100.0f);
 
 
-        PdfPCell tableWrapper = new PdfPCell(table); // Add the table directly to a cell
+        PdfPCell tableWrapper = new PdfPCell(table);
+//        tableWrapper.setPaddingBottom(270f);
 
-        tableWrapper.setPaddingBottom(270f);
+        tableWrapper.setPaddingBottom(0f);
         tableWrapper.setBorder(Rectangle.NO_BORDER);
         outerTable.addCell(tableWrapper);
 
@@ -386,26 +307,31 @@ public class MonPrintingServiceImp {
         return cell;
     }
 
+    private PdfPCell createCellOms(String text, Font font) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, font));
+        cell.setHorizontalAlignment(Element.ALIGN_LEFT);  // Align text to the left
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);  // Optional: aligns text vertically to middle
+        cell.setBorderWidth(0.3F);
+        cell.setPadding(2.0F);
+        return cell;
+    }
+
     private PdfPCell createCellWithNewLine(String text, String text2, Font font) {
-        // Create a centered paragraph for text1
         Paragraph paragraph1 = new Paragraph(text, font);
         paragraph1.setAlignment(Element.ALIGN_CENTER);
 
-        // Create a smaller, left-aligned paragraph for text2, starting on a new line
-        Font smallerFont = new Font(font.getFamily(), font.getSize() - 1, font.getStyle()); // Reduce font size
+        Font smallerFont = new Font(font.getFamily(), font.getSize() - 1, font.getStyle());
         Paragraph paragraph2 = new Paragraph(text2, smallerFont);
         paragraph2.setAlignment(Element.ALIGN_LEFT);
-        paragraph2.setSpacingBefore(5); // Add some spacing before text2 for better readability
+        paragraph2.setSpacingBefore(5);
 
-        // Combine paragraphs into a single Phrase
         Phrase phrase = new Phrase();
-        phrase.add(paragraph1);  // Add centered text
-        phrase.add(new Chunk("\n")); // Explicit new line
-        phrase.add(paragraph2);  // Add left-aligned text on a new line
+        phrase.add(paragraph1);
+        phrase.add(new Chunk("\n"));
+        phrase.add(paragraph2);
 
-        // Create the cell
         PdfPCell cell = new PdfPCell(phrase);
-        cell.setVerticalAlignment(Element.ALIGN_MIDDLE); // Align content vertically
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
         cell.setBorderWidth(0.3F);
         cell.setPadding(2.0F);
 
@@ -413,444 +339,13 @@ public class MonPrintingServiceImp {
     }
 
 
-
-//    private PdfPCell createCellWithNewLine(String text, String text2, Font font) {
-//        Phrase phrase = new Phrase();
-//        phrase.add(text);
-//        phrase.add(Chunk.NEWLINE);
-//        phrase.add(text2);
-//
-//        PdfPCell cell = new PdfPCell(phrase);
-//        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
-//        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-//        cell.setBorderWidth(0.3F);
-//        cell.setPadding(2.0F);
-//        return cell;
-//    }
-
-
     private void addOptions(PdfWriter writer, Document document, List<OrderDto> orderList) throws DocumentException {
 
-//        int lettrCountForRows = 0;
-//        long letterCount = 0;
-//
-//        for (OrderDto order : orderList) {
-//            if (order.getOmsumin().length() > 52) {
-//                letterCount = order.getOmsumin().chars()
-//                        .filter(Character::isLetter)
-//                        .count();
-//                if (letterCount >= 24) {
-//                    lettrCountForRows++;
-//                }
-//            }
-//        }
-//
-//        Boolean isSub = false;
-//        for (OrderDto order : orderList) {
-//            if (order.getMonSubOrders().size() > 0) {
-//                isSub = true;
-//                lettrCountForRows = lettrCountForRows + order.getMonSubOrders().size();
-//            }
-//        }
-//
-//        for (OrderDto order : orderList) {
-//            if (order.getTekst() != null) {
-//                lettrCountForRows++;
-//            }
-//        }
-//
-//
-//        Font font3 = new Font(FontFamily.HELVETICA, 10.0F, 1);
-//        Font font4 = new Font(FontFamily.HELVETICA, 10.0F);
-//        PdfContentByte cb = writer.getDirectContent();
-//        float cb1Y1 = 311.0F;
-//        float cb2Y2 = 251.0F;
-//        float cb3Y3 = 341.0F;
-//        float cb4Y4 = 311.0F;
-//        float cb5Y5 = 281.0F;
-//        float cb6Y6 = 251.0F;
-//
-//        if (orderList.size() == 1) {
-//
-//            cb1Y1 -= 10.5F;
-//            cb2Y2 -= 10.5F;
-//            cb3Y3 -= 10.5F;
-//            cb4Y4 -= 10.5F;
-//            cb5Y5 -= 10.5F;
-//            cb6Y6 -= 10.5F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 13;
-//                if (isSub) {
-//                    lettrCountForRows += 20;
-//                } else {
-//                    lettrCountForRows -= 20;
-//                }
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            } else {
-//                cb1Y1 += 15.5F;
-//                cb2Y2 += 15.5F;
-//                cb3Y3 += 15.5F;
-//                cb4Y4 += 15.5F;
-//                cb5Y5 += 15.5F;
-//                cb6Y6 += 15.5F;
-//            }
-//        }
-//
-//        if (orderList.size() == 2) {
-//            cb1Y1 -= 13.5F;
-//            cb2Y2 -= 13.5F;
-//            cb3Y3 -= 13.5F;
-//            cb4Y4 -= 13.5F;
-//            cb5Y5 -= 13.5F;
-//            cb6Y6 -= 13.5F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 20;
-//                if (isSub) {
-//                    lettrCountForRows += 20;
-//                }
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            }
-//        }
-//
-//
-//        if (orderList.size() == 3) {
-//            cb1Y1 -= 28.5F;
-//            cb2Y2 -= 28.5F;
-//            cb3Y3 -= 28.5F;
-//            cb4Y4 -= 28.5F;
-//            cb5Y5 -= 28.5F;
-//            cb6Y6 -= 28.5F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 20;
-//
-//                if (isSub) {
-//                    lettrCountForRows += 20;
-//                }
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            }
-//        }
-//
-//        if (orderList.size() == 4) {
-//            cb1Y1 -= 42.5F;
-//            cb2Y2 -= 42.5F;
-//            cb3Y3 -= 42.5F;
-//            cb4Y4 -= 42.5F;
-//            cb5Y5 -= 42.5F;
-//            cb6Y6 -= 42.5F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 20;
-//                if (isSub) {
-//                    lettrCountForRows += 20;
-//                }
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            }
-//        }
-//
-//        if (orderList.size() == 5) {
-//            cb1Y1 -= 57.0F;
-//            cb2Y2 -= 57.0F;
-//            cb3Y3 -= 57.0F;
-//            cb4Y4 -= 57.0F;
-//            cb5Y5 -= 57.0F;
-//            cb6Y6 -= 57.0F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 20;
-//                if (isSub) {
-//                    lettrCountForRows += 20;
-//                }
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            }
-//        }
-//
-//        if (orderList.size() == 6) {
-//            cb1Y1 -= 72.0F;
-//            cb2Y2 -= 72.0F;
-//            cb3Y3 -= 72.0F;
-//            cb4Y4 -= 72.0F;
-//            cb5Y5 -= 72.0F;
-//            cb6Y6 -= 72.0F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 20;
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            }
-//        }
-//
-//        if (orderList.size() == 7) {
-//            cb1Y1 -= 93.0F;
-//            cb2Y2 -= 93.0F;
-//            cb3Y3 -= 93.0F;
-//            cb4Y4 -= 93.0F;
-//            cb5Y5 -= 93.0F;
-//            cb6Y6 -= 93.0F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 20;
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            }
-//        }
-//
-//        if (orderList.size() == 8) {
-//            cb1Y1 -= 113.0F;
-//            cb2Y2 -= 113.0F;
-//            cb3Y3 -= 113.0F;
-//            cb4Y4 -= 113.0F;
-//            cb5Y5 -= 113.0F;
-//            cb6Y6 -= 113.0F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 20;
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            }
-//        }
-//
-//        if (orderList.size() == 9) {
-//            cb1Y1 -= 134.0F;
-//            cb2Y2 -= 134.0F;
-//            cb3Y3 -= 134.0F;
-//            cb4Y4 -= 134.0F;
-//            cb5Y5 -= 134.0F;
-//            cb6Y6 -= 134.0F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 20;
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            }
-//        }
-//
-//        if (orderList.size() == 10) {
-//            cb1Y1 -= 155.0F;
-//            cb2Y2 -= 155.0F;
-//            cb3Y3 -= 155.0F;
-//            cb4Y4 -= 155.0F;
-//            cb5Y5 -= 155.0F;
-//            cb6Y6 -= 155.0F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 20;
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            }
-//        }
-//
-//        if (orderList.size() == 11) {
-//            cb1Y1 -= 175.0F;
-//            cb2Y2 -= 175.0F;
-//            cb3Y3 -= 175.0F;
-//            cb4Y4 -= 175.0F;
-//            cb5Y5 -= 175.0F;
-//            cb6Y6 -= 175.0F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 20;
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            }
-//        }
-//
-//        if (orderList.size() == 12) {
-//            cb1Y1 -= 195.0F;
-//            cb2Y2 -= 195.0F;
-//            cb3Y3 -= 195.0F;
-//            cb4Y4 -= 195.0F;
-//            cb5Y5 -= 195.0F;
-//            cb6Y6 -= 195.0F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 20;
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            }
-//        }
-//
-//        if (orderList.size() == 13) {
-//            cb1Y1 -= 215.0F;
-//            cb2Y2 -= 215.0F;
-//            cb3Y3 -= 215.0F;
-//            cb4Y4 -= 215.0F;
-//            cb5Y5 -= 215.0F;
-//            cb6Y6 -= 215.0F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 20;
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            }
-//        }
-//
-//        if (orderList.size() == 14) {
-//            cb1Y1 -= 235.0F;
-//            cb2Y2 -= 235.0F;
-//            cb3Y3 -= 235.0F;
-//            cb4Y4 -= 235.0F;
-//            cb5Y5 -= 235.0F;
-//            cb6Y6 -= 235.0F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 20;
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            }
-//        }
-//
-//        if (orderList.size() == 15) {
-//            cb1Y1 -= 255.0F;
-//            cb2Y2 -= 255.0F;
-//            cb3Y3 -= 255.0F;
-//            cb4Y4 -= 255.0F;
-//            cb5Y5 -= 255.0F;
-//            cb6Y6 -= 255.0F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 20;
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            }
-//        }
-//
-//        if (orderList.size() == 16) {
-//            cb1Y1 -= 275.0F;
-//            cb2Y2 -= 275.0F;
-//            cb3Y3 -= 275.0F;
-//            cb4Y4 -= 275.0F;
-//            cb5Y5 -= 275.0F;
-//            cb6Y6 -= 275.0F;
-//
-//            if (lettrCountForRows > 0) {
-//                lettrCountForRows *= 20;
-//
-//                cb1Y1 -= (lettrCountForRows * 0.5F);
-//                cb2Y2 -= (lettrCountForRows * 0.5F);
-//                cb3Y3 -= (lettrCountForRows * 0.5F);
-//                cb4Y4 -= (lettrCountForRows * 0.5F);
-//                cb5Y5 -= (lettrCountForRows * 0.5F);
-//                cb6Y6 -= (lettrCountForRows * 0.5F);
-//            }
-//        }
-//        cb.rectangle(195.0F, cb1Y1, 10.0F, 10.0F);
-//        cb.stroke();
-//        PdfContentByte cb2 = writer.getDirectContent();
-//        cb2.rectangle(195.0F, cb2Y2, 10.0F, 10.0F);
-//        cb2.stroke();
-//        PdfContentByte cb3 = writer.getDirectContent();
-//        cb3.rectangle(128.0F, cb3Y3, 10.0F, 10.0F);
-//        cb3.stroke();
-//        PdfContentByte cb4 = writer.getDirectContent();
-//        cb4.rectangle(128.0F, cb4Y4, 10.0F, 10.0F);
-//        cb4.stroke();
-//        PdfContentByte cb5 = writer.getDirectContent();
-//        cb5.rectangle(128.0F, cb5Y5, 10.0F, 10.0F);
-//        cb5.stroke();
-//        PdfContentByte cb6 = writer.getDirectContent();
-//        cb6.rectangle(128.0F, cb6Y6, 10.0F, 10.0F);
-//        cb6.stroke();
-//        Paragraph labelParagraph0 = new Paragraph("Product eindcontrole:", font3);
-//        Paragraph labelParagraph1 = new Paragraph(String.format("%-30s%-30s", "\nBand(en) schoon: ", "JA"), font4);
-//        Paragraph labelParagraph2 = new Paragraph("\n                                         NEE               Schoon gemaakt.", font4);
-//        Paragraph labelParagraph3 = new Paragraph(String.format("%-30s%-30s", "\nBeschadigingen: ", " NEE"), font4);
-//        Paragraph labelParagraph4 = new Paragraph("\n                                          JA                  Bijgewerkt.", font4);
-//        labelParagraph4.setSpacingAfter(20.0F);
-//        document.add(labelParagraph0);
-//        document.add(labelParagraph1);
-//        document.add(labelParagraph2);
-//        document.add(labelParagraph3);
-//        document.add(labelParagraph4);
-
-        Font font3 = new Font(FontFamily.HELVETICA, 10.0F, 1);
-        Paragraph labelParagraph0 = new Paragraph("Product eindcontrole:", font3);
+        Font font3 = new Font(Font.FontFamily.HELVETICA, 10.0F, Font.BOLD);
         PdfPTable table = new PdfPTable(6);
-        table.setWidthPercentage(75);
         table.setHorizontalAlignment(Element.ALIGN_LEFT);
-        table.setWidths(new float[]{4,2,2,2,2,5});
+        table.setWidthPercentage(75);
+        table.setWidths(new float[]{4, 2, 2, 2, 2, 5});
 
         table.addCell(createTextCell("Band(en) schoon: "));
         table.addCell(createTextCell(""));
@@ -899,19 +394,76 @@ public class MonPrintingServiceImp {
         table.addCell(createCheckboxCell(false));
         table.addCell(createTextCell("Bijgewerkt"));
 
-//        PdfPCell defaultCell = new PdfPCell(new Phrase());
-//        defaultCell.setBorder(Rectangle.NO_BORDER);
+        PdfContentByte canvas = writer.getDirectContent();
+        ColumnText columnText = new ColumnText(canvas);
 
-//        table.addCell(createTextCell(""));
-//        table.addCell(defaultCell);
-
-//        labelParagraph12.setSpacingAfter(15.0F);
-
-
-        table.setSpacingAfter(15.0F);
-        document.add(labelParagraph0);
-        document.add(table);
+        Paragraph title = new Paragraph("Product eindcontrole:", font3);
+        columnText.setSimpleColumn(36, 60, 559, 260); // Left, Bottom, Right, Top coordinates
+        columnText.addElement(title);
+        columnText.addElement(table);
+        columnText.go();
     }
+
+//    private void addOptions(PdfWriter writer, Document document, List<OrderDto> orderList) throws DocumentException {
+//
+//        Font font3 = new Font(FontFamily.HELVETICA, 10.0F, 1);
+//        Paragraph labelParagraph0 = new Paragraph("Product eindcontrole:", font3);
+//        PdfPTable table = new PdfPTable(6);
+//        table.setWidthPercentage(75);
+//        table.setHorizontalAlignment(Element.ALIGN_LEFT);
+//        table.setWidths(new float[]{4,2,2,2,2,5});
+//
+//        table.addCell(createTextCell("Band(en) schoon: "));
+//        table.addCell(createTextCell(""));
+//        table.addCell(createCheckboxCell(false));
+//        table.addCell(createTextCell("JA"));
+//        table.addCell(createTextCell(""));
+//        table.addCell(createTextCell(""));
+//
+//        PdfPCell spacerCell1 = new PdfPCell(new Phrase(""));
+//        spacerCell1.setColspan(6);
+//        spacerCell1.setFixedHeight(10f);
+//        spacerCell1.setBorder(Rectangle.NO_BORDER);
+//        table.addCell(spacerCell1);
+//
+//
+//        table.addCell(createTextCell(""));
+//        table.addCell(createTextCell(""));
+//        table.addCell(createCheckboxCell(false));
+//        table.addCell(createTextCell("NEE"));
+//        table.addCell(createCheckboxCell(false));
+//        table.addCell(createTextCell("Schoon gemaakt."));
+//
+//        PdfPCell spacerCell2 = new PdfPCell(new Phrase(""));
+//        spacerCell2.setColspan(6);
+//        spacerCell2.setFixedHeight(10f);
+//        spacerCell2.setBorder(Rectangle.NO_BORDER);
+//        table.addCell(spacerCell2);
+//
+//        table.addCell(createTextCell("Beschadigingen: "));
+//        table.addCell(createTextCell(""));
+//        table.addCell(createCheckboxCell(false));
+//        table.addCell(createTextCell("NEE"));
+//        table.addCell(createTextCell(""));
+//        table.addCell(createTextCell(""));
+//
+//        PdfPCell spacerCell3 = new PdfPCell(new Phrase(""));
+//        spacerCell3.setColspan(6);
+//        spacerCell3.setFixedHeight(10f);
+//        spacerCell3.setBorder(Rectangle.NO_BORDER);
+//        table.addCell(spacerCell3);
+//
+//        table.addCell(createTextCell(""));
+//        table.addCell(createTextCell(""));
+//        table.addCell(createCheckboxCell(false));
+//        table.addCell(createTextCell("JA"));
+//        table.addCell(createCheckboxCell(false));
+//        table.addCell(createTextCell("Bijgewerkt"));
+//
+//        table.setSpacingAfter(15.0F);
+//        document.add(labelParagraph0);
+//        document.add(table);
+//    }
 
     private PdfPCell createTextCell(String text) {
         Font smallFont = new Font(Font.FontFamily.HELVETICA, 11); // Set font size
@@ -929,30 +481,67 @@ public class MonPrintingServiceImp {
         return cell;
     }
 
-    private void addSections(Document document) throws DocumentException {
-        Font font4 = new Font(FontFamily.HELVETICA, 10.0F);
-        PdfPTable table = new PdfPTable(1);
-        table.setWidthPercentage(100.0F);
-        PdfPCell cell = new PdfPCell();
-        cell.setBorder(15);
-        cell.setBorderColor(BaseColor.BLACK);
-        cell.setBorderWidth(1.0F);
-        cell.setMinimumHeight(60.0F);
+    private void addSectionsAtFixedPosition(PdfWriter writer) throws DocumentException {
+        Font font4 = new Font(Font.FontFamily.HELVETICA, 10.0F);
+
+        // First section: "Opmerking"
+        PdfPTable table1 = new PdfPTable(1);
+        table1.setTotalWidth(520f); // Full width (adjust to match page width)
+        PdfPCell cell1 = new PdfPCell();
+        cell1.setBorder(Rectangle.BOX);
+        cell1.setBorderColor(BaseColor.BLACK);
+        cell1.setBorderWidth(1.0F);
+        cell1.setMinimumHeight(60.0F);
         Paragraph textParagraph = new Paragraph("Opmerking:", font4);
-        cell.addElement(textParagraph);
-        table.addCell(cell);
-        table.setSpacingAfter(10.0F);
+        cell1.addElement(textParagraph);
+        table1.addCell(cell1);
+
+        // Second section: "Paraaf en naam monteur"
         PdfPTable table2 = new PdfPTable(1);
-        table2.setWidthPercentage(100.0F);
+        table2.setTotalWidth(520f); // Same width for alignment
         PdfPCell cell2 = new PdfPCell();
-        cell2.setBorder(15);
+        cell2.setBorder(Rectangle.BOX);
         cell2.setBorderColor(BaseColor.BLACK);
         cell2.setBorderWidth(1.0F);
         cell2.setMinimumHeight(60.0F);
         Paragraph textParagraph2 = new Paragraph("Paraaf en naam monteur:", font4);
         cell2.addElement(textParagraph2);
         table2.addCell(cell2);
-        document.add(table);
-        document.add(table2);
+
+        PdfContentByte canvas = writer.getDirectContent();
+
+        // Place first table (Opmerking)
+        table1.writeSelectedRows(0, -1, 36, 140, canvas); // X=36 (left margin), Y=120 (from bottom)
+
+        // Place second table just below the first with small gap
+        table2.writeSelectedRows(0, -1, 36, 70, canvas); // Y=50 means ~10pts gap from table1
     }
+
+
+//    private void addSections(Document document) throws DocumentException {
+//        Font font4 = new Font(FontFamily.HELVETICA, 10.0F);
+//        PdfPTable table = new PdfPTable(1);
+//        table.setWidthPercentage(100.0F);
+//        PdfPCell cell = new PdfPCell();
+//        cell.setBorder(15);
+//        cell.setBorderColor(BaseColor.BLACK);
+//        cell.setBorderWidth(1.0F);
+//        cell.setMinimumHeight(60.0F);
+//        Paragraph textParagraph = new Paragraph("Opmerking:", font4);
+//        cell.addElement(textParagraph);
+//        table.addCell(cell);
+//        table.setSpacingAfter(10.0F);
+//        PdfPTable table2 = new PdfPTable(1);
+//        table2.setWidthPercentage(100.0F);
+//        PdfPCell cell2 = new PdfPCell();
+//        cell2.setBorder(15);
+//        cell2.setBorderColor(BaseColor.BLACK);
+//        cell2.setBorderWidth(1.0F);
+//        cell2.setMinimumHeight(60.0F);
+//        Paragraph textParagraph2 = new Paragraph("Paraaf en naam monteur:", font4);
+//        cell2.addElement(textParagraph2);
+//        table2.addCell(cell2);
+//        document.add(table);
+//        document.add(table2);
+//    }
 }

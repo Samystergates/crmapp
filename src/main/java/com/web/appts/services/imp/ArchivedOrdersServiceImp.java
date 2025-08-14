@@ -95,7 +95,12 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
 
         this.getAllArchivedOrders().forEach(ao -> {
             if (ao.getOrderNumber().equals(orderNumber) && ao.getRegel().equals((regel))) {
-                archivedOrdersRepo.deleteById(ao.getId());
+                try {
+                    archivedOrdersRepo.deleteById(ao.getId());
+                }catch (Exception e){
+                    logger.info("exc from delete archive: "+e.getMessage());
+                }
+                //archivedOrdersRepo.deleteById(ao.getId());
             }
         });
         archivedOrdersMap.entrySet().removeIf(entry -> entry.getValue().getOrderNumber().equals(orderNumber) && entry.getValue().getRegel().equals(regel));

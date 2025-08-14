@@ -262,7 +262,7 @@ public class OrderTRAServiceImp implements OrderTRAService {
 
 	private void addAdditionalInformation(Document document, OrderTRADto orderTRADto) throws DocumentException {
 		LocalDateTime dateTime = LocalDateTime.parse(orderTRADto.getRouteDate(), DateTimeFormatter.ISO_DATE_TIME);
-		DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+		DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 		String formattedDate = dateTime.format(dateFormatter);
 		Font font = new Font(FontFamily.HELVETICA, 10.0F);
 		PdfPTable mainTable = new PdfPTable(2);

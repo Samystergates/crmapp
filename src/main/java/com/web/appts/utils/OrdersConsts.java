@@ -35,6 +35,8 @@ public class OrdersConsts {
   public static final String ORDER_LOS = "LOS";
   public static final String ORDER_LAS = "LAS";
   public static final String ORDER_LSO = "LSO";
+  public static final String ORDER_LSL = "LSL";
+  public static final String ORDER_LPL = "LPL";
   public static final String ORDER_MAO = "MAO";
   public static final String ORDER_MLO = "MLO";
   public static final String ORDER_MWO = "MWO";

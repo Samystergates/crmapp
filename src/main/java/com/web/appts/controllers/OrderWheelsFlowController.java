@@ -50,7 +50,7 @@ public class OrderWheelsFlowController {
 		OrderSMEDto orderSMEDtoReturn = this.orderSMEService.createOrderSME(orderSMEDto);
 		List<OrderDto> updatedOrders = this.orderService.getAllOrders();
 		this.sortUsingDate(updatedOrders);
-		this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
+		this.messagingTemplate.convertAndSend("/topic/smeSave", updatedOrders);
 		return new ResponseEntity(orderSMEDtoReturn, HttpStatus.CREATED);
 	}
 
@@ -59,7 +59,7 @@ public class OrderWheelsFlowController {
 		OrderSMEDto orderSMEDtoReturn = this.orderSMEService.updateOrderSME(orderSMEDto);
 		List<OrderDto> updatedOrders = this.orderService.getAllOrders();
 		this.sortUsingDate(updatedOrders);
-		this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
+		this.messagingTemplate.convertAndSend("/topic/smeUpdate", updatedOrders);
 		return new ResponseEntity(orderSMEDtoReturn, HttpStatus.CREATED);
 	}
 
@@ -78,7 +78,7 @@ public class OrderWheelsFlowController {
 		Boolean isDeleted = this.orderSMEService.deleteOrderSME(smeId);
 		List<OrderDto> updatedOrders = this.orderService.getAllOrders();
 		this.sortUsingDate(updatedOrders);
-		this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
+		this.messagingTemplate.convertAndSend("/topic/smeDelete", updatedOrders);
 		return new ResponseEntity(isDeleted, HttpStatus.OK);
 	}
 
@@ -135,7 +135,7 @@ public class OrderWheelsFlowController {
 		OrderSPUDto orderSPUDtoReturn = this.orderSPUService.createOrderSPU(orderSPUDto);
 		List<OrderDto> updatedOrders = this.orderService.getAllOrders();
 		this.sortUsingDate(updatedOrders);
-		this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
+		this.messagingTemplate.convertAndSend("/topic/spuSave", updatedOrders);
 		return new ResponseEntity(orderSPUDtoReturn, HttpStatus.CREATED);
 	}
 
@@ -144,7 +144,7 @@ public class OrderWheelsFlowController {
 		OrderSPUDto orderSPUDtoReturn = this.orderSPUService.updateOrderSPU(orderSPUDto);
 		List<OrderDto> updatedOrders = this.orderService.getAllOrders();
 		this.sortUsingDate(updatedOrders);
-		this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
+		this.messagingTemplate.convertAndSend("/topic/spuUpdate", updatedOrders);
 		return new ResponseEntity(orderSPUDtoReturn, HttpStatus.CREATED);
 	}
 
@@ -163,7 +163,7 @@ public class OrderWheelsFlowController {
 		Boolean isDeleted = this.orderSPUService.deleteOrderSPU(spuId);
 		List<OrderDto> updatedOrders = this.orderService.getAllOrders();
 		this.sortUsingDate(updatedOrders);
-		this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
+		this.messagingTemplate.convertAndSend("/topic/spuDelete", updatedOrders);
 		return new ResponseEntity(isDeleted, HttpStatus.OK);
 	}
 
