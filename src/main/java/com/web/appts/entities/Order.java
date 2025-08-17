@@ -93,6 +93,18 @@ public class Order {
 	)
 	private String customerName;
 	@Column(
+			name = "Straat"
+	)
+	private String street;
+	@Column(
+			name = "Huisnr"
+	)
+	private String houseNR;
+	@Column(
+			name = "Additioneel"
+	)
+	private String additionalAdd;
+	@Column(
 			name = "Postcode"
 	)
 	private String postCode;
@@ -340,6 +352,30 @@ public class Order {
 		this.customerName = customerName;
 	}
 
+	public String getStreet() {
+		return street;
+	}
+
+	public void setStreet(String street) {
+		this.street = street;
+	}
+
+	public String getHouseNR() {
+		return houseNR;
+	}
+
+	public void setHouseNR(String houseNR) {
+		this.houseNR = houseNR;
+	}
+
+	public String getAdditionalAdd() {
+		return additionalAdd;
+	}
+
+	public void setAdditionalAdd(String additionalAdd) {
+		this.additionalAdd = additionalAdd;
+	}
+
 	public String getPostCode() {
 		return this.postCode;
 	}
@@ -514,6 +550,9 @@ public class Order {
 					Objects.equals(this.user, order.user) &&
 					Objects.equals(this.organization, order.organization) &&
 					Objects.equals(this.customerName, order.customerName) &&
+					Objects.equals(this.street, order.street) &&
+					Objects.equals(this.houseNR, order.houseNR) &&
+					Objects.equals(this.additionalAdd, order.additionalAdd) &&
 					Objects.equals(this.postCode, order.postCode) &&
 					Objects.equals(this.city, order.city) &&
 					Objects.equals(this.country, order.country) &&
@@ -595,6 +634,18 @@ public class Order {
 		}
 
 		if (!Objects.equals(this.customerName, other.customerName)) {
+			++differences;
+		}
+
+		if (!Objects.equals(this.street, other.street)) {
+			++differences;
+		}
+
+		if (!Objects.equals(this.houseNR, other.houseNR)) {
+			++differences;
+		}
+
+		if (!Objects.equals(this.additionalAdd, other.additionalAdd)) {
 			++differences;
 		}
 

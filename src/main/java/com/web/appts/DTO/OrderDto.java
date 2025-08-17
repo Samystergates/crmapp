@@ -24,6 +24,9 @@ public class OrderDto {
   private String user;
   private String organization;
   private String customerName;
+  private String street;
+  private String houseNR;
+  private String additionalAdd;
   private String postCode;
   private String city;
   private String country;
@@ -190,6 +193,30 @@ public class OrderDto {
 
   public void setCustomerName(String customerName) {
     this.customerName = customerName;
+  }
+
+  public String getStreet() {
+    return street;
+  }
+
+  public void setStreet(String street) {
+    this.street = street;
+  }
+
+  public String getHouseNR() {
+    return houseNR;
+  }
+
+  public void setHouseNR(String houseNR) {
+    this.houseNR = houseNR;
+  }
+
+  public String getAdditionalAdd() {
+    return additionalAdd;
+  }
+
+  public void setAdditionalAdd(String additionalAdd) {
+    this.additionalAdd = additionalAdd;
   }
 
   public String getPostCode() {
@@ -373,6 +400,9 @@ public class OrderDto {
               Objects.equals(this.user, orderDto.user) &&
               Objects.equals(this.organization, orderDto.organization) &&
               Objects.equals(this.customerName, orderDto.customerName) &&
+              Objects.equals(this.street, orderDto.street) &&
+              Objects.equals(this.houseNR, orderDto.houseNR) &&
+              Objects.equals(this.additionalAdd, orderDto.additionalAdd) &&
               Objects.equals(this.postCode, orderDto.postCode) &&
               Objects.equals(this.city, orderDto.city) &&
               Objects.equals(this.country, orderDto.country) &&

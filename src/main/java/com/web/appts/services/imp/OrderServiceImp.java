@@ -1541,7 +1541,7 @@ public class OrderServiceImp implements OrderService {
 
             String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', \"va-210\".\"cdordsrt\" AS 'Ordersoort'," +
                     " \"va-211\".\"cdborder\" AS 'Backorder', \"va-210\".\"cdgebruiker-init\" AS 'Gebruiker (I)', \"va-210\".\"cddeb\" AS 'Organisatie'," +
-                    " \"ba-001\".\"naamorg\" AS 'Naam', \"ba-012\".\"postcode\" AS 'Postcode', \"ba-012\".\"plaats\" AS 'Plaats'," +
+                    " \"ba-001\".\"naamorg\" AS 'Naam', \"ba-012\".\"straat\" AS 'Straat', \"ba-012\".\"huisnr\" AS 'Huisnr', \"ba-012\".\"additioneel\" AS 'Additioneel', \"ba-012\".\"postcode\" AS 'Postcode', \"ba-012\".\"plaats\" AS 'Plaats'," +
                     " \"ba-012\".\"cdland\" AS 'Land', \"va-210\".\"datum-lna\" AS 'Leverdatum', \"va-210\".\"opm-30\" AS 'Referentie'," +
                     " \"va-210\".\"datum-order\" AS 'Datum order', \"va-210\".\"SYS-DATE\" AS 'Datum laatste wijziging'," +
                     " \"va-210\".\"cdgebruiker\" AS 'Gebruiker (L)', \"va-211\".\"nrordrgl\" AS 'Regel', \"va-211\".\"aantbest\" AS 'Aantal besteld'," +
@@ -1589,6 +1589,9 @@ public class OrderServiceImp implements OrderService {
                         String user = resultSet.getString("Gebruiker (I)");
                         String organization = resultSet.getString("Organisatie");
                         String customerName = resultSet.getString("Naam");
+                        String street = resultSet.getString("Straat");
+                        String houseNR = resultSet.getString("Huisnr");
+                        String additionalAdd = resultSet.getString("Additioneel");
                         String postCode = resultSet.getString("Postcode");
                         String city = resultSet.getString("Plaats");
                         String country = resultSet.getString("Land");
@@ -1637,6 +1640,9 @@ public class OrderServiceImp implements OrderService {
                             orderDto.setUser(user);
                             orderDto.setOrganization(organization);
                             orderDto.setCustomerName(customerName);
+                            orderDto.setStreet(street);
+                            orderDto.setHouseNR(houseNR);
+                            orderDto.setAdditionalAdd(additionalAdd);
                             orderDto.setPostCode(postCode);
                             orderDto.setCity(city);
                             orderDto.setCountry(country);
@@ -1665,14 +1671,7 @@ public class OrderServiceImp implements OrderService {
 
                         }
                         if (this.ordersMap.containsKey(orderNumber + "," + regel)) {
-                            LocalDateTime currentDateTime = LocalDateTime.now();
-                            logger.info("Current DateTime: " + currentDateTime);
-                            logger.info("contains order: " + orderNumber + ", " + regel);
-                            logger.info("back order: " + backOrder);
-
                             OrderDto existingOrderDto = (OrderDto) this.ordersMap.get(orderNumber + "," + regel);
-                            logger.info("existing back order: " + existingOrderDto.getBackOrder());
-
                             orderDto.setId(existingOrderDto.getId());
                             orderDto.setOrderNumber(orderNumber);
                             orderDto.setOrderType(orderType);
@@ -1682,15 +1681,22 @@ public class OrderServiceImp implements OrderService {
                             orderDto.setUser(user);
                             orderDto.setOrganization(organization);
                             orderDto.setCustomerName(customerName);
+                            orderDto.setStreet(street);
+                            orderDto.setHouseNR(houseNR);
+                            orderDto.setAdditionalAdd(additionalAdd);
                             orderDto.setPostCode(postCode);
                             orderDto.setCity(city);
                             orderDto.setIsParent(existingOrderDto.getIsParent());
                             orderDto.setCountry(country);
+                            logger.info("datum-lna1: " + deliveryDate);
+
                             if (deliveryDate == null) {
                                 orderDto.setDeliveryDate("");
                             } else {
                                 orderDto.setDeliveryDate(deliveryDate);
                             }
+                            logger.info("datum-lna2: " + orderDto.getDeliveryDate());
+
                             orderDto.setReferenceInfo(referenceInfo);
                             orderDto.setCreationDate(creationDate);
                             orderDto.setModificationDate(modificationDate);
@@ -1704,6 +1710,11 @@ public class OrderServiceImp implements OrderService {
                             fieldsCheckMap.entrySet().stream()
                                     .forEach(entry -> System.out.println("Key: " + entry.getKey() + ", Value: " + entry.getValue()));
 
+                            logger.info("datum-lna3 exc: " + existingOrderDto.getDeliveryDate());
+
+                            if(!existingOrderDto.getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.isEmpty()){
+                                logger.info("datum-lna4 true");
+                            }
                             if (fieldsCheckMap.getOrDefault("cdProdGrp", false) || fieldsCheckMap.getOrDefault("orderType", false)) {
                                 try {
                                     logger.info("CDPRODGRP innercrm: " + fieldsCheckMap.getOrDefault("cdProdGrp", false));
@@ -1943,8 +1954,7 @@ public class OrderServiceImp implements OrderService {
         String orderType = orderDto.getOrderType();
         List<OrderDepartment> depList = new ArrayList();
         String wheelOrder = orderDto.getCdProdGrp();
-        //String pattern = "(182|183|184|410|440|441|820|821|822|823|824|825|826|850|851)";
-        String pattern = ".*(182|183|184|410|440|441|820|821|822|823|824|825|826|850|851).*";
+        String pattern = ".*(182|183|184|410|421|440|441|820|821|822|823|824|825|826|850|851).*";
         Pattern compiledPattern = Pattern.compile(pattern);
         Matcher matcher = compiledPattern.matcher(wheelOrder);
         if (matcher.find()) {
@@ -1958,12 +1968,12 @@ public class OrderServiceImp implements OrderService {
                 orderDto.getCdProdGrp().contains("402") || orderDto.getCdProdGrp().contains("403") ||
                 orderDto.getCdProdGrp().contains("404") || orderDto.getCdProdGrp().contains("405") ||
                 orderDto.getCdProdGrp().contains("406") || orderDto.getCdProdGrp().contains("407") ||
-                orderDto.getCdProdGrp().contains("408") || orderDto.getCdProdGrp().contains("409") || orderDto.getCdProdGrp().contains("411") ||
-                orderDto.getCdProdGrp().contains("412") || orderDto.getCdProdGrp().contains("413") ||
-                orderDto.getCdProdGrp().contains("414") || orderDto.getCdProdGrp().contains("415") ||
-                orderDto.getCdProdGrp().contains("416") || orderDto.getCdProdGrp().contains("417") ||
-                orderDto.getCdProdGrp().contains("418") || orderDto.getCdProdGrp().contains("419") ||
-                orderDto.getCdProdGrp().contains("420") || orderDto.getCdProdGrp().contains("421")) {
+                orderDto.getCdProdGrp().contains("408") || orderDto.getCdProdGrp().contains("409") ||
+                orderDto.getCdProdGrp().contains("411") || orderDto.getCdProdGrp().contains("412") ||
+                orderDto.getCdProdGrp().contains("413") || orderDto.getCdProdGrp().contains("414") ||
+                orderDto.getCdProdGrp().contains("415") || orderDto.getCdProdGrp().contains("416") ||
+                orderDto.getCdProdGrp().contains("417") || orderDto.getCdProdGrp().contains("418") ||
+                orderDto.getCdProdGrp().contains("419") || orderDto.getCdProdGrp().contains("420")) {
             if (orderDto.getSme() == null) {
                 orderDto.setSme("");
                 depList.add(new OrderDepartment(2, "SME", "", this.dtoToOrder(orderDto)));

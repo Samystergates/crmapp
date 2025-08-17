@@ -89,6 +89,18 @@ public class ArchivedOrders {
 	)
 	private String customerName;
 	@Column(
+			name = "Straat"
+	)
+	private String street;
+	@Column(
+			name = "Huisnr"
+	)
+	private String houseNR;
+	@Column(
+			name = "Additioneel"
+	)
+	private String additionalAdd;
+	@Column(
 			name = "Postcode"
 	)
 	private String postCode;
@@ -296,6 +308,30 @@ public class ArchivedOrders {
 
 	public void setCustomerName(String customerName) {
 		this.customerName = customerName;
+	}
+
+	public String getStreet() {
+		return street;
+	}
+
+	public void setStreet(String street) {
+		this.street = street;
+	}
+
+	public String getHouseNR() {
+		return houseNR;
+	}
+
+	public void setHouseNR(String houseNR) {
+		this.houseNR = houseNR;
+	}
+
+	public String getAdditionalAdd() {
+		return additionalAdd;
+	}
+
+	public void setAdditionalAdd(String additionalAdd) {
+		this.additionalAdd = additionalAdd;
 	}
 
 	public String getPostCode() {

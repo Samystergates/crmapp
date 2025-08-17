@@ -358,7 +358,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
 //        Paragraph paragraphL1 = new Paragraph(String.format("%-13s%-13s", " Naam Klant:", " " + oda.getCustomerName()), font4);
         Paragraph paragraphL1 = new Paragraph("Naam Klant: " + oda.getCustomerName(), font1);
 
-        Paragraph paragraphL2 = new Paragraph("Ingevoerd doo: " + orderSMEDto.getSlipCreator(), font1);
+        Paragraph paragraphL2 = new Paragraph("Ingevoerd door: " + orderSMEDto.getSlipCreator(), font1);
         Paragraph paragraphL3 = new Paragraph(String.format("%-16s%-16s", "Verkoop order:   ", orderSMEDto.getOrderNumber() + " - " + orderSMEDto.getRegel()), font1);
         paragraphL1.setAlignment(0);
         paragraphL2.setAlignment(0);

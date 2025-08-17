@@ -2,6 +2,8 @@
 package com.web.appts.DTO;
 
 import com.web.appts.entities.OrderDepartment;
+
+import javax.persistence.Column;
 import java.util.List;
 
 public class ArchivedOrdersDto {
@@ -21,6 +23,9 @@ public class ArchivedOrdersDto {
     private String user;
     private String organization;
     private String customerName;
+    private String street;
+    private String houseNR;
+    private String additionalAdd;
     private String cdProdGrp;
     private String zoeknaam;
     private String postCode;
@@ -177,6 +182,30 @@ public class ArchivedOrdersDto {
 
     public void setCustomerName(String customerName) {
         this.customerName = customerName;
+    }
+
+    public String getStreet() {
+        return street;
+    }
+
+    public void setStreet(String street) {
+        this.street = street;
+    }
+
+    public String getHouseNR() {
+        return houseNR;
+    }
+
+    public void setHouseNR(String houseNR) {
+        this.houseNR = houseNR;
+    }
+
+    public String getAdditionalAdd() {
+        return additionalAdd;
+    }
+
+    public void setAdditionalAdd(String additionalAdd) {
+        this.additionalAdd = additionalAdd;
     }
 
     public String getPostCode() {
