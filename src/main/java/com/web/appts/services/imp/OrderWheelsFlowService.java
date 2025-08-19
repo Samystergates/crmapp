@@ -355,7 +355,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         cell1.setBorder(0);
         mainTable.addCell(cell1);
         PdfPCell cell2 = new PdfPCell();
-//        Paragraph paragraphL1 = new Paragraph(String.format("%-13s%-13s", " Naam Klant:", " " + oda.getCustomerName()), font4);
+
         Paragraph paragraphL1 = new Paragraph("Naam Klant: " + oda.getCustomerName(), font1);
 
         Paragraph paragraphL2 = new Paragraph("Ingevoerd door: " + orderSMEDto.getSlipCreator(), font1);
@@ -370,164 +370,12 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         cell2.setBorder(0);
         mainTable.addCell(cell2);
         PdfPCell cell3 = new PdfPCell();
-        //Paragraph paragraphR1 = new Paragraph(String.format(""), font4);
-        //paragraphR1.setAlignment(1);
-        //cell3.addElement(paragraphR1);
+
         cell3.setBorder(0);
         mainTable.addCell(cell3);
-        mainTable.setSpacingAfter(45.0F);
+        mainTable.setSpacingAfter(40.0F);
         document.add(mainTable);
     }
-
-//    private void addSMEOptions(PdfWriter writer, Document document, OrderSMEDto orderSMEDto) throws DocumentException {
-//        Font font4 = new Font(FontFamily.HELVETICA, 10.0F);
-//        Font font5 = new Font(FontFamily.HELVETICA, 12.0F);
-//        if (orderSMEDto.getMerk() == null) {
-//            orderSMEDto.setMerk("");
-//        }
-//
-//        if (orderSMEDto.getModel() == null) {
-//            orderSMEDto.setModel("");
-//        }
-//
-//        if (orderSMEDto.getType() == null) {
-//            orderSMEDto.setType("");
-//        }
-//
-//        if (orderSMEDto.getNaafgat() == null) {
-//            orderSMEDto.setNaafgat("");
-//        }
-//
-//        if (orderSMEDto.getSteek() == null) {
-//            orderSMEDto.setSteek("");
-//        }
-//
-//        if (orderSMEDto.getAantalBoutgat() == null) {
-//            orderSMEDto.setAantalBoutgat("");
-//        }
-//
-//        if (orderSMEDto.getVerdlingBoutgaten() == null) {
-//            orderSMEDto.setVerdlingBoutgaten("");
-//        }
-//
-//        if (orderSMEDto.getDiameter() == null) {
-//            orderSMEDto.setDiameter("");
-//        }
-//
-//        if (orderSMEDto.getTypeBoutgat() == null) {
-//            orderSMEDto.setTypeBoutgat("");
-//        }
-//
-//        if (orderSMEDto.getEt() == null) {
-//            orderSMEDto.setEt("");
-//        }
-//
-//        if (orderSMEDto.getAfstandVV() == null) {
-//            orderSMEDto.setAfstandVV("");
-//        }
-//
-//        if (orderSMEDto.getAfstandVA() == null) {
-//            orderSMEDto.setAfstandVA("");
-//        }
-//
-//        if (orderSMEDto.getDikte() == null) {
-//            orderSMEDto.setDikte("");
-//        }
-//
-//        if (orderSMEDto.getDoorgezet() == null) {
-//            orderSMEDto.setDoorgezet("");
-//        }
-//
-//        if (orderSMEDto.getKoelgaten() == null) {
-//            orderSMEDto.setKoelgaten("");
-//        }
-//
-//        if (orderSMEDto.getVerstevigingsringen() == null) {
-//            orderSMEDto.setVerstevigingsringen("");
-//        }
-//
-//        if (orderSMEDto.getAansluitnippel() == null) {
-//            orderSMEDto.setAansluitnippel("");
-//        }
-//
-//        if (orderSMEDto.getVentielbeschermer() == null) {
-//            orderSMEDto.setVentielbeschermer("");
-//        }
-//
-//        if (orderSMEDto.getOptionVentielbeschermer() == null) {
-//            orderSMEDto.setOptionVentielbeschermer("");
-//        }
-//
-//        OrderDto orders = (OrderDto) this.orderServiceImp.getMap().get(orderSMEDto.getOrderNumber() + "," + orderSMEDto.getRegel());
-//        if (orders.getOmsumin() == null) {
-//            orders.setOmsumin("");
-//        }
-//
-//
-//        Paragraph labelParagraph2 = new Paragraph("Machine:   " + orderSMEDto.getMerk() + "               Model:   " + orderSMEDto.getModel() + "               Type:   " + orderSMEDto.getType(), font5);
-//        labelParagraph2.setSpacingAfter(7.0F);
-//        Paragraph labelParagraph3 = new Paragraph("\n                      Aantal:   " + getFormattedAantal(orders.getAantal()) + "\n           Omschrijving:   " + orders.getOmsumin(), font4);
-//        labelParagraph3.setSpacingAfter(7.0F);
-//        Paragraph labelParagraph4 = new Paragraph("\n                   Naafgat:   " + orderSMEDto.getNaafgat() + "      mm                                   Steelcirkel:     " + orderSMEDto.getSteek() + "      mm", font4);
-//        labelParagraph4.setSpacingAfter(7.0F);
-//        Paragraph labelParagraph5 = new Paragraph("    Aantal Boutgaten:   " + orderSMEDto.getAantalBoutgat() + "                                  Verdeling Boutgaten:     " + orderSMEDto.getVerdlingBoutgaten(), font4);
-//        labelParagraph5.setSpacingAfter(7.0F);
-//        Paragraph labelParagraph6 = new Paragraph("    Boutgat Diameter:   " + orderSMEDto.getDiameter() + "      mm                    Uitvoering:     " + orderSMEDto.getTypeBoutgat() + "        Maat Verzinking:    " + orderSMEDto.getMaatVerzinking() + "      mm", font4);
-//        labelParagraph6.setSpacingAfter(7.0F);
-//        Paragraph labelParagraph7 = new Paragraph(String.format("%-49s%-49s", " \n                           ET:     " + orderSMEDto.getEt(), "mm"), font4);
-//        labelParagraph7.setSpacingAfter(7.0F);
-//        Paragraph labelParagraph8 = new Paragraph(String.format("%-41s%-41s", "    Afstand Voorzijde:     " + orderSMEDto.getAfstandVV(), "mm"), font4);
-//        labelParagraph8.setSpacingAfter(7.0F);
-//        Paragraph labelParagraph9 = new Paragraph(String.format("%-39s%-39s", " Afstand Achterzijde:     " + orderSMEDto.getAfstandVA(), "mm"), font4);
-//        labelParagraph9.setSpacingAfter(7.0F);
-//
-//        PdfPTable table = new PdfPTable(4);
-//        table.setWidthPercentage(60);
-//        table.setHorizontalAlignment(Element.ALIGN_RIGHT);
-//        table.setWidths(new float[]{6, 2, 6, 2});
-//
-//        table.addCell(createTextCell("Doorgezet:"));
-//        table.addCell(createCheckboxCell(orderSMEDto.getDoorgezet().equals("JA")));
-//
-//        table.addCell(createTextCell("Koelgaten:"));
-//        table.addCell(createCheckboxCell(orderSMEDto.getKoelgaten().equals("JA")));
-//
-//        table.addCell(createTextCell("Verstevigingsringen:"));
-//        table.addCell(createCheckboxCell(orderSMEDto.getVerstevigingsringen().equals("JA")));
-//
-//        table.addCell(createTextCell("Nippel (D/W systeem):"));
-//        table.addCell(createCheckboxCell(orderSMEDto.getAansluitnippel().equals("JA")));
-//
-//        table.addCell(createTextCell("Ventielbeschermer:"));
-//        table.addCell(createCheckboxCell(orderSMEDto.getVentielbeschermer().equals("JA")));
-//
-//        PdfPCell defaultCell = new PdfPCell(new Phrase());
-//        defaultCell.setBorder(Rectangle.NO_BORDER);
-//
-//        table.addCell(createTextCell(orderSMEDto.getOptionVentielbeschermer()));
-//        table.addCell(defaultCell);
-//
-//        document.add(labelParagraph2);
-//        document.add(labelParagraph3);
-//        document.add(labelParagraph4);
-//        document.add(labelParagraph5);
-//        document.add(labelParagraph6);
-//        document.add(labelParagraph7);
-//        document.add(labelParagraph8);
-//        document.add(labelParagraph9);
-//
-//        table.setSpacingAfter(15.0F);
-//        document.add(table);
-//
-//    }
-//
-//    private PdfPCell createTextCell(String text) {
-//        Font smallFont = new Font(Font.FontFamily.HELVETICA, 11); // Set font size
-//        PdfPCell cell = new PdfPCell(new Phrase(text, smallFont));
-//        cell.setBorder(Rectangle.NO_BORDER);
-//        cell.setHorizontalAlignment(Element.ALIGN_RIGHT); // Align text to the right
-//        return cell;
-//    }
 
 
     private void addSMEOptions(PdfWriter writer, Document document, OrderSMEDto orderSMEDto) throws DocumentException {
@@ -638,6 +486,13 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         table4.addCell(createTextCell(""));
         table4.addCell(createTextCell(""));
 
+        table4.addCell(createRightAlignedTextCell("Dikte Schijf:"));
+        table4.addCell(createRightAlignedTextCell(orderSMEDto.getDikte()));
+        table4.addCell(createTextCell("mm"));
+        table4.addCell(createTextCell(""));
+        table4.addCell(createTextCell(""));
+        table4.addCell(createTextCell(""));
+
         document.add(table4);
 
         // ---------------- Existing Checkboxes Table ----------------
@@ -732,7 +587,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         cell.setBorder(15);
         cell.setBorderColor(BaseColor.BLACK);
         cell.setBorderWidth(1.0F);
-        cell.setMinimumHeight(150.0F);
+        cell.setMinimumHeight(130.0F);
         Paragraph textParagraph = new Paragraph("               Opmerking:", font4);
         cell.addElement(textParagraph);
         if (orderSMEDto.getOpmerking() != null) {

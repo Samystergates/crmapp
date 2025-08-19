@@ -285,12 +285,17 @@ public class OrderSerMechanicsServiceImp implements OrderSerMechanicsService {
             for (OrderDto row : orderDtos) {
                 PdfPCell cell1 = new PdfPCell(new Phrase(row.getProduct(), normalFont));
                 PdfPCell cell2 = new PdfPCell(new Phrase(row.getOmsumin(), normalFont));
-                String input = row.getAantal();
-                String firstLine = input.split("\\R")[0];
-                String beforeDecimal = firstLine.replaceAll("\\..*", ""); // remove dot and everything after
-                PdfPCell cell3 = new PdfPCell(new Phrase(beforeDecimal, normalFont));
-                PdfPCell cell4 = new PdfPCell(new Phrase("-", normalFont));
-                PdfPCell cell5 = new PdfPCell(new Phrase("-", normalFont));
+//                String input = row.getAantal();
+//                String firstLine = input.split("\\R")[0];
+//                String beforeDecimal = firstLine.replaceAll("\\..*", ""); // remove dot and everything after
+
+                int aantal = this.extractIntegerPart(row.getAantal());
+                int gel = this.extractIntegerPart(row.getGel());
+                int novgel = aantal - gel;
+
+                PdfPCell cell3 = new PdfPCell(new Phrase(String.valueOf(aantal), normalFont));
+                PdfPCell cell4 = new PdfPCell(new Phrase(String.valueOf(gel), normalFont));
+                PdfPCell cell5 = new PdfPCell(new Phrase(String.valueOf(novgel), normalFont));
                 String dateStr1 = row.getDeliveryDate();
                 String[] parts1 = dateStr1.split("-");
                 PdfPCell cell6;
@@ -443,6 +448,24 @@ public class OrderSerMechanicsServiceImp implements OrderSerMechanicsService {
         PdfPCell cell = new PdfPCell(p);
         cell.setBorder(Rectangle.NO_BORDER);
         return cell;
+    }
+
+    public int extractIntegerPart(String input) {
+        if (input == null || input.isEmpty()) {
+            return 0;
+        }
+
+        // Take the first line only
+        String firstLine = input.split("\\R")[0].trim();
+
+        // If it has a decimal, split and take the integer part
+        if (firstLine.contains(".")) {
+            String beforeDecimal = firstLine.split("\\.")[0];
+            return Integer.parseInt(beforeDecimal);
+        }
+
+        // If no decimal, parse directly
+        return Integer.parseInt(firstLine);
     }
 
     private PdfPCell createLabeledLine1(String label, Font font) {

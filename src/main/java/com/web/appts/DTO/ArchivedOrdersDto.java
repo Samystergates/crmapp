@@ -39,6 +39,7 @@ public class ArchivedOrdersDto {
     private Boolean isExpired;
     private String regel;
     private String aantal;
+    private String gel;
     private String product;
     private String Omsumin;
     private String completed;
@@ -294,6 +295,14 @@ public class ArchivedOrdersDto {
 
     public void setAantal(String aantal) {
         this.aantal = aantal;
+    }
+
+    public String getGel() {
+        return gel;
+    }
+
+    public void setGel(String gel) {
+        this.gel = gel;
     }
 
     public String getProduct() {

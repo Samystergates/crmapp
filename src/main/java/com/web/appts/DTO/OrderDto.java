@@ -38,6 +38,7 @@ public class OrderDto {
   private Boolean isExpired;
   private String regel;
   private String aantal;
+  private String gel;
   private String product;
   private String Omsumin;
   private String tekst;
@@ -378,6 +379,14 @@ public class OrderDto {
     this.monSubOrders = monSubOrders;
   }
 
+  public String getGel() {
+    return gel;
+  }
+
+  public void setGel(String gel) {
+    this.gel = gel;
+  }
+
   public boolean equals(Object obj) {
     if (this == obj) {
       return true;
@@ -414,6 +423,7 @@ public class OrderDto {
               Objects.equals(this.isExpired, orderDto.isExpired) &&
               Objects.equals(this.regel, orderDto.regel) &&
               Objects.equals(this.aantal, orderDto.aantal) &&
+              Objects.equals(this.gel, orderDto.gel) &&
               Objects.equals(this.product, orderDto.product) &&
               Objects.equals(this.Omsumin, orderDto.Omsumin) &&
               Objects.equals(this.cdProdGrp, orderDto.cdProdGrp) &&

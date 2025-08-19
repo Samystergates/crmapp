@@ -531,6 +531,7 @@ public class OrderServiceImp implements OrderService {
         order.setDeliveryDate(orderDto.getDeliveryDate());
         order.setReferenceInfo(orderDto.getReferenceInfo());
         order.setAantal(orderDto.getAantal());
+        order.setGel(orderDto.getGel());
         order.setProduct(orderDto.getProduct());
         order.setCountry(orderDto.getCountry());
         order.setCity(orderDto.getCity());
@@ -674,10 +675,10 @@ public class OrderServiceImp implements OrderService {
                     } else if ("B".equals(getterMethod.invoke(orderDto)) && "B".equals(orderStatus)) {
                         List<OrderDepartment> depList1 = orderDto.getDepartments();
                         Optional<OrderDepartment> dep1 = depList1.stream().filter(dp -> dp.getDepName().equals(orderDep.toUpperCase())).findFirst();
-                        if(dep1.isPresent()){
+                        if (dep1.isPresent()) {
                             setterMethod.invoke(orderDto, dep1.get().getPrevStatus());
                             color = dep1.get().getPrevStatus();
-                        }else{
+                        } else {
                             setterMethod.invoke(orderDto, "R");
                             color = "R";
                         }
@@ -723,7 +724,7 @@ public class OrderServiceImp implements OrderService {
                             } else if ("B".equals(dep.getStatus())) {
                                 if (dep.getPrevStatus() != null && !dep.getPrevStatus().isEmpty()) {
                                     dep.setStatus(dep.getPrevStatus());
-                                }else {
+                                } else {
                                     dep.setStatus("R");
                                 }
                                 dep.setPrevStatus("B");
@@ -1606,6 +1607,7 @@ public class OrderServiceImp implements OrderService {
                         String omsumin = resultSet.getString("Omschrijving");
                         String cdProdGrp = resultSet.getString("cdprodgrp");
                         String zoeknaam = resultSet.getString("zoeknaam");
+                        String gel = resultSet.getString("Aantal geleverd");
 
                         String deliveryDate2 = "";
                         OrderDto orderDto = new OrderDto();
@@ -1658,6 +1660,7 @@ public class OrderServiceImp implements OrderService {
                             orderDto.setVerifierUser(verifierUser);
                             orderDto.setRegel(regel);
                             orderDto.setAantal(aantal);
+                            orderDto.setGel(gel);
                             orderDto.setProduct(product);
                             orderDto.setOmsumin(omsumin);
                             deliveryDate2 = orderDto.getDeliveryDate();
@@ -1703,6 +1706,7 @@ public class OrderServiceImp implements OrderService {
                             orderDto.setVerifierUser(verifierUser);
                             orderDto.setRegel(existingOrderDto.getRegel());
                             orderDto.setAantal(aantal);
+                            orderDto.setGel(gel);
                             orderDto.setProduct(product);
                             orderDto.setOmsumin(omsumin);
 
@@ -1712,7 +1716,7 @@ public class OrderServiceImp implements OrderService {
 
                             logger.info("datum-lna3 exc: " + existingOrderDto.getDeliveryDate());
 
-                            if(!existingOrderDto.getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.isEmpty()){
+                            if (!existingOrderDto.getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.isEmpty()) {
                                 logger.info("datum-lna4 true");
                             }
                             if (fieldsCheckMap.getOrDefault("cdProdGrp", false) || fieldsCheckMap.getOrDefault("orderType", false)) {

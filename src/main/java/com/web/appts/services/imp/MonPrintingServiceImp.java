@@ -251,7 +251,7 @@ public class MonPrintingServiceImp {
                             nestedCell1 = this.createCell(subOrder.getAantal(), font2);
                         }
                         PdfPCell nestedCell2 = this.createCell(subOrder.getProduct(), font2);
-                        PdfPCell nestedCell3 = this.createCell(subOrder.getOmsumin(), font2);
+                        PdfPCell nestedCell3 = this.createInnerOmsCell(subOrder.getOmsumin(), font2);
                         nestedCell1.setBorder(Rectangle.RIGHT | Rectangle.BOTTOM);
                         nestedCell2.setBorder(Rectangle.RIGHT | Rectangle.BOTTOM);
                         nestedCell3.setBorder(Rectangle.BOTTOM);
@@ -307,6 +307,15 @@ public class MonPrintingServiceImp {
         return cell;
     }
 
+    private PdfPCell createInnerOmsCell(String text, Font font) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, font));
+        cell.setHorizontalAlignment(Element.ALIGN_LEFT);
+        cell.setVerticalAlignment(Element.ALIGN_LEFT);
+        cell.setBorderWidth(0.3F);
+        cell.setPadding(2.0F);
+        return cell;
+    }
+
     private PdfPCell createCellOms(String text, Font font) {
         PdfPCell cell = new PdfPCell(new Phrase(text, font));
         cell.setHorizontalAlignment(Element.ALIGN_LEFT);  // Align text to the left
@@ -317,6 +326,7 @@ public class MonPrintingServiceImp {
     }
 
     private PdfPCell createCellWithNewLine(String text, String text2, Font font) {
+
         Paragraph paragraph1 = new Paragraph(text, font);
         paragraph1.setAlignment(Element.ALIGN_CENTER);
 

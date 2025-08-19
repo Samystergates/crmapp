@@ -145,6 +145,10 @@ public class Order {
 	)
 	private String aantal;
 	@Column(
+			name = "Aantal_geleverd"
+	)
+	private String gel;
+	@Column(
 			name = "Product"
 	)
 	private String product;
@@ -464,6 +468,14 @@ public class Order {
 		this.aantal = aantal;
 	}
 
+	public String getGel() {
+		return gel;
+	}
+
+	public void setGel(String gel) {
+		this.gel = gel;
+	}
+
 	public String getProduct() {
 		return this.product;
 	}
@@ -563,6 +575,7 @@ public class Order {
 					Objects.equals(this.verifierUser, order.verifierUser) &&
 					Objects.equals(this.regel, order.regel) &&
 					Objects.equals(this.aantal, order.aantal) &&
+					Objects.equals(this.gel, order.gel) &&
 					Objects.equals(this.product, order.product) &&
 					Objects.equals(this.Omsumin, order.Omsumin) &&
 					Objects.equals(this.isExpired, order.isExpired) &&
@@ -688,6 +701,10 @@ public class Order {
 		}
 
 		if (!Objects.equals(this.aantal, other.aantal)) {
+			++differences;
+		}
+
+		if (!Objects.equals(this.gel, other.gel)) {
 			++differences;
 		}
 

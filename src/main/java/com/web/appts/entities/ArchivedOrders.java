@@ -141,6 +141,10 @@ public class ArchivedOrders {
 	)
 	private String aantal;
 	@Column(
+			name = "Aantal_geleverd"
+	)
+	private String gel;
+	@Column(
 			name = "Product"
 	)
 	private String product;
@@ -420,6 +424,14 @@ public class ArchivedOrders {
 
 	public void setAantal(String aantal) {
 		this.aantal = aantal;
+	}
+
+	public String getGel() {
+		return gel;
+	}
+
+	public void setGel(String gel) {
+		this.gel = gel;
 	}
 
 	public String getProduct() {
