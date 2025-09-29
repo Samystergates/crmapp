@@ -132,7 +132,7 @@ public class StickerLabelServiceImp implements StickerLabelService {
         }
     }
 
-    public byte[] generateStickerPdf(String key) {
+    public byte[] generateStickerPdf(String key, String orderNumber) {
         List<StickerLabelDto> list = this.getAllStickerLabels();
         StickerLabelDto sLabelDto = (StickerLabelDto)this.stickerMap.get(key);
 
@@ -149,7 +149,7 @@ public class StickerLabelServiceImp implements StickerLabelService {
                 this.addProductInfo(document, sLabelDto);
                 this.addOptions1(writer, document, sLabelDto);
                 this.addOptions2(writer, document, sLabelDto);
-                this.addFooterandAddress(document, sLabelDto);
+                this.addFooterandAddress(document, sLabelDto, orderNumber);
                 System.out.println("Closing Document");
                 document.close();
                 var8 = outputStream.toByteArray();
@@ -171,50 +171,6 @@ public class StickerLabelServiceImp implements StickerLabelService {
             return new byte[0];
         }
     }
-
-//    private void addHeadingAndAddress(PdfWriter writer, Document document, String heading, StickerLabelDto sLabelDto) throws DocumentException {
-//        Font font = new Font(FontFamily.HELVETICA, 30.0F, 1);
-//        Font font2 = new Font(FontFamily.HELVETICA, 13.0F);
-//        PdfPTable mainTable = new PdfPTable(2);
-//        mainTable.setWidthPercentage(100.0F);
-//        PdfPCell cell1 = new PdfPCell();
-//        Paragraph paragraph = new Paragraph("", font);
-//        paragraph.setAlignment(2);
-//        cell1.addElement(paragraph);
-//        cell1.setBorder(0);
-//        PdfContentByte cb = writer.getDirectContent();
-//        Barcode128 barcode = new Barcode128();
-//        barcode.setCode(sLabelDto.getProduct());
-//        barcode.setFont((BaseFont)null);
-//        barcode.setBaseline(0.0F);
-//        barcode.setBarHeight(30.0F);
-//        Image image = barcode.createImageWithBarcode(cb, BaseColor.BLACK, BaseColor.BLACK);
-//        image.setAlignment(1);
-//        image.scalePercent(120.0F);
-//        cell1.addElement(image);
-//        Paragraph labelParagraph = new Paragraph(String.format("%-1s%-1s", " ", sLabelDto.getProduct()), font2);
-//        labelParagraph.setAlignment(1);
-//        cell1.addElement(labelParagraph);
-//        cell1.setBorder(8);
-//        cell1.setBorderColor(BaseColor.BLACK);
-//        mainTable.addCell(cell1);
-//        PdfPCell cell3 = new PdfPCell();
-//        Paragraph paragraph3 = new Paragraph("TRIOLIET", font);
-//        paragraph3.setAlignment(1);
-//        cell3.addElement(paragraph3);
-//        cell3.setBorder(0);
-//        mainTable.addCell(cell3);
-//        mainTable.setSpacingAfter(10.0F);
-//        PdfPTable separatorTable = new PdfPTable(1);
-//        PdfPCell separatorCell = new PdfPCell();
-//        separatorCell.setBorder(2);
-//        separatorCell.setBorderColor(BaseColor.BLACK);
-//        separatorTable.addCell(separatorCell);
-//        separatorTable.setWidthPercentage(100.0F);
-//        separatorTable.setSpacingAfter(10.0F);
-//        document.add(mainTable);
-//        document.add(separatorTable);
-//    }
 
     private void addHeadingAndAddress(PdfWriter writer, Document document, String heading, StickerLabelDto sLabelDto) throws DocumentException, IOException {
         Font font = new Font(FontFamily.HELVETICA, 30.0F, 1);
@@ -386,43 +342,10 @@ public class StickerLabelServiceImp implements StickerLabelService {
         document.add(separatorTable);
     }
 
-//    private void addFooterandAddress(Document document, StickerLabelDto sLabelDto) throws DocumentException {
-//        new Font(FontFamily.HELVETICA, 30.0F, 1);
-//        Font font2 = new Font(FontFamily.HELVETICA, 13.0F);
-//        Font font3 = new Font(FontFamily.COURIER, 35.0F, 1);
-//        Font font22 = new Font(FontFamily.COURIER, 30.0F, 1);
-//        PdfPTable mainTable = new PdfPTable(2);
-//        mainTable.setWidthPercentage(100.0F);
-//        PdfPCell cell2 = new PdfPCell();
-//        Paragraph paragraph1 = new Paragraph("De Molen Banden B.V.", font2);
-//        Paragraph paragraph2 = new Paragraph("Rustvenseweg 2", font2);
-//        Paragraph paragraph3 = new Paragraph("5375 KW REEK", font2);
-//        Paragraph paragraph4 = new Paragraph("Nederland", font2);
-//        paragraph1.setAlignment(1);
-//        paragraph2.setAlignment(1);
-//        paragraph3.setAlignment(1);
-//        paragraph4.setAlignment(1);
-//        cell2.addElement(paragraph1);
-//        cell2.addElement(paragraph2);
-//        cell2.addElement(paragraph3);
-//        cell2.addElement(paragraph4);
-//        cell2.setBorder(8);
-//        cell2.setBorderColor(BaseColor.BLACK);
-//        mainTable.addCell(cell2);
-//        PdfPCell cell3 = new PdfPCell();
-//        Paragraph paragraph = new Paragraph("DE MOLEN", font3);
-//        Paragraph paragraphbanden = new Paragraph(" BANDEN", font22);
-//        paragraph.setAlignment(1);
-//        cell3.addElement(paragraph);
-//        paragraphbanden.setAlignment(1);
-//        cell3.addElement(paragraphbanden);
-//        cell3.setBorder(0);
-//        mainTable.addCell(cell3);
-//        document.add(mainTable);
-//    }
+    private void addFooterandAddress(Document document, StickerLabelDto sLabelDto, String orderNumber) throws DocumentException, IOException {
+        Font font1 = new Font(FontFamily.COURIER, 15.0F, Font.BOLD);
 
-    private void addFooterandAddress(Document document, StickerLabelDto sLabelDto) throws DocumentException, IOException {
-        Font font2 = new Font(FontFamily.HELVETICA, 13.0F);
+        Font font2 = new Font(FontFamily.HELVETICA, 10.0F);
         Font font3 = new Font(FontFamily.COURIER, 35.0F, Font.BOLD);
         Font font22 = new Font(FontFamily.COURIER, 30.0F, Font.BOLD);
 
@@ -431,6 +354,7 @@ public class StickerLabelServiceImp implements StickerLabelService {
 
         // Create address cell
         PdfPCell addressCell = new PdfPCell();
+        addressCell.addElement(new Paragraph(orderNumber, font1));
         addressCell.addElement(new Paragraph("De Molen Banden B.V.", font2));
         addressCell.addElement(new Paragraph("Rustvenseweg 2", font2));
         addressCell.addElement(new Paragraph("5375 KW REEK", font2));

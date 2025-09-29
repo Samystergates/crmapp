@@ -16,4 +16,6 @@ public interface OrderSMEService {
 	List<OrderSMEDto> getAllSme();
 
 	byte[] generateSMEPdf(String key);
+
+	void cleanSpuSmeBugs();
 }

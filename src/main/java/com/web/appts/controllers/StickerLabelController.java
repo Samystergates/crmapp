@@ -64,9 +64,9 @@ public class StickerLabelController {
         return ResponseEntity.ok(stickerLabels);
     }
 
-    @GetMapping({"/label/printPdf/{key}"})
-    public ResponseEntity<byte[]> generateMonPdf(@PathVariable("key") String key) {
-        byte[] pdfBytes = this.stickerLabelService.generateStickerPdf(key);
+    @GetMapping({"/label/printPdf/{key}/{orderNumber}"})
+    public ResponseEntity<byte[]> generateMonPdf(@PathVariable("key") String key, @PathVariable("orderNumber") String orderNumber) {
+        byte[] pdfBytes = this.stickerLabelService.generateStickerPdf(key, orderNumber);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
         headers.setContentDispositionFormData("attachment", "orderSticker.pdf");

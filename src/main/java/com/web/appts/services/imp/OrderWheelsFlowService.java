@@ -12,13 +12,12 @@ import com.itextpdf.text.pdf.PdfWriter;
 import com.web.appts.DTO.*;
 import com.web.appts.configurations.JwtTokenHelper;
 import com.web.appts.controllers.CheckboxCellEvent;
+import com.web.appts.entities.Order;
+import com.web.appts.entities.OrderDepartment;
 import com.web.appts.entities.OrderSME;
 import com.web.appts.entities.OrderSPU;
 import com.web.appts.exceptions.ResourceNotFoundException;
-import com.web.appts.repositories.OrderSMERepo;
-import com.web.appts.repositories.OrderSPURepo;
-import com.web.appts.repositories.PriceCodesRepo;
-import com.web.appts.repositories.SpuDepartmentsRepo;
+import com.web.appts.repositories.*;
 import com.web.appts.services.OrderSMEService;
 import com.web.appts.services.OrderSPUService;
 
@@ -30,20 +29,22 @@ import java.security.Principal;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
-import java.util.Date;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.web.appts.utils.AanOptions;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import javax.imageio.ImageIO;
+import javax.transaction.Transactional;
 
 @Service
 public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService {
@@ -58,11 +59,15 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
     @Autowired
     PriceCodesRepo priceCodesRepo;
     @Autowired
+    OrderRepo orderRepo;
+    @Autowired
     SpuDepartmentsRepo spuDepartmentsRepo;
     Map<String, OrderSMEDto> orderSMEMap = new HashMap();
     Map<String, OrderSPUDto> orderSPUMap = new HashMap();
     @Autowired
     private ModelMapper modelMapper;
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     public OrderWheelsFlowService() {
     }
@@ -74,7 +79,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             orderDto.setSpu("R");
             this.orderServiceImp.updateOrder(orderDto, orderDto.getId(), true);
             OrderSPU orderSPUSaved = (OrderSPU) this.orderSPURepo.save(this.dtoToSPU(orderSPUDto));
-            this.orderSPUMap.put(orderSPUSaved.getOrderNumber() + " - " + orderSPUSaved.getRegel(), this.spuToDto(orderSPUSaved));
+            this.orderSPUMap.put(orderSPUSaved.getOrderNumber() + "," + orderSPUSaved.getRegel(), this.spuToDto(orderSPUSaved));
             return this.spuToDto(orderSPUSaved);
         } else {
             orderSPUDto.setId(orderSPUDtoMapVal.getId());
@@ -84,7 +89,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
 
     public OrderSPUDto updateOrderSPU(OrderSPUDto orderSPUDto) {
         OrderSPU orderSPUUpdated = (OrderSPU) this.orderSPURepo.save(this.dtoToSPU(orderSPUDto));
-        this.orderSPUMap.put(orderSPUUpdated.getOrderNumber() + " - " + orderSPUUpdated.getRegel(), orderSPUDto);
+        this.orderSPUMap.put(orderSPUUpdated.getOrderNumber() + "," + orderSPUUpdated.getRegel(), orderSPUDto);
         return this.spuToDto(orderSPUUpdated);
     }
 
@@ -95,14 +100,14 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         OrderDto orderDto = (OrderDto) this.orderServiceImp.getMap().get(orderSPU.getOrderNumber() + "," + orderSPU.getRegel());
         orderDto.setSpu("");
         this.orderServiceImp.updateOrder(orderDto, orderDto.getId(), true);
-        this.orderSPUMap.remove(orderSPU.getOrderNumber() + " - " + orderSPU.getRegel());
+        this.orderSPUMap.remove(orderSPU.getOrderNumber() + "," + orderSPU.getRegel());
         this.orderSPURepo.delete(orderSPU);
         return true;
     }
 
     public OrderSPUDto getOrderSPU(String orderNumber, String regel) {
-        if (!this.orderSPUMap.isEmpty() && this.orderSPUMap.containsKey(orderNumber + " - " + regel)) {
-            return (OrderSPUDto) this.orderSPUMap.get(orderNumber + " - " + regel);
+        if (!this.orderSPUMap.isEmpty() && this.orderSPUMap.containsKey(orderNumber + "," + regel)) {
+            return (OrderSPUDto) this.orderSPUMap.get(orderNumber + "," + regel);
         } else {
             OrderSPU orderSPU = this.orderSPURepo.findByOrderNumberAndRegel(orderNumber, regel);
             return orderSPU == null ? null : this.spuToDto(orderSPU);
@@ -119,7 +124,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             orderSMEDto.setSlipCreator(authentication.getName());
             OrderSME orderSMESaved = (OrderSME) this.orderSMERepo.save(this.dtoToSME(orderSMEDto));
-            this.orderSMEMap.put(orderSMESaved.getOrderNumber() + " - " + orderSMESaved.getRegel(), this.smeToDto(orderSMESaved));
+            this.orderSMEMap.put(orderSMESaved.getOrderNumber() + "," + orderSMESaved.getRegel(), this.smeToDto(orderSMESaved));
             return this.smeToDto(orderSMESaved);
         } else {
             orderSMEDto.setId(orderSMEDtoMapVal.getId());
@@ -162,7 +167,7 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         orderSMEDto.setSlipCreator(authentication.getName());
         OrderSME orderSMEUpdated = (OrderSME) this.orderSMERepo.save(this.dtoToSME(orderSMEDto));
-        this.orderSMEMap.put(orderSMEUpdated.getOrderNumber() + " - " + orderSMEUpdated.getRegel(), orderSMEDto);
+        this.orderSMEMap.put(orderSMEUpdated.getOrderNumber() + "," + orderSMEUpdated.getRegel(), orderSMEDto);
         return this.smeToDto(orderSMEUpdated);
     }
 
@@ -174,14 +179,14 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
         OrderDto orderDto = (OrderDto) this.orderServiceImp.getMap().get(orderSME.getOrderNumber() + "," + orderSME.getRegel());
         orderDto.setSme("");
         this.orderServiceImp.updateOrder(orderDto, orderDto.getId(), true);
-        this.orderSMEMap.remove(orderSME.getOrderNumber() + " - " + orderSME.getRegel());
+        this.orderSMEMap.remove(orderSME.getOrderNumber() + "," + orderSME.getRegel());
         this.orderSMERepo.delete(orderSME);
         return true;
     }
 
     public OrderSMEDto getOrderSME(String orderNumber, String regel) {
-        if (!this.orderSMEMap.isEmpty() && this.orderSMEMap.containsKey(orderNumber + " - " + regel)) {
-            return (OrderSMEDto) this.orderSMEMap.get(orderNumber + " - " + regel);
+        if (!this.orderSMEMap.isEmpty() && this.orderSMEMap.containsKey(orderNumber + "," + regel)) {
+            return (OrderSMEDto) this.orderSMEMap.get(orderNumber + "," + regel);
         } else {
             OrderSME orderSME = this.orderSMERepo.findByOrderNumberAndRegel(orderNumber, regel);
             return orderSME == null ? null : this.smeToDto(orderSME);
@@ -189,18 +194,32 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
     }
 
     public List<OrderSMEDto> getAllSme() {
-        List<OrderSME> listSme = this.orderSMERepo.findAll();
-        return (List) listSme.stream().map((sme) -> {
-            return this.smeToDto(sme);
-        }).collect(Collectors.toList());
+        List<OrderSMEDto> listSme = new ArrayList<>();
+        if (!this.orderSMEMap.isEmpty()) {
+            listSme = new ArrayList<>(orderSMEMap.values());
+        }
+        if (listSme.isEmpty()) {
+            listSme = this.orderSMERepo.findAll().stream().map(this::smeToDto).collect(Collectors.toList());
+            for (OrderSMEDto smeDto : listSme) {
+                orderSMEMap.put(smeDto.getOrderNumber() + "," + smeDto.getRegel(), smeDto);
+            }
+        }
+        return listSme;
     }
 
 
     public List<OrderSPUDto> getAllSpu() {
-        List<OrderSPU> listSpu = this.orderSPURepo.findAll();
-        return (List) listSpu.stream().map((spu) -> {
-            return this.spuToDto(spu);
-        }).collect(Collectors.toList());
+        List<OrderSPUDto> listSpu = new ArrayList<>();
+        if (!this.orderSPUMap.isEmpty()) {
+            listSpu = new ArrayList<>(orderSPUMap.values());
+        }
+        if (listSpu.isEmpty()) {
+            listSpu = this.orderSPURepo.findAll().stream().map(this::spuToDto).collect(Collectors.toList());
+            for (OrderSPUDto spuDto : listSpu) {
+                orderSPUMap.put(spuDto.getOrderNumber() + "," + spuDto.getRegel(), spuDto);
+            }
+        }
+        return listSpu;
     }
 
 
@@ -212,6 +231,73 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
     @Override
     public List<SpuDepartmentsDto> getAllSpuDepartments() {
         return spuDepartmentsRepo.findAll().stream().map(pc -> modelMapper.map(pc, SpuDepartmentsDto.class)).collect(Collectors.toList());
+    }
+
+
+    @Async
+    @Scheduled(fixedRate = 200000)
+    @Transactional
+    public void cleanSpuSmeBugs() {
+        List<OrderSMEDto> listSme = getAllSme();
+        List<OrderSPUDto> listSpu = getAllSpu();
+        Map<String, OrderDto> orders = this.orderServiceImp.getMap();
+
+        boolean updated = false;
+
+        for (OrderDto order : orders.values()) {
+            updated = updateSME(order);
+            updated = updateSPU(order);
+        }
+        if (updated) {
+            this.messagingTemplate.convertAndSend("/topic/orderUpdate", this.orderServiceImp.getAllOrders());
+        }
+    }
+
+    @Transactional
+    public boolean updateSME(OrderDto order) {
+        if (order.getSme() != null && !order.getSme().isEmpty()) {
+            if (orderSMEMap.getOrDefault(order.getOrderNumber() + "," + order.getRegel(), null) == null) {
+                orderRepo.updateFieldForIdsMainSme("",order.getId());
+                order.setSme("");
+                List<OrderDepartment> deps = order.getDepartments();
+                for (OrderDepartment dep : deps) {
+                    if (dep.getDepName().equals("SME")) {
+                        dep.setStatus("");
+                        dep.setPrevStatus("R");
+                        orderRepo.updateOrderDepartmentStatusMain("","R","SME", Collections.singletonList(order.getId()));
+                    }
+                }
+                order.setDepartments(deps);
+                Map<String, OrderDto> orders = this.orderServiceImp.getMap();
+                orders.put(order.getOrderNumber()+","+order.getRegel(), order);
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    @Transactional
+    public boolean updateSPU(OrderDto order) {
+        if (order.getSpu() != null && !order.getSpu().isEmpty()) {
+            if (orderSPUMap.getOrDefault(order.getOrderNumber() + "," + order.getRegel(), null) == null) {
+                order.setSpu("");
+                orderRepo.updateFieldForIdsMainSpu("",order.getId());
+                List<OrderDepartment> deps = order.getDepartments();
+                for (OrderDepartment dep : deps) {
+                    if (dep.getDepName().equals("SPU")) {
+                        dep.setStatus("");
+                        dep.setPrevStatus("R");
+                        orderRepo.updateOrderDepartmentStatusMain("","R","SPU", Collections.singletonList(order.getId()));
+                    }
+                }
+                order.setDepartments(deps);
+                Map<String, OrderDto> orders = this.orderServiceImp.getMap();
+                orders.put(order.getOrderNumber()+","+order.getRegel(), order);
+                return true;
+            }
+        }
+        return false;
     }
 
     public OrderSME dtoToSME(OrderSMEDto orderSMEDto) {
@@ -896,15 +982,14 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
             throw new RuntimeException(e);
         }
 
-        System.out.println("bi: "+breakIndex);
-        if(text.substring(breakIndex) != null && !text.substring(breakIndex).equals("")){
+        System.out.println("bi: " + breakIndex);
+        if (text.substring(breakIndex) != null && !text.substring(breakIndex).equals("")) {
             ++lettrCountForRows;
         }
         System.out.println("Column width points: " + omschrijvingWidth);
         System.out.println("Line will break at index: " + breakIndex);
         System.out.println("First line: " + text.substring(0, breakIndex));
         System.out.println("Remaining: " + text.substring(breakIndex));
-
 
 
 //        PdfContentByte cb = writer.getDirectContent();
@@ -1211,7 +1296,6 @@ public class OrderWheelsFlowService implements OrderSMEService, OrderSPUService 
 //        }
 //        return text.length(); // No break needed
 //    }
-
 
 
 //    public static int getLineBreakIndex(String text, Font.FontFamily fontFamily, float fontSize, float maxWidthPoints) throws Exception {

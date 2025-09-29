@@ -67,6 +67,14 @@ public interface OrderRepo extends JpaRepository<Order, Integer> {
 	int updateFieldForIdsMainexp(@Param("newValue") String newValue, @Param("ids") List<Integer> ids);
 
 	@Modifying
+	@Query("UPDATE Order o SET o.sme = :newValue WHERE o.id = :id")
+	int updateFieldForIdsMainSme(@Param("newValue") String newValue, @Param("id") Integer id);
+
+	@Modifying
+	@Query("UPDATE Order o SET o.spu = :newValue WHERE o.id = :id")
+	int updateFieldForIdsMainSpu(@Param("newValue") String newValue, @Param("id") Integer id);
+
+	@Modifying
 	@Query("UPDATE OrderDepartment od SET od.status = :newValue, od.prevStatus = :newValue2 WHERE od.order.id IN :ids AND od.depName = :newValue3")
 	int updateOrderDepartmentStatusMain(@Param("newValue") String newValue, @Param("newValue2") String newValue2, @Param("newValue3") String newValue3, @Param("ids") List<Integer> ids);
 }

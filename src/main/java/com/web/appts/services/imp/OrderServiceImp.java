@@ -14,6 +14,7 @@ import java.lang.reflect.Method;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -52,7 +53,7 @@ public class OrderServiceImp implements OrderService {
     @Autowired
     private ConfigurableApplicationContext configurableContext;
 
-    Map<String, OrderDto> ordersMap = new HashMap();
+    Map<String, OrderDto> ordersMap = new ConcurrentHashMap();
     Map<String, OrderDto> archivedOrdersMap = new HashMap();
     private static final Logger logger = LoggerFactory.getLogger(OrderServiceImp.class);
     List<OrderDto> orderDtoList;
@@ -523,7 +524,7 @@ public class OrderServiceImp implements OrderService {
     }
 
     //@Transactional
-    public List<OrderDto> updateOrder(OrderDto orderDto, Integer orderId, Boolean flowUpdate) {
+    public synchronized List<OrderDto> updateOrder(OrderDto orderDto, Integer orderId, Boolean flowUpdate) {
         List<OrderDto> lo = this.checkMap();
         Order order = (Order) this.orderRepo.findById(orderId).orElseThrow(() -> {
             return new ResourceNotFoundException("Order", "id", (long) orderId);

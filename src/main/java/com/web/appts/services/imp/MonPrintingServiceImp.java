@@ -8,10 +8,8 @@ import com.web.appts.DTO.OrderDto;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Comparator;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.Stack;
 import java.util.stream.Collectors;
 
 import com.web.appts.controllers.CheckboxCellEvent;
@@ -217,6 +215,10 @@ public class MonPrintingServiceImp {
                     cell2 = this.createCell("", font2);
                     cell3 = this.createCell("", font2);
                     cell4 = this.createCell("", font2);
+                }
+
+                if(list == null){
+                    list = new ArrayList<>();
                 }
 
                 if (list.size() != 0 && !isRepeat) {

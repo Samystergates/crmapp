@@ -13,7 +13,7 @@ public interface StickerLabelService {
 
     List<StickerLabelDto> getAllStickerLabels();
 
-    byte[] generateStickerPdf(String key);
+    byte[] generateStickerPdf(String key, String orderNumber);
 
     StickerLabelDto getOrderSticker(String prodNumber);
 }

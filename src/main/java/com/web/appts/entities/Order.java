@@ -3,13 +3,8 @@ package com.web.appts.entities;
 
 import java.util.List;
 import java.util.Objects;
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.Id;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
+import javax.persistence.*;
+
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.Fetch;
@@ -23,6 +18,7 @@ import org.hibernate.annotations.FetchMode;
 		usage = CacheConcurrencyStrategy.READ_WRITE
 )
 public class Order {
+
 	@Id
 	@Column(
 			name = "id"
