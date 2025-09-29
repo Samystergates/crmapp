@@ -46,6 +46,7 @@ public class OrderController {
     public ResponseEntity<List<OrderDto>> getCrmOrders() {
         List<OrderDto> orderDto = this.orderService.checkMap();
         this.orderService.markExpired();
+        this.orderService.checkOrderExistence();
         orderDto = this.orderService.getCRMOrders();
         this.orderService.createMonSub();
         this.orderService.updateProductNotes();

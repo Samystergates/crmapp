@@ -4,6 +4,8 @@ package com.web.appts.services;
 import com.web.appts.DTO.CustomOrderDto;
 import com.web.appts.DTO.DeleteCustOrderDto;
 import com.web.appts.DTO.OrderDto;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 
 import java.io.OutputStream;
 import java.util.List;
@@ -31,6 +33,8 @@ public interface OrderService {
 	List<OrderDto> getAllOrders();
 
 	void removingSameArchivedOrders();
+
+	void checkOrderExistence();
 
 	List<OrderDto> getCRMOrders();
 

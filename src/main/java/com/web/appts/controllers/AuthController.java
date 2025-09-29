@@ -135,4 +135,10 @@ public class AuthController {
         return ResponseEntity.ok(1);
     }
 
+    @GetMapping({"/check-deleted-orders"})
+    public ResponseEntity<Integer> checkDeletedOrders() {
+        this.orderService.checkOrderExistence();
+        return ResponseEntity.ok(1);
+    }
+
 }

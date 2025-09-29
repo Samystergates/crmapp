@@ -85,8 +85,8 @@ public class OrderServiceImp implements OrderService {
 
     private final Set<Connection> activeConnections = new HashSet<>();
 
-//    @Autowired
-//    @Qualifier("secondaryDataSource")
+    @Autowired
+    @Qualifier("secondaryDataSource")
     private DataSource secondaryDataSource;
 
 //    public Connection getConnection() throws SQLException {
@@ -100,9 +100,9 @@ public class OrderServiceImp implements OrderService {
     public static synchronized Connection getConnection() throws SQLException {
         if (connection == null || connection.isClosed()) {
             logger.info("creating new connection");
-//            connection = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
-//            connection.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
-//            connection.setAutoCommit(true);
+            connection = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
+            connection.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
+            connection.setAutoCommit(true);
         }
         return connection;
     }
@@ -1144,9 +1144,124 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
+    @Async("taskExecutor")
+    @Scheduled(fixedRate = 370000)
+    @Override
+    public void checkOrderExistence() {
+        if (!ordersMap.isEmpty()) {
+            int retry = 0;
+            while (retry < 5 && retry != -1) {
+                try {
+                    checkOrderExistenceInner();
+                    retry = -1;
+                } catch (Exception e) {
+                    logger.info("checkOrderExistenceInner sql exc 2");
+                    if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                        retry++;
+                        logger.info(e.getMessage());
+                    } else {
+                        retry++;
+                        e.printStackTrace();
+                        logger.info(e.getMessage());
+                    }
+                } finally {
+                    //closeConnections();
+                }
+            }
+            if (retry == 5) {
+                retry = 0;
+                reloadJDBCDriver();
+                refreshDataSource();
+                while (retry < 5 && retry != -1) {
+                    try {
+                        checkOrderExistenceInner();
+                        retry = -1;
+                    } catch (Exception e) {
+                        logger.info("checkOrderExistenceInner sql exc 3");
+                        if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                            retry++;
+                            logger.info("3 exp retry is: " + retry);
+                            logger.info(e.getMessage());
+                        } else {
+                            retry++;
+                            e.printStackTrace();
+                            logger.info("retry num" + retry + ", " + e.getMessage());
+                            logger.info(e.getMessage());
+
+                        }
+                    } finally {
+                        //closeConnections();
+                    }
+                }
+                if (retry == 5) {
+                    exitProgram();
+                }
+                logger.info("fixed");
+            } else {
+                logger.info("worked");
+            }
+        }
+    }
+
+    public void deleteOrderIds(List<Integer> idsToDelete) {
+        if (!ordersMap.isEmpty()) {
+            int retry = 0;
+            while (retry < 5 && retry != -1) {
+                try {
+                    deleteOrderIdsInner(idsToDelete);
+                    retry = -1;
+                } catch (Exception e) {
+                    logger.info("deleteOrderIdsInner sql exc 2");
+                    if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                        retry++;
+                        logger.info(e.getMessage());
+                    } else {
+                        retry++;
+                        e.printStackTrace();
+                        logger.info(e.getMessage());
+                    }
+                } finally {
+                    //closeConnections();
+                }
+            }
+            if (retry == 5) {
+                retry = 0;
+                reloadJDBCDriver();
+                refreshDataSource();
+                while (retry < 5 && retry != -1) {
+                    try {
+                        deleteOrderIdsInner(idsToDelete);
+                        retry = -1;
+                    } catch (Exception e) {
+                        logger.info("deleteOrderIdsInner sql exc 3");
+                        if (e.getMessage() != null && e.getMessage().contains("[Microsoft][ODBC Driver Manager] Invalid string or buffer length")) {
+                            retry++;
+                            logger.info("3 exp retry is: " + retry);
+                            logger.info(e.getMessage());
+                        } else {
+                            retry++;
+                            e.printStackTrace();
+                            logger.info("retry num" + retry + ", " + e.getMessage());
+                            logger.info(e.getMessage());
+
+                        }
+                    } finally {
+                        //closeConnections();
+                    }
+                }
+                if (retry == 5) {
+                    exitProgram();
+                }
+                logger.info("fixed");
+            } else {
+                logger.info("worked");
+            }
+        }
+    }
+
     private void exitProgram() {
-//        int exitCode = SpringApplication.exit(context, () -> 0);
-//        System.exit(exitCode);
+        int exitCode = SpringApplication.exit(context, () -> 0);
+        System.exit(exitCode);
     }
 
     public void markExpiredInner() {
@@ -1288,6 +1403,167 @@ public class OrderServiceImp implements OrderService {
                     logger.info(e.getMessage());
                 }
             }
+        }
+    }
+
+
+    public void checkOrderExistenceInner() {
+
+        String stringOfOrdersWithCommaAndQuotations = ordersMap.keySet().stream()
+                .map(order -> "'" + order + "'")
+                .collect(Collectors.joining(","));
+
+        String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', " +
+                "\"va-211\".\"nrordrgl\" AS 'Regel' " +
+                "FROM DATA.PUB.\"va-210\" " +
+                "JOIN DATA.PUB.\"va-211\" ON \"va-210\".\"cdorder\" = \"va-211\".\"cdorder\" " +
+                "AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" " +
+                "WHERE \"va-210\".\"cdadmin\" = '01' " +
+                "AND \"va-210\".\"cdvestiging\" = 'ree' " +
+                "AND \"va-210\".\"cdorder\" IN (" + stringOfOrdersWithCommaAndQuotations + ")";
+
+        Statement statement = null;
+        ResultSet resultSet = null;
+
+        List<Integer> orderIdsToDelete = new ArrayList<>();
+
+        try {
+            Connection connection = getConnection();
+            connection.clearWarnings();
+
+            statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+            resultSet = statement.executeQuery(query);
+
+            if (activeConnections.isEmpty()) {
+                activeConnections.add(connection);
+            }
+
+            if (statement != null && resultSet != null) {
+                logger.info("----------resultSet----------");
+                logger.info("" + resultSet);
+                String orderNumber = null;
+
+                Set<String> foundOrders = new HashSet<>();
+                while (resultSet.next()) {
+                    String orderKey = resultSet.getString("Verkooporder") + "," + resultSet.getString("Regel");
+                    foundOrders.add(orderKey);
+                }
+
+                for (Map.Entry<String, OrderDto> entry : ordersMap.entrySet()) {
+                    String orderNum = entry.getKey();
+                    if (!foundOrders.contains(orderNum)) {
+                        logger.warn("Order {} not found in the system", orderNum);
+                        orderIdsToDelete.add(entry.getValue().getId());
+                    }
+                }
+            }
+            connection.clearWarnings();
+        } catch (SQLException e) {
+            logger.info("markExpired sql exc 1");
+            logger.info(e.getMessage());
+            throw new RuntimeException(e);
+        } finally {
+            if (resultSet != null) {
+                try {
+                    resultSet.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    logger.info(e.getMessage());
+                }
+            }
+            if (statement != null) {
+                try {
+                    statement.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    logger.info(e.getMessage());
+                }
+            }
+        }
+        if (orderIdsToDelete != null && !orderIdsToDelete.isEmpty()) {
+            logger.warn("OrderIds {} not found in the system", orderIdsToDelete);
+            deleteOrderIds(orderIdsToDelete);
+        }
+    }
+
+    private void deleteOrderIdsInner(List<Integer> orderIdsToDelete) {
+
+        List<Integer> filteredIds = new ArrayList<>();
+
+        for (Integer orderId : orderIdsToDelete) {
+
+            ordersMap.values().forEach(order -> {
+
+                if (order.getId() == orderId) {
+
+                    String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', " +
+                            "\"va-211\".\"nrordrgl\" AS 'Regel' " +
+                            "FROM DATA.PUB.\"va-210\" " +
+                            "JOIN DATA.PUB.\"va-211\" ON \"va-210\".\"cdorder\" = \"va-211\".\"cdorder\" " +
+                            "AND \"va-211\".\"cdadmin\" = \"va-210\".\"cdadmin\" " +
+                            "WHERE \"va-210\".\"cdadmin\" = '01' " +
+                            "AND \"va-210\".\"cdvestiging\" = 'ree' " +
+                            "AND \"va-210\".\"cdorder\" = '" + order.getOrderNumber() + "' " +
+                            "AND \"va-211\".\"nrordrgl\" = '" + order.getRegel() + "'";
+
+
+                    Statement statement = null;
+                    ResultSet resultSet = null;
+                    try {
+                        Connection connection = getConnection();
+                        connection.clearWarnings();
+
+                        statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                        resultSet = statement.executeQuery(query);
+                        if (activeConnections.isEmpty()) {
+                            activeConnections.add(connection);
+                        }
+                        if (statement != null && resultSet != null) {
+                            logger.info("----------resultSet----------");
+                            logger.info("" + resultSet);
+
+                            boolean recordExists = false;
+                            if (resultSet.next()) {
+                                recordExists = true;
+                            }
+
+                            if (recordExists) {
+                                logger.info("Found matching order {} with regel {}",
+                                        order.getOrderNumber(), order.getRegel());
+                            } else {
+                                logger.warn("No matching order found for {} with regel {}",
+                                        order.getOrderNumber(), order.getRegel());
+                                filteredIds.add(order.getId());
+                            }
+                        }
+                    } catch (SQLException e) {
+                        logger.info("markExpired sql exc 1");
+                        logger.info(e.getMessage());
+                        throw new RuntimeException(e);
+                    } finally {
+                        if (resultSet != null) {
+                            try {
+                                resultSet.close();
+                            } catch (SQLException e) {
+                                e.printStackTrace();
+                                logger.info(e.getMessage());
+                            }
+                        }
+                        if (statement != null) {
+                            try {
+                                statement.close();
+                            } catch (SQLException e) {
+                                e.printStackTrace();
+                                logger.info(e.getMessage());
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        if (filteredIds != null && !filteredIds.isEmpty()) {
+            logger.warn("OrderIds {} really not found in the system", filteredIds);
+            this.deleteOrderData(orderIdsToDelete);
         }
     }
 
