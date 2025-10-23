@@ -13,6 +13,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 
+import com.web.appts.services.imp.OrderServiceImp;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
@@ -33,6 +34,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 public class ApptsApplication {
 	@Autowired
 	private ApplicationContext context;
+
 	public static void main(String[] args) {
 		SpringApplication.run(ApptsApplication.class, args);
 
@@ -285,22 +287,14 @@ public class ApptsApplication {
 //		}
 	}
 
-	private boolean isAppStarted = false;
-
-	@EventListener(ApplicationReadyEvent.class)
-	public void onApplicationReady() {
-		isAppStarted = true;
-		System.out.println("Application started successfully. Refresh will occur in 30 minutes.");
-	}
-
 
 	//@Scheduled(fixedRate = 30 * 60 * 1000)
 	//@Scheduled(fixedDelay = 180000) // 3 minutes in milliseconds
 	public void restartApplication() {
-		if (isAppStarted) {
+//		if (isAppStarted) {
 //			int exitCode = SpringApplication.exit(context, () -> 0);
 //			System.exit(exitCode);
-		}
+//		}
 	}
 
 	@Bean

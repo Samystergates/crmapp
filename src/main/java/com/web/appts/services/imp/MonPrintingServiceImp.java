@@ -8,6 +8,9 @@ import com.web.appts.DTO.OrderDto;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -141,7 +144,10 @@ public class MonPrintingServiceImp {
         PdfPCell cell3 = new PdfPCell();
         Paragraph paragraphR1 = new Paragraph(String.format("%-10s%-10s", "Verkooporder: ", ((OrderDto) list.get(0)).getOrderNumber()), font4);
         Paragraph paragraphR2 = new Paragraph(String.format("%-10s%-10s", "Behandelaar: ", ((OrderDto) list.get(0)).getUser()), font4);
-        Paragraph paragraphR3 = new Paragraph(String.format("%-10s%-10s", "Leverdatum: ", ((OrderDto) list.get(0)).getDeliveryDate()), font4);
+        String date = list.get(0).getDeliveryDate();
+        LocalDate parsedDate = LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        String formattedDate = parsedDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        Paragraph paragraphR3 = new Paragraph(String.format("%-10s%-10s", "Leverdatum: ", formattedDate), font4);
         paragraphR1.setAlignment(2);
         paragraphR2.setAlignment(2);
         paragraphR3.setAlignment(2);
