@@ -11,9 +11,11 @@ public interface OrderSMEService {
 
 	Boolean deleteOrderSME(Long orderSMEId);
 
-	OrderSMEDto getOrderSME(String orderNumber, String prodNumber);
+	OrderSMEDto getOrderSME(String orderNumber, String regel);
 
 	List<OrderSMEDto> getAllSme();
 
 	byte[] generateSMEPdf(String key);
+
+	void cleanSpuSmeBugs();
 }

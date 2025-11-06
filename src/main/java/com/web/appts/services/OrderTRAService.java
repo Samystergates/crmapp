@@ -1,7 +1,10 @@
 
 package com.web.appts.services;
 
+import com.web.appts.DTO.DeleteCustOrderDto;
 import com.web.appts.DTO.OrderTRADto;
+import com.web.appts.entities.TransportOrderLines;
+
 import java.util.Map;
 
 public interface OrderTRAService {
@@ -18,4 +21,6 @@ public interface OrderTRAService {
 	Map<String, OrderTRADto> getAllTraOrders();
 
 	byte[] generateTRAPdf(OrderTRADto orderTRADto);
+
+	Boolean deleteLineFromTra(TransportOrderLines transportOrderLines);
 }

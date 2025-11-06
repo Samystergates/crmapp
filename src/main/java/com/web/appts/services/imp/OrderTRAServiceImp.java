@@ -11,23 +11,26 @@ import com.itextpdf.text.Font.FontFamily;
 import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
+import com.web.appts.DTO.CustomOrderDto;
 import com.web.appts.DTO.OrderDto;
 import com.web.appts.DTO.OrderTRADto;
+import com.web.appts.DTO.TransportOrderLinesDto;
+import com.web.appts.entities.CustomOrder;
 import com.web.appts.entities.OrderTRA;
+import com.web.appts.entities.TransportOrderLines;
 import com.web.appts.exceptions.ResourceNotFoundException;
+import com.web.appts.repositories.CustomOrderRepo;
 import com.web.appts.repositories.OrderTRARepo;
 import com.web.appts.services.OrderTRAService;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import com.web.appts.utils.OrderType;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -40,6 +43,8 @@ public class OrderTRAServiceImp implements OrderTRAService {
 	private ModelMapper modelMapper;
 	@Autowired
 	OrderServiceImp orderServiceImp;
+	@Autowired
+	CustomOrderRepo customOrderRepo;
 	Map<String, OrderTRADto> traOrdersMap = new HashMap();
 
 	public OrderTRAServiceImp() {
@@ -47,6 +52,13 @@ public class OrderTRAServiceImp implements OrderTRAService {
 
 	public OrderTRADto createOrderTRA(OrderTRADto orderTRADto) {
 		OrderTRA orderTRA = this.dtoToTra(orderTRADto);
+
+		if (orderTRA.getOrderIds() != null) {
+			for (TransportOrderLines line : orderTRA.getOrderIds()) {
+				line.setOrderTra(orderTRA);
+			}
+		}
+
 		OrderTRA savedOrderTRA = (OrderTRA)this.orderTRARepo.save(orderTRA);
 		if (!this.traOrdersMap.isEmpty()) {
 			boolean idExists = this.traOrdersMap.values().stream().anyMatch((val) -> {
@@ -62,6 +74,11 @@ public class OrderTRAServiceImp implements OrderTRAService {
 
 	public OrderTRADto updateOrderTRA(OrderTRADto orderTRADto) {
 		OrderTRA orderTRA = this.dtoToTra(orderTRADto);
+		if (orderTRA.getOrderIds() != null) {
+			for (TransportOrderLines line : orderTRA.getOrderIds()) {
+					line.setOrderTra(orderTRA);
+			}
+		}
 		OrderTRA savedOrderTRA = (OrderTRA)this.orderTRARepo.save(orderTRA);
 		Map<String, OrderTRADto> filteredMap = (Map)this.traOrdersMap.values().stream().filter((val) -> {
 			return val.getId() != orderTRADto.getId();
@@ -89,6 +106,28 @@ public class OrderTRAServiceImp implements OrderTRAService {
 		return true;
 	}
 
+	@Override
+	public Boolean deleteLineFromTra(TransportOrderLines transportOrderLines){
+
+		if (!this.traOrdersMap.isEmpty()) {
+			boolean idExists = this.traOrdersMap.values().stream().anyMatch((val) -> {
+				return val.getId() == transportOrderLines.getOrderTra().getId();
+			});
+			if (idExists) {
+				Long lineIdToDelete = transportOrderLines.getId();
+				long parentId = transportOrderLines.getOrderTra().getId();
+
+				this.traOrdersMap.values().stream()
+						.filter(dto -> dto.getId() == parentId)
+						.findFirst()
+						.ifPresent(dto -> {
+							dto.getOrderIds().removeIf(lineDto -> lineDto.getId() == lineIdToDelete);
+						});
+			}
+		}
+		return true;
+	}
+
 	public OrderTRADto getOrderTRA(Long orderTRAId) {
 		OrderTRA orderTRA = (OrderTRA)this.orderTRARepo.findById(orderTRAId).orElseThrow(() -> {
 			return new ResourceNotFoundException("orderTRA", "id", (long)orderTRAId.intValue());
@@ -103,12 +142,10 @@ public class OrderTRAServiceImp implements OrderTRAService {
 			List<OrderTRA> allTraOrders = this.orderTRARepo.findAll();
 			if (!allTraOrders.isEmpty() && allTraOrders != null) {
 				Iterator var2 = allTraOrders.iterator();
-
 				while(var2.hasNext()) {
 					OrderTRA orderTRA = (OrderTRA)var2.next();
 					this.traOrdersMap.put(orderTRA.getId() + "," + orderTRA.getRouteDate() + "," + orderTRA.getRoute(), this.traToDto(orderTRA));
 				}
-
 				return this.traOrdersMap;
 			} else {
 				return null;
@@ -127,28 +164,38 @@ public class OrderTRAServiceImp implements OrderTRAService {
 	}
 
 	public Boolean updateOrderTRAColors(String orderTRAIds, Long id) {
-		return this.orderServiceImp.updateTraColors(orderTRAIds, id);
+		Boolean isUpdated = this.orderServiceImp.updateTraColors(orderTRAIds, id);
+		if(isUpdated){
+			orderServiceImp.updateAllTekst(orderTRAIds);
+		}
+		return isUpdated;
 	}
 
 	public byte[] generateTRAPdf(OrderTRADto orderTRADto) {
-		List<Integer> idList = new ArrayList();
-		String[] idArray = orderTRADto.getOrderIds().split(",");
-		String[] var4 = idArray;
-		int var5 = idArray.length;
-
-		for(int var6 = 0; var6 < var5; ++var6) {
-			String id = var4[var6];
-			String trimmedId = id.trim();
-			if (!trimmedId.isEmpty()) {
-				int parsedId = Integer.parseInt(trimmedId);
-				idList.add(parsedId);
-			}
-		}
+		List<TransportOrderLinesDto> list = orderTRADto.getOrderIds();
 
 		Map<String, OrderDto> ordersMap = this.orderServiceImp.getMap();
-		List<OrderDto> objects = (List)ordersMap.values().stream().filter((orderDto) -> {
-			return idList.contains(orderDto.getId());
-		}).collect(Collectors.toList());
+
+		List<OrderDto> mainObjects = list.stream()
+				.map(ol -> ordersMap.values().stream()
+						.filter(order -> order.getId() == ol.getOrderId() && ol.getOrderType().equals(OrderType.MAIN))
+						.findFirst()
+						.orElse(null)
+				)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toList());
+
+		List<CustomOrder> customOrderDtos = customOrderRepo.findAll();
+
+		List<CustomOrder> custObjects = list.stream()
+				.map(ol -> customOrderDtos.stream()
+						.filter(order -> order.getId() == ol.getOrderId() && ol.getOrderType().equals(OrderType.CUSTOM))
+						.findFirst()
+						.orElse(null)
+				)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toList());
+
 
 		try {
 			ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -160,7 +207,7 @@ public class OrderTRAServiceImp implements OrderTRAService {
 				document.open();
 				this.addHeadingAndAddress(document, "Dagrapport", orderTRADto);
 				this.addAdditionalInformation(document, orderTRADto);
-				this.addOrdersTable(document, objects);
+				this.addOrdersTable(document, list, mainObjects, custObjects);
 				System.out.println("Closing Document");
 				document.close();
 				var18 = outputStream.toByteArray();
@@ -219,7 +266,7 @@ public class OrderTRAServiceImp implements OrderTRAService {
 
 	private void addAdditionalInformation(Document document, OrderTRADto orderTRADto) throws DocumentException {
 		LocalDateTime dateTime = LocalDateTime.parse(orderTRADto.getRouteDate(), DateTimeFormatter.ISO_DATE_TIME);
-		DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+		DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 		String formattedDate = dateTime.format(dateFormatter);
 		Font font = new Font(FontFamily.HELVETICA, 10.0F);
 		PdfPTable mainTable = new PdfPTable(2);
@@ -276,7 +323,7 @@ public class OrderTRAServiceImp implements OrderTRAService {
 		document.add(mainTable);
 	}
 
-	private void addOrdersTable(Document document, List<OrderDto> objects) throws DocumentException {
+	private void addOrdersTable(Document document, List<TransportOrderLinesDto> lines ,List<OrderDto> objects, List<CustomOrder> objectsB) throws DocumentException {
 		PdfPTable table = new PdfPTable(6);
 		table.setWidthPercentage(100.0F);
 		float[] columnWidths = new float[]{10.0F, 35.0F, 10.0F, 19.0F, 7.0F, 19.0F};
@@ -298,29 +345,99 @@ public class OrderTRAServiceImp implements OrderTRAService {
 		table.addCell(headerCell5);
 		table.addCell(headerCell6);
 
-		for(int i = 0; i < 20; ++i) {
+//		for(int i = 0; i < 20; ++i) {
+//			PdfPCell cell;
+//			if (i < objects.size()) {
+//				PdfPCell cell1 = this.createCell(((OrderDto)objects.get(i)).getOrderNumber(), font2);
+//				cell = this.createCell(((OrderDto)objects.get(i)).getCustomerName(), font2);
+//				PdfPCell cell3 = this.createCell(((OrderDto)objects.get(i)).getPostCode(), font2);
+//				PdfPCell cell4 = this.createCell(((OrderDto)objects.get(i)).getCity(), font2);
+//				PdfPCell cell5 = this.createCell(((OrderDto)objects.get(i)).getCountry(), font2);
+//				PdfPCell cell6 = this.createCell("", font2);
+//				table.addCell(cell1);
+//				table.addCell(cell);
+//				table.addCell(cell3);
+//				table.addCell(cell4);
+//				table.addCell(cell5);
+//				table.addCell(cell6);
+//				cell1.setFixedHeight(20.0F);
+//				cell.setFixedHeight(20.0F);
+//				cell3.setFixedHeight(20.0F);
+//				cell4.setFixedHeight(20.0F);
+//				cell5.setFixedHeight(20.0F);
+//				cell6.setFixedHeight(20.0F);
+//			} else if (objects.size() < 10) {
+//				for(int j = 0; j < 6; ++j) {
+//					cell = this.createCell("", font2);
+//					cell.setFixedHeight(20.0F);
+//					table.addCell(cell);
+//				}
+//			}
+//		}
+
+		lines.sort(Comparator.comparingInt(TransportOrderLinesDto::getOrderRowNumber));
+		for (int i = 0; i < 20; ++i) {
 			PdfPCell cell;
-			if (i < objects.size()) {
-				PdfPCell cell1 = this.createCell(((OrderDto)objects.get(i)).getOrderNumber(), font2);
-				cell = this.createCell(((OrderDto)objects.get(i)).getCustomerName(), font2);
-				PdfPCell cell3 = this.createCell(((OrderDto)objects.get(i)).getPostCode(), font2);
-				PdfPCell cell4 = this.createCell(((OrderDto)objects.get(i)).getCity(), font2);
-				PdfPCell cell5 = this.createCell(((OrderDto)objects.get(i)).getCountry(), font2);
-				PdfPCell cell6 = this.createCell("", font2);
+			if (i < lines.size()) {
+				TransportOrderLinesDto line = lines.get(i);
+				OrderType orderType = line.getOrderType();
+
+				String orderNumber = "";
+				String customerName = "";
+				String postCode = "";
+				String city = "";
+				String country = "";
+				String opmerking = "";
+
+				if (orderType == OrderType.MAIN) {
+					OrderDto order = objects.stream()
+							.filter(o -> o.getId() == line.getOrderId())
+							.findFirst()
+							.orElse(null);
+					if (order != null) {
+						orderNumber = order.getOrderNumber();
+						customerName = order.getCustomerName();
+						postCode = order.getPostCode();
+						city = order.getCity();
+						country = order.getCountry();
+					}
+				} else if (orderType == OrderType.CUSTOM) {
+					CustomOrder custom = objectsB.stream()
+							.filter(c -> c.getId() == line.getOrderId())
+							.findFirst()
+							.orElse(null);
+					if (custom != null) {
+						orderNumber = custom.getOrderNumber();
+						customerName = custom.getCustomerName();
+						postCode = custom.getPostCode();
+						city = custom.getCity();
+						country = custom.getCountry();
+						opmerking = custom.getOpmerking();
+					}
+				}
+
+				PdfPCell cell1 = this.createCell(orderNumber, font2);
+				cell = this.createCell(customerName, font2);
+				PdfPCell cell3 = this.createCell(postCode, font2);
+				PdfPCell cell4 = this.createCell(city, font2);
+				PdfPCell cell5 = this.createCell(country, font2);
+				PdfPCell cell6 = this.createCell(opmerking, font2);
+
 				table.addCell(cell1);
 				table.addCell(cell);
 				table.addCell(cell3);
 				table.addCell(cell4);
 				table.addCell(cell5);
 				table.addCell(cell6);
+
 				cell1.setFixedHeight(20.0F);
 				cell.setFixedHeight(20.0F);
 				cell3.setFixedHeight(20.0F);
 				cell4.setFixedHeight(20.0F);
 				cell5.setFixedHeight(20.0F);
 				cell6.setFixedHeight(20.0F);
-			} else if (objects.size() < 10) {
-				for(int j = 0; j < 6; ++j) {
+			} else {
+				for (int j = 0; j < 6; ++j) {
 					cell = this.createCell("", font2);
 					cell.setFixedHeight(20.0F);
 					table.addCell(cell);

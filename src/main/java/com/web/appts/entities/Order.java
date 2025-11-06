@@ -3,15 +3,12 @@ package com.web.appts.entities;
 
 import java.util.List;
 import java.util.Objects;
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.Id;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
+import javax.persistence.*;
+
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 
 @Entity
 @Table(
@@ -21,6 +18,7 @@ import org.hibernate.annotations.CacheConcurrencyStrategy;
 		usage = CacheConcurrencyStrategy.READ_WRITE
 )
 public class Order {
+
 	@Id
 	@Column(
 			name = "id"
@@ -97,6 +95,18 @@ public class Order {
 	)
 	private String customerName;
 	@Column(
+			name = "Straat"
+	)
+	private String street;
+	@Column(
+			name = "Huisnr"
+	)
+	private String houseNR;
+	@Column(
+			name = "Additioneel"
+	)
+	private String additionalAdd;
+	@Column(
 			name = "Postcode"
 	)
 	private String postCode;
@@ -133,6 +143,10 @@ public class Order {
 	)
 	private String aantal;
 	@Column(
+			name = "Aantal_geleverd"
+	)
+	private String gel;
+	@Column(
 			name = "Product"
 	)
 	private String product;
@@ -149,6 +163,15 @@ public class Order {
 	)
 	private String cdProdGrp;
 	@Column(
+			name = "zoeknaam"
+	)
+	private String zoeknaam;
+	@Column(
+			name = "tekst"
+	)
+	private String tekst;
+
+	@Column(
 			name = "completed"
 	)
 	private String completed;
@@ -161,7 +184,16 @@ public class Order {
 			mappedBy = "order",
 			fetch = FetchType.EAGER
 	)
+	@Fetch(FetchMode.SUBSELECT)
 	private List<OrderDepartment> departments;
+
+	@OneToMany(
+			cascade = {CascadeType.ALL},
+			mappedBy = "order",
+			fetch = FetchType.EAGER
+	)
+	@Fetch(FetchMode.SUBSELECT)
+	private List<MonSubOrders> monSubOrders;
 
 	public Order() {
 	}
@@ -196,6 +228,14 @@ public class Order {
 
 	public void setCdProdGrp(String cdProdGrp) {
 		this.cdProdGrp = cdProdGrp;
+	}
+
+	public String getZoeknaam() {
+		return zoeknaam;
+	}
+
+	public void setZoeknaam(String zoeknaam) {
+		this.zoeknaam = zoeknaam;
 	}
 
 	public String getOrderType() {
@@ -314,6 +354,30 @@ public class Order {
 		this.customerName = customerName;
 	}
 
+	public String getStreet() {
+		return street;
+	}
+
+	public void setStreet(String street) {
+		this.street = street;
+	}
+
+	public String getHouseNR() {
+		return houseNR;
+	}
+
+	public void setHouseNR(String houseNR) {
+		this.houseNR = houseNR;
+	}
+
+	public String getAdditionalAdd() {
+		return additionalAdd;
+	}
+
+	public void setAdditionalAdd(String additionalAdd) {
+		this.additionalAdd = additionalAdd;
+	}
+
 	public String getPostCode() {
 		return this.postCode;
 	}
@@ -402,6 +466,14 @@ public class Order {
 		this.aantal = aantal;
 	}
 
+	public String getGel() {
+		return gel;
+	}
+
+	public void setGel(String gel) {
+		this.gel = gel;
+	}
+
 	public String getProduct() {
 		return this.product;
 	}
@@ -434,6 +506,30 @@ public class Order {
 		this.departments = departments;
 	}
 
+	public Boolean getExpired() {
+		return isExpired;
+	}
+
+	public void setExpired(Boolean expired) {
+		isExpired = expired;
+	}
+
+	public List<MonSubOrders> getMonSubOrders() {
+		return monSubOrders;
+	}
+
+	public void setMonSubOrders(List<MonSubOrders> monSubOrders) {
+		this.monSubOrders = monSubOrders;
+	}
+
+	public String getTekst() {
+		return tekst;
+	}
+
+	public void setTekst(String tekst) {
+		this.tekst = tekst;
+	}
+
 	public String getExcNote() {
 		return this.excNote;
 	}
@@ -447,7 +543,44 @@ public class Order {
 			return true;
 		} else if (obj != null && this.getClass() == obj.getClass()) {
 			Order order = (Order)obj;
-			return this.id == order.id && this.isParent == order.isParent && Objects.equals(this.orderNumber, order.orderNumber) && Objects.equals(this.orderType, order.orderType) && Objects.equals(this.backOrder, order.backOrder) && Objects.equals(this.sme, order.sme) && Objects.equals(this.spu, order.spu) && Objects.equals(this.monLb, order.monLb) && Objects.equals(this.monTr, order.monTr) && Objects.equals(this.mwe, order.mwe) && Objects.equals(this.ser, order.ser) && Objects.equals(this.tra, order.tra) && Objects.equals(this.exp, order.exp) && Objects.equals(this.exclamation, order.exclamation) && Objects.equals(this.user, order.user) && Objects.equals(this.organization, order.organization) && Objects.equals(this.customerName, order.customerName) && Objects.equals(this.postCode, order.postCode) && Objects.equals(this.city, order.city) && Objects.equals(this.country, order.country) && Objects.equals(this.deliveryDate, order.deliveryDate) && Objects.equals(this.referenceInfo, order.referenceInfo) && Objects.equals(this.creationDate, order.creationDate) && Objects.equals(this.modificationDate, order.modificationDate) && Objects.equals(this.verifierUser, order.verifierUser) && Objects.equals(this.regel, order.regel) && Objects.equals(this.aantal, order.aantal) && Objects.equals(this.product, order.product) && Objects.equals(this.Omsumin, order.Omsumin) && Objects.equals(this.isExpired, order.isExpired) && Objects.equals(this.cdProdGrp, order.cdProdGrp) && Objects.equals(this.completed, order.completed) && Objects.equals(this.departments, order.departments);
+			return this.id == order.id &&
+					this.isParent == order.isParent &&
+					Objects.equals(this.orderNumber, order.orderNumber) &&
+					Objects.equals(this.orderType, order.orderType) &&
+					Objects.equals(this.backOrder, order.backOrder) &&
+					Objects.equals(this.sme, order.sme) &&
+					Objects.equals(this.spu, order.spu) &&
+					Objects.equals(this.monLb, order.monLb) &&
+					Objects.equals(this.monTr, order.monTr) &&
+					Objects.equals(this.mwe, order.mwe) &&
+					Objects.equals(this.ser, order.ser) &&
+					Objects.equals(this.tra, order.tra) &&
+					Objects.equals(this.exp, order.exp) &&
+					Objects.equals(this.exclamation, order.exclamation) &&
+					Objects.equals(this.user, order.user) &&
+					Objects.equals(this.organization, order.organization) &&
+					Objects.equals(this.customerName, order.customerName) &&
+					Objects.equals(this.street, order.street) &&
+					Objects.equals(this.houseNR, order.houseNR) &&
+					Objects.equals(this.additionalAdd, order.additionalAdd) &&
+					Objects.equals(this.postCode, order.postCode) &&
+					Objects.equals(this.city, order.city) &&
+					Objects.equals(this.country, order.country) &&
+					Objects.equals(this.deliveryDate, order.deliveryDate) &&
+					Objects.equals(this.referenceInfo, order.referenceInfo) &&
+					Objects.equals(this.creationDate, order.creationDate) &&
+					Objects.equals(this.modificationDate, order.modificationDate) &&
+					Objects.equals(this.verifierUser, order.verifierUser) &&
+					Objects.equals(this.regel, order.regel) &&
+					Objects.equals(this.aantal, order.aantal) &&
+					Objects.equals(this.gel, order.gel) &&
+					Objects.equals(this.product, order.product) &&
+					Objects.equals(this.Omsumin, order.Omsumin) &&
+					Objects.equals(this.isExpired, order.isExpired) &&
+					Objects.equals(this.cdProdGrp, order.cdProdGrp) &&
+					Objects.equals(this.zoeknaam, order.zoeknaam) &&
+					Objects.equals(this.completed, order.completed) &&
+					Objects.equals(this.departments, order.departments);
 		} else {
 			return false;
 		}
@@ -515,6 +648,18 @@ public class Order {
 			++differences;
 		}
 
+		if (!Objects.equals(this.street, other.street)) {
+			++differences;
+		}
+
+		if (!Objects.equals(this.houseNR, other.houseNR)) {
+			++differences;
+		}
+
+		if (!Objects.equals(this.additionalAdd, other.additionalAdd)) {
+			++differences;
+		}
+
 		if (!Objects.equals(this.postCode, other.postCode)) {
 			++differences;
 		}
@@ -557,6 +702,10 @@ public class Order {
 			++differences;
 		}
 
+		if (!Objects.equals(this.gel, other.gel)) {
+			++differences;
+		}
+
 		if (!Objects.equals(this.product, other.product)) {
 			++differences;
 		}
@@ -566,6 +715,10 @@ public class Order {
 		}
 
 		if (!Objects.equals(this.cdProdGrp, other.cdProdGrp)) {
+			++differences;
+		}
+
+		if (!Objects.equals(this.zoeknaam, other.zoeknaam)) {
 			++differences;
 		}
 

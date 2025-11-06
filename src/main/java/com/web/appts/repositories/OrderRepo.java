@@ -10,10 +10,20 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import javax.transaction.Transactional;
+
 public interface OrderRepo extends JpaRepository<Order, Integer> {
 	List<Order> findByUser(String paramString);
 
 	List<Order> findByOrderNumber(String paramString);
+
+	@Query(value = "SELECT * FROM orders WHERE verkooporder = :orderNumOrIds", nativeQuery = true)
+	@Modifying(clearAutomatically = true)
+	List<Order> findFreshOrders(@Param("orderNumOrIds") String orderNumOrIds);
+
+	@Query(value = "SELECT * FROM orders WHERE id IN :ids", nativeQuery = true)
+	@Modifying(clearAutomatically = true)
+	List<Order> findFreshAllById(@Param("ids") List<Integer> ids);
 
 	@Modifying
 	@Query("UPDATE Order o SET o.tra = :newValue WHERE o.id IN :ids")
@@ -32,10 +42,17 @@ public interface OrderRepo extends JpaRepository<Order, Integer> {
 	int updateOrderDepartmentStatusY(@Param("newValue") String newValue, @Param("newValue2") String newValue2, @Param("ids") List<Integer> ids);
 
 	@Modifying
+	@Transactional
 	@Query("DELETE OrderDepartment od WHERE od.order.id IN :ids")
 	int deleteODForIds(@Param("ids") List<Integer> ids);
 
 	@Modifying
+	@Transactional
+	@Query("DELETE MonSubOrders mso WHERE mso.order.id IN :ids")
+	int deleteMonSubsForIds(@Param("ids") List<Integer> ids);
+
+	@Modifying
+	@Transactional
 	@Query("DELETE FROM Order o WHERE o.id IN :ids")
 	int deleteOrdersByIds(@Param("ids") List<Integer> ids);
 
@@ -60,6 +77,14 @@ public interface OrderRepo extends JpaRepository<Order, Integer> {
 	int updateFieldForIdsMainexp(@Param("newValue") String newValue, @Param("ids") List<Integer> ids);
 
 	Optional<Order> findByOrderNumberAndRegel(String orderNumber, String regel);
+
+	@Modifying
+	@Query("UPDATE Order o SET o.sme = :newValue WHERE o.id = :id")
+	int updateFieldForIdsMainSme(@Param("newValue") String newValue, @Param("id") Integer id);
+
+	@Modifying
+	@Query("UPDATE Order o SET o.spu = :newValue WHERE o.id = :id")
+	int updateFieldForIdsMainSpu(@Param("newValue") String newValue, @Param("id") Integer id);
 
 	@Modifying
 	@Query("UPDATE OrderDepartment od SET od.status = :newValue, od.prevStatus = :newValue2 WHERE od.order.id IN :ids AND od.depName = :newValue3")

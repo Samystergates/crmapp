@@ -1,11 +1,13 @@
 
 package com.web.appts.services.imp;
 
+import com.web.appts.DTO.PriceCodesDto;
 import com.web.appts.DTO.WheelColorDto;
 import com.web.appts.DTO.WheelMachineSizeDto;
 import com.web.appts.entities.WheelColor;
 import com.web.appts.entities.WheelMachineSize;
 import com.web.appts.exceptions.ResourceNotFoundException;
+import com.web.appts.repositories.PriceCodesRepo;
 import com.web.appts.repositories.WheelColorRepo;
 import com.web.appts.repositories.WheelMachineSizeRepo;
 import com.web.appts.services.WheelColorService;
@@ -105,7 +107,7 @@ public class WheelServices implements WheelMachineSizeService, WheelColorService
 		WheelColor wheelColor = this.dtoToColor(wheelColorDto);
 		WheelColor savedWheelColor = (WheelColor)this.wheelColorRepo.save(wheelColor);
 		List<WheelColorDto> filteredList = (List)this.colorList.stream().filter((color) -> {
-			return color.getId() != wheelColorDto.getId();
+			return !color.getId().equals(wheelColorDto.getId());
 		}).collect(Collectors.toList());
 		this.colorList.clear();
 		this.colorList.addAll(filteredList);
@@ -113,13 +115,13 @@ public class WheelServices implements WheelMachineSizeService, WheelColorService
 		return this.colorToDto(savedWheelColor);
 	}
 
-	public Boolean deleteWheelColor(Long wheelColorId) {
+	public Boolean deleteWheelColor(String wheelColorId) {
 		WheelColor wheelColor = (WheelColor)this.wheelColorRepo.findById(wheelColorId).orElseThrow(() -> {
-			return new ResourceNotFoundException("WheelColor", "id", (long)wheelColorId.intValue());
+			return new ResourceNotFoundException("WheelColor", "id", wheelColorId);
 		});
 		this.wheelColorRepo.delete(wheelColor);
 		List<WheelColorDto> filteredList = (List)this.colorList.stream().filter((color) -> {
-			return color.getId() != wheelColorId;
+			return !color.getId().equals(wheelColorId);
 		}).collect(Collectors.toList());
 		this.colorList.clear();
 		this.colorList.addAll(filteredList);

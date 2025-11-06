@@ -115,6 +115,18 @@ public class OrderSME {
 	)
 	private String aansluitnippel;
 
+	@Column(name = "option_ventielbeschermer")
+	private String optionVentielbeschermer;
+
+	@Column(name = "regel")
+	private String regel;
+
+	@Column(name = "slip_creator")
+	private String slipCreator;
+
+	@Column(name ="forge_number")
+	private String forgeNumber;
+
 	public OrderSME() {
 	}
 
@@ -300,5 +312,37 @@ public class OrderSME {
 
 	public void setAansluitnippel(String aansluitnippel) {
 		this.aansluitnippel = aansluitnippel;
+	}
+
+	public String getOptionVentielbeschermer() {
+		return optionVentielbeschermer;
+	}
+
+	public void setOptionVentielbeschermer(String optionVentielbeschermer) {
+		this.optionVentielbeschermer = optionVentielbeschermer;
+	}
+
+	public String getRegel() {
+		return regel;
+	}
+
+	public void setRegel(String regel) {
+		this.regel = regel;
+	}
+
+	public String getSlipCreator() {
+		return slipCreator;
+	}
+
+	public void setSlipCreator(String slipCreator) {
+		this.slipCreator = slipCreator;
+	}
+
+	public String getForgeNumber() {
+		return forgeNumber;
+	}
+
+	public void setForgeNumber(String forgeNumber) {
+		this.forgeNumber = forgeNumber;
 	}
 }

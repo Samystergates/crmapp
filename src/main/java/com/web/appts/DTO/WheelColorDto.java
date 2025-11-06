@@ -2,7 +2,7 @@
 package com.web.appts.DTO;
 
 public class WheelColorDto {
-	private long id;
+	private String id;
 	private String colorName;
 	private String codeVert;
 	private String codePoeder;
@@ -13,11 +13,11 @@ public class WheelColorDto {
 	public WheelColorDto() {
 	}
 
-	public long getId() {
+	public String getId() {
 		return this.id;
 	}
 
-	public void setId(long id) {
+	public void setId(String id) {
 		this.id = id;
 	}
 

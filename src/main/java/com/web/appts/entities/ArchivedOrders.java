@@ -2,14 +2,7 @@
 package com.web.appts.entities;
 
 import java.util.List;
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
+import javax.persistence.*;
 
 @Entity
 @Table(
@@ -36,6 +29,17 @@ public class ArchivedOrders {
 			name = "Backorder"
 	)
 	private String backOrder;
+
+	@Column(
+			name = "cdProdGrp"
+	)
+	private String cdProdGrp;
+
+	@Column(
+			name = "zoeknaam"
+	)
+	private String zoeknaam;
+
 	@Column(
 			name = "SME"
 	)
@@ -85,6 +89,18 @@ public class ArchivedOrders {
 	)
 	private String customerName;
 	@Column(
+			name = "Straat"
+	)
+	private String street;
+	@Column(
+			name = "Huisnr"
+	)
+	private String houseNR;
+	@Column(
+			name = "Additioneel"
+	)
+	private String additionalAdd;
+	@Column(
 			name = "Postcode"
 	)
 	private String postCode;
@@ -128,6 +144,10 @@ public class ArchivedOrders {
 	)
 	private String aantal;
 	@Column(
+			name = "Aantal_geleverd"
+	)
+	private String gel;
+	@Column(
 			name = "Product"
 	)
 	private String product;
@@ -148,6 +168,7 @@ public class ArchivedOrders {
 	)
 	private int isParent;
 	@OneToMany(
+			fetch = FetchType.EAGER,
 			mappedBy = "order",
 			cascade = {CascadeType.ALL}
 	)
@@ -296,6 +317,30 @@ public class ArchivedOrders {
 		this.customerName = customerName;
 	}
 
+	public String getStreet() {
+		return street;
+	}
+
+	public void setStreet(String street) {
+		this.street = street;
+	}
+
+	public String getHouseNR() {
+		return houseNR;
+	}
+
+	public void setHouseNR(String houseNR) {
+		this.houseNR = houseNR;
+	}
+
+	public String getAdditionalAdd() {
+		return additionalAdd;
+	}
+
+	public void setAdditionalAdd(String additionalAdd) {
+		this.additionalAdd = additionalAdd;
+	}
+
 	public String getPostCode() {
 		return this.postCode;
 	}
@@ -384,6 +429,14 @@ public class ArchivedOrders {
 		this.aantal = aantal;
 	}
 
+	public String getGel() {
+		return gel;
+	}
+
+	public void setGel(String gel) {
+		this.gel = gel;
+	}
+
 	public String getProduct() {
 		return this.product;
 	}
@@ -414,5 +467,29 @@ public class ArchivedOrders {
 
 	public void setDepartments(List<OrderDepartment> departments) {
 		this.Departments = departments;
+	}
+
+	public String getCdProdGrp() {
+		return cdProdGrp;
+	}
+
+	public void setCdProdGrp(String cdProdGrp) {
+		this.cdProdGrp = cdProdGrp;
+	}
+
+	public String getZoeknaam() {
+		return zoeknaam;
+	}
+
+	public void setZoeknaam(String zoeknaam) {
+		this.zoeknaam = zoeknaam;
+	}
+
+	public Boolean getExpired() {
+		return isExpired;
+	}
+
+	public void setExpired(Boolean expired) {
+		isExpired = expired;
 	}
 }

@@ -9,10 +9,7 @@ import com.web.appts.entities.DriverInfo;
 import com.web.appts.entities.RouteInfo;
 import com.web.appts.entities.TrailerInfo;
 import com.web.appts.entities.TruckInfo;
-import com.web.appts.repositories.DriverRepo;
-import com.web.appts.repositories.RouteRepo;
-import com.web.appts.repositories.TrailerRepo;
-import com.web.appts.repositories.TruckRepo;
+import com.web.appts.repositories.*;
 import com.web.appts.services.TransportOrderService;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +28,8 @@ public class TransportOrderServiceImp implements TransportOrderService {
 	TruckRepo truckRepo;
 	@Autowired
 	RouteRepo routeRepo;
+	@Autowired
+	TransportOrderLinesRepo transportOrderLinesRepo;
 	List<RouteInfoDto> routeList = new ArrayList();
 	List<DriverInfoDto> driverList = new ArrayList();
 	List<TruckInfoDto> truckList = new ArrayList();

@@ -1,6 +1,7 @@
 
 package com.web.appts.controllers;
 
+import com.web.appts.DTO.PriceCodesDto;
 import com.web.appts.DTO.WheelColorDto;
 import com.web.appts.DTO.WheelMachineSizeDto;
 import com.web.appts.services.WheelColorService;
@@ -71,7 +72,7 @@ public class WheelsController {
 	}
 
 	@DeleteMapping({"/wheel-color/delete/{wheelColorId}"})
-	public ResponseEntity<Boolean> deleteAllWheelColor(@PathVariable("wheelColorId") Long wheelColorId) {
+	public ResponseEntity<Boolean> deleteAllWheelColor(@PathVariable("wheelColorId") String wheelColorId) {
 		Boolean isDeleted = this.wheelColorService.deleteWheelColor(wheelColorId);
 		return new ResponseEntity(isDeleted, HttpStatus.OK);
 	}

@@ -2,6 +2,8 @@
 package com.web.appts.DTO;
 
 import com.web.appts.entities.OrderDepartment;
+
+import javax.persistence.Column;
 import java.util.List;
 
 public class ArchivedOrdersDto {
@@ -21,6 +23,11 @@ public class ArchivedOrdersDto {
     private String user;
     private String organization;
     private String customerName;
+    private String street;
+    private String houseNR;
+    private String additionalAdd;
+    private String cdProdGrp;
+    private String zoeknaam;
     private String postCode;
     private String city;
     private String country;
@@ -32,6 +39,7 @@ public class ArchivedOrdersDto {
     private Boolean isExpired;
     private String regel;
     private String aantal;
+    private String gel;
     private String product;
     private String Omsumin;
     private String completed;
@@ -181,6 +189,30 @@ public class ArchivedOrdersDto {
         this.customerName = customerName;
     }
 
+    public String getStreet() {
+        return street;
+    }
+
+    public void setStreet(String street) {
+        this.street = street;
+    }
+
+    public String getHouseNR() {
+        return houseNR;
+    }
+
+    public void setHouseNR(String houseNR) {
+        this.houseNR = houseNR;
+    }
+
+    public String getAdditionalAdd() {
+        return additionalAdd;
+    }
+
+    public void setAdditionalAdd(String additionalAdd) {
+        this.additionalAdd = additionalAdd;
+    }
+
     public String getPostCode() {
         return this.postCode;
     }
@@ -265,6 +297,14 @@ public class ArchivedOrdersDto {
         this.aantal = aantal;
     }
 
+    public String getGel() {
+        return gel;
+    }
+
+    public void setGel(String gel) {
+        this.gel = gel;
+    }
+
     public String getProduct() {
         return this.product;
     }
@@ -295,5 +335,29 @@ public class ArchivedOrdersDto {
 
     public void setDepartments(List<OrderDepartment> departments) {
         this.departments = departments;
+    }
+
+    public String getCdProdGrp() {
+        return cdProdGrp;
+    }
+
+    public void setCdProdGrp(String cdProdGrp) {
+        this.cdProdGrp = cdProdGrp;
+    }
+
+    public String getZoeknaam() {
+        return zoeknaam;
+    }
+
+    public void setZoeknaam(String zoeknaam) {
+        this.zoeknaam = zoeknaam;
+    }
+
+    public Boolean getExpired() {
+        return isExpired;
+    }
+
+    public void setExpired(Boolean expired) {
+        isExpired = expired;
     }
 }

@@ -1,9 +1,7 @@
 
 package com.web.appts.controllers;
 
-import com.web.appts.DTO.OrderDto;
-import com.web.appts.DTO.OrderSMEDto;
-import com.web.appts.DTO.OrderSPUDto;
+import com.web.appts.DTO.*;
 import com.web.appts.services.AppPrintService;
 import com.web.appts.services.OrderSMEService;
 import com.web.appts.services.OrderSPUService;
@@ -11,6 +9,7 @@ import com.web.appts.services.OrderService;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
@@ -51,7 +50,7 @@ public class OrderWheelsFlowController {
 		OrderSMEDto orderSMEDtoReturn = this.orderSMEService.createOrderSME(orderSMEDto);
 		List<OrderDto> updatedOrders = this.orderService.getAllOrders();
 		this.sortUsingDate(updatedOrders);
-		this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
+		this.messagingTemplate.convertAndSend("/topic/smeSave", updatedOrders);
 		return new ResponseEntity(orderSMEDtoReturn, HttpStatus.CREATED);
 	}
 
@@ -60,13 +59,13 @@ public class OrderWheelsFlowController {
 		OrderSMEDto orderSMEDtoReturn = this.orderSMEService.updateOrderSME(orderSMEDto);
 		List<OrderDto> updatedOrders = this.orderService.getAllOrders();
 		this.sortUsingDate(updatedOrders);
-		this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
+		this.messagingTemplate.convertAndSend("/topic/smeUpdate", updatedOrders);
 		return new ResponseEntity(orderSMEDtoReturn, HttpStatus.CREATED);
 	}
 
 	@PostMapping({"/sme/get"})
 	public ResponseEntity<OrderSMEDto> getOrderSME(@RequestBody OrderSMEDto orderSMEDto) {
-		OrderSMEDto orderSMEDtoReturn = this.orderSMEService.getOrderSME(orderSMEDto.getOrderNumber(), orderSMEDto.getProdNumber());
+		OrderSMEDto orderSMEDtoReturn = this.orderSMEService.getOrderSME(orderSMEDto.getOrderNumber(), orderSMEDto.getRegel());
 		if (orderSMEDtoReturn == null) {
 			orderSMEDtoReturn = orderSMEDto;
 		}
@@ -79,7 +78,7 @@ public class OrderWheelsFlowController {
 		Boolean isDeleted = this.orderSMEService.deleteOrderSME(smeId);
 		List<OrderDto> updatedOrders = this.orderService.getAllOrders();
 		this.sortUsingDate(updatedOrders);
-		this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
+		this.messagingTemplate.convertAndSend("/topic/smeDelete", updatedOrders);
 		return new ResponseEntity(isDeleted, HttpStatus.OK);
 	}
 
@@ -93,6 +92,20 @@ public class OrderWheelsFlowController {
 	public ResponseEntity<List<OrderSPUDto>> getSPUOrders() {
 		List<OrderSPUDto> spuList = this.orderSPUService.getAllSpu();
 		return ResponseEntity.ok(spuList);
+	}
+
+	@GetMapping({"spu/price-code/getAll"})
+	public ResponseEntity<List<PriceCodesDto>> getAllPriceCodes() {
+		List<PriceCodesDto> priceCodesDtos = this.orderSPUService.getAllPriceCodes();
+		Collections.sort(priceCodesDtos, Comparator.comparing(PriceCodesDto::getId));
+		return ResponseEntity.ok(priceCodesDtos);
+	}
+
+	@GetMapping({"spu/spu-departments/getAll"})
+	public ResponseEntity<List<SpuDepartmentsDto>> getAllSpuDepartments() {
+		List<SpuDepartmentsDto> spuDepartmentsDtos = this.orderSPUService.getAllSpuDepartments();
+		Collections.sort(spuDepartmentsDtos, Comparator.comparing(SpuDepartmentsDto::getId));
+		return ResponseEntity.ok(spuDepartmentsDtos);
 	}
 
 	@GetMapping({"/spu/printPdf/{key}"})
@@ -122,7 +135,7 @@ public class OrderWheelsFlowController {
 		OrderSPUDto orderSPUDtoReturn = this.orderSPUService.createOrderSPU(orderSPUDto);
 		List<OrderDto> updatedOrders = this.orderService.getAllOrders();
 		this.sortUsingDate(updatedOrders);
-		this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
+		this.messagingTemplate.convertAndSend("/topic/spuSave", updatedOrders);
 		return new ResponseEntity(orderSPUDtoReturn, HttpStatus.CREATED);
 	}
 
@@ -131,13 +144,13 @@ public class OrderWheelsFlowController {
 		OrderSPUDto orderSPUDtoReturn = this.orderSPUService.updateOrderSPU(orderSPUDto);
 		List<OrderDto> updatedOrders = this.orderService.getAllOrders();
 		this.sortUsingDate(updatedOrders);
-		this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
+		this.messagingTemplate.convertAndSend("/topic/spuUpdate", updatedOrders);
 		return new ResponseEntity(orderSPUDtoReturn, HttpStatus.CREATED);
 	}
 
 	@PostMapping({"/spu/get"})
 	public ResponseEntity<OrderSPUDto> getOrderSPU(@RequestBody OrderSPUDto orderSPUDto) {
-		OrderSPUDto orderSPUDtoReturn = this.orderSPUService.getOrderSPU(orderSPUDto.getOrderNumber(), orderSPUDto.getProdNumber());
+		OrderSPUDto orderSPUDtoReturn = this.orderSPUService.getOrderSPU(orderSPUDto.getOrderNumber(), orderSPUDto.getRegel());
 		if (orderSPUDtoReturn == null) {
 			orderSPUDtoReturn = orderSPUDto;
 		}
@@ -150,7 +163,7 @@ public class OrderWheelsFlowController {
 		Boolean isDeleted = this.orderSPUService.deleteOrderSPU(spuId);
 		List<OrderDto> updatedOrders = this.orderService.getAllOrders();
 		this.sortUsingDate(updatedOrders);
-		this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
+		this.messagingTemplate.convertAndSend("/topic/spuDelete", updatedOrders);
 		return new ResponseEntity(isDeleted, HttpStatus.OK);
 	}
 

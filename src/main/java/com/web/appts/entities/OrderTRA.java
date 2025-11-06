@@ -1,14 +1,13 @@
 
 package com.web.appts.entities;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
+
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
+
+import java.util.List;
 
 @Entity
 @Table(
@@ -34,10 +33,9 @@ public class OrderTRA {
 	private String chauffeur;
 	private String truck;
 	private String trailer;
-	@Column(
-			name = "order_ids"
-	)
-	private String orderIds;
+	@OneToMany(mappedBy = "orderTra", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+	@JsonManagedReference
+	private List<TransportOrderLines> orderIds;
 	private Boolean isCompleted;
 
 	public OrderTRA() {
@@ -91,12 +89,20 @@ public class OrderTRA {
 		this.trailer = trailer;
 	}
 
-	public String getOrderIds() {
-		return this.orderIds;
+	public List<TransportOrderLines> getOrderIds() {
+		return orderIds;
 	}
 
-	public void setOrderIds(String orderIds) {
+	public void setOrderIds(List<TransportOrderLines> orderIds) {
 		this.orderIds = orderIds;
+	}
+
+	public Boolean getCompleted() {
+		return isCompleted;
+	}
+
+	public void setCompleted(Boolean completed) {
+		isCompleted = completed;
 	}
 
 	public Boolean getIsCompleted() {
