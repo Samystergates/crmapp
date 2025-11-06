@@ -562,14 +562,27 @@ public class OrderServiceImp implements OrderService {
             order.setCompleted("");
         }
 
-        Order updatedOrder = null;
-        try {
-            if (isSmeOrSpu && flowUpdate) {
-                this.updateOneTekst(order);
-            }
-            updatedOrder = (Order) this.orderRepo.save(order);
-            if (!isSmeOrSpu && flowUpdate) {
-                this.updateAllTekst(updatedOrder.getOrderNumber());
+        Order updatedOrder = (Order) this.orderRepo.save(order);
+        OrderDto updatedOrderDto = this.orderToDto(updatedOrder);
+        this.ordersMap.put(updatedOrderDto.getOrderNumber() + "," + updatedOrderDto.getRegel(), updatedOrderDto);
+        boolean allOrdersComplete = this.ordersMap.values().stream().filter((ord) -> {
+            return ord.getOrderNumber().equals(updatedOrderDto.getOrderNumber()) && updatedOrderDto.getId() != ord.getId();
+        }).allMatch((ord) -> {
+            return "C".equals(ord.getCompleted());
+        });
+        if (updatedOrder.getCompleted().equals("C") && allOrdersComplete) {
+            List<Integer> idList = (List) this.ordersMap.values().stream().filter((ord) -> {
+                return ord.getOrderNumber().equals(updatedOrderDto.getOrderNumber());
+            }).map(OrderDto::getId).collect(Collectors.toList());
+            this.moveToArchive(idList);
+            this.orderDtoList = new ArrayList();
+            Iterator var13 = this.ordersMap.entrySet().iterator();
+
+            while (var13.hasNext()) {
+                Map.Entry<String, OrderDto> entry = (Map.Entry) var13.next();
+                OrderDto orderDto2 = (OrderDto) entry.getValue();
+                orderDto2.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
+                this.orderDtoList.add(orderDto2);
             }
 
             logger.info("order updating: " + updatedOrder.getOrderNumber() + ", " + updatedOrder.getRegel() + ", " + updatedOrder.getBackOrder() + ", " + updatedOrder.getSme());
@@ -1007,7 +1020,11 @@ public class OrderServiceImp implements OrderService {
         }
     }
 
-    @Transactional
+    public List<OrderDto> getOrdersByRegel(String regel) {
+		List<Order> orders = orderRepo.findByRegel(regel);
+		return orders.stream().map(this::orderToDto).collect(Collectors.toList());
+	}
+
     public List<OrderDto> checkMap() {
 
         if (this.ordersMap.isEmpty()) {

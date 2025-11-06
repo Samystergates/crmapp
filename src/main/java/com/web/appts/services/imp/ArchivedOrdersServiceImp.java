@@ -27,14 +27,57 @@ import javax.transaction.Transactional;
 
 @Service
 public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
-    Map<String, ArchivedOrdersDto> archivedOrdersMap = new HashMap();
-    List<ArchivedOrdersDto> archivedOrderDtoList;
-    String lastOrder;
-    @Autowired
-    private ModelMapper modelMapper;
-    @Autowired
-    private ArchivedOrderRepo archivedOrdersRepo;
-    private static final Logger logger = LoggerFactory.getLogger(ArchivedOrdersServiceImp.class);
+  Map<String, ArchivedOrdersDto> archivedOrdersMap = new HashMap();
+  List<ArchivedOrdersDto> archivedOrderDtoList;
+  String lastOrder;
+  @Autowired
+  private ModelMapper modelMapper;
+  @Autowired
+  private ArchivedOrderRepo archivedOrdersRepo;
+
+  public ArchivedOrdersServiceImp() {
+  }
+  
+  public List<ArchivedOrdersDto> getArchivedOrdersByRegel(String regel) {
+      List<ArchivedOrders> archivedOrders = archivedOrdersRepo.findByRegel(regel);
+      return archivedOrders.stream().map(this::archivedOrderToDto).collect(Collectors.toList());
+  }
+
+  public Boolean createArchivedOrder(OrderDto orderDto) {
+    ArchivedOrders archivedOrder = this.orderDtoToArchivedOrder(orderDto);
+    ArchivedOrders savedArchivedOrder = (ArchivedOrders)this.archivedOrdersRepo.save(archivedOrder);
+    ArchivedOrdersDto archivedOrdersDto = this.archivedOrderToDto(archivedOrder);
+    this.archivedOrdersMap.put(orderDto.getOrderNumber() + "," + orderDto.getRegel(), archivedOrdersDto);
+    return savedArchivedOrder != null;
+  }
+
+  public ArchivedOrdersDto getArchivedOrderById(Long orderId) {
+    ArchivedOrders order = (ArchivedOrders)this.archivedOrdersRepo.findById(orderId).orElseThrow(() -> {
+      return new ResourceNotFoundException("User", "id", (long)orderId.intValue());
+    });
+    return this.archivedOrderToDto(order);
+  }
+
+  public List<ArchivedOrdersDto> getArchivedOrdersByUser(String user) {
+    if (this.archivedOrdersMap.isEmpty()) {
+      List<ArchivedOrders> archivedOrdersByUser = this.archivedOrdersRepo.findByUser(user);
+      List<ArchivedOrdersDto> archivedOrderDtos = (List)archivedOrdersByUser.stream().map((order) -> {
+        return this.archivedOrderToDto(order);
+      }).collect(Collectors.toList());
+      return (List)(!archivedOrderDtos.isEmpty() && archivedOrderDtos != null ? archivedOrderDtos : new ArrayList());
+    } else {
+      if (this.archivedOrderDtoList == null || this.archivedOrderDtoList.size() != (new ArrayList(this.archivedOrdersMap.values())).size()) {
+        this.archivedOrderDtoList = new ArrayList();
+        Iterator var2 = this.archivedOrdersMap.entrySet().iterator();
+
+        while(var2.hasNext()) {
+          Map.Entry<String, ArchivedOrdersDto> entry = (Map.Entry)var2.next();
+          if (((ArchivedOrdersDto)entry.getValue()).getUser().equals(user)) {
+            ArchivedOrdersDto archivedOrdersDto = (ArchivedOrdersDto)entry.getValue();
+            this.archivedOrderDtoList.add(archivedOrdersDto);
+          }
+        }
+      }
 
 
     public ArchivedOrdersServiceImp() {
@@ -61,29 +104,10 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
         return this.archivedOrderToDto(order);
     }
 
-    public List<ArchivedOrdersDto> getArchivedOrdersByUser(String user) {
-        if (this.archivedOrdersMap.isEmpty()) {
-            List<ArchivedOrders> archivedOrdersByUser = this.archivedOrdersRepo.findByUser(user);
-            List<ArchivedOrdersDto> archivedOrderDtos = (List) archivedOrdersByUser.stream().map((order) -> {
-                return this.archivedOrderToDto(order);
-            }).collect(Collectors.toList());
-            return (List) (!archivedOrderDtos.isEmpty() && archivedOrderDtos != null ? archivedOrderDtos : new ArrayList());
-        } else {
-            if (this.archivedOrderDtoList == null || this.archivedOrderDtoList.size() != (new ArrayList(this.archivedOrdersMap.values())).size()) {
-                this.archivedOrderDtoList = new ArrayList();
-                Iterator var2 = this.archivedOrdersMap.entrySet().iterator();
-
-                while (var2.hasNext()) {
-                    Map.Entry<String, ArchivedOrdersDto> entry = (Map.Entry) var2.next();
-                    if (((ArchivedOrdersDto) entry.getValue()).getUser().equals(user)) {
-                        ArchivedOrdersDto archivedOrdersDto = (ArchivedOrdersDto) entry.getValue();
-                        this.archivedOrderDtoList.add(archivedOrdersDto);
-                    }
-                }
-            }
-
-            return this.archivedOrderDtoList;
-        }
+      while(var3.hasNext()) {
+        ArchivedOrdersDto archivedOrderDto = (ArchivedOrdersDto)var3.next();
+        this.archivedOrdersMap.put(archivedOrderDto.getOrderNumber() + "," + archivedOrderDto.getRegel(), archivedOrderDto);
+      }
     }
 
     //@Transactional
@@ -145,7 +169,10 @@ public class ArchivedOrdersServiceImp implements ArchivedOrdersService {
             }
         }
 
-        return this.archivedOrderDtoList;
+      while(var6.hasNext()) {
+        ArchivedOrdersDto archivedOrderDto = (ArchivedOrdersDto)var6.next();
+        this.archivedOrdersMap.put(archivedOrderDto.getOrderNumber() + "," + archivedOrderDto.getRegel(), archivedOrderDto);
+      }
     }
 
     public void validateArchiveMap() {
