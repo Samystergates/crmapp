@@ -15,6 +15,7 @@ import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.sql.*;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -30,6 +31,7 @@ import com.web.appts.utils.OdbcConnectionMonitor;
 import com.web.appts.utils.OrderType;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.aspectj.weaver.ast.Or;
 import org.hibernate.StaleStateException;
 import org.modelmapper.ModelMapper;
 import org.slf4j.Logger;
@@ -42,10 +44,13 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import static java.util.Collections.min;
@@ -87,16 +92,16 @@ public class OrderServiceImp implements OrderService {
 
     private final Set<Connection> activeConnections = new HashSet<>();
 
-    //    @Autowired
-//    @Qualifier("secondaryDataSource")
+    @Autowired
+    @Qualifier("secondaryDataSource")
     private DataSource secondaryDataSource;
 
     public static synchronized Connection getConnection() throws SQLException {
         if (connection == null || connection.isClosed()) {
             logger.info("creating new connection");
-//            connection = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
-//            connection.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
-//            connection.setAutoCommit(true);
+            connection = DriverManager.getConnection(DB_URL, USERNAME, PASSWORD);
+            connection.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
+            connection.setAutoCommit(true);
         }
         return connection;
     }
@@ -539,11 +544,17 @@ public class OrderServiceImp implements OrderService {
             order.setIsExpired(orderDto.getIsExpired());
         }
 
+        Boolean isSmeOrSpu = false;
         if (flowUpdate) {
             if (!order.hasOnlyOneDifference(this.dtoToOrder(orderDto))) {
                 return new ArrayList();
             }
-
+            if (order.getSme() != null && orderDto.getSme() != null && !order.getSme().equals(orderDto.getSme())) {
+                isSmeOrSpu = true;
+            }
+            if (order.getSpu() != null && orderDto.getSpu() != null && !order.getSpu().equals(orderDto.getSpu())) {
+                isSmeOrSpu = true;
+            }
             this.updatingFlow(order, orderDto);
         }
 
@@ -553,7 +564,15 @@ public class OrderServiceImp implements OrderService {
 
         Order updatedOrder = null;
         try {
+            if (isSmeOrSpu && flowUpdate) {
+                this.updateOneTekst(order);
+            }
             updatedOrder = (Order) this.orderRepo.save(order);
+            if (!isSmeOrSpu && flowUpdate) {
+                this.updateAllTekst(updatedOrder.getOrderNumber());
+            }
+
+            logger.info("order updating: " + updatedOrder.getOrderNumber() + ", " + updatedOrder.getRegel() + ", " + updatedOrder.getBackOrder() + ", " + updatedOrder.getSme());
 
             OrderDto updatedOrderDto = this.orderToDto(updatedOrder);
             this.ordersMap.put(updatedOrderDto.getOrderNumber() + "," + updatedOrderDto.getRegel(), updatedOrderDto);
@@ -877,7 +896,6 @@ public class OrderServiceImp implements OrderService {
                     orderDto.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
                     this.orderDtoList.add(orderDto);
                 }
-
                 return this.orderDtoList;
             } else {
                 return new ArrayList();
@@ -1254,8 +1272,8 @@ public class OrderServiceImp implements OrderService {
     }
 
     private void exitProgram() {
-//        int exitCode = SpringApplication.exit(context, () -> 0);
-//        System.exit(exitCode);
+        int exitCode = SpringApplication.exit(context, () -> 0);
+        System.exit(exitCode);
     }
 
     public void markExpiredInner() {
@@ -1622,7 +1640,7 @@ public class OrderServiceImp implements OrderService {
             String query = "SELECT \"va-210\".\"cdorder\" AS 'Verkooporder', \"va-210\".\"cdordsrt\" AS 'Ordersoort'," +
                     " \"va-211\".\"cdborder\" AS 'Backorder', \"va-210\".\"cdgebruiker-init\" AS 'Gebruiker (I)', \"va-210\".\"cddeb\" AS 'Organisatie'," +
                     " \"ba-001\".\"naamorg\" AS 'Naam', \"ba-012\".\"straat\" AS 'Straat', \"ba-012\".\"huisnr\" AS 'Huisnr', \"ba-012\".\"additioneel\" AS 'Additioneel', \"ba-012\".\"postcode\" AS 'Postcode', \"ba-012\".\"plaats\" AS 'Plaats'," +
-                    " \"ba-012\".\"cdland\" AS 'Land', \"va-210\".\"datum-lna\" AS 'Leverdatum', \"va-210\".\"opm-30\" AS 'Referentie'," +
+                    " \"ba-012\".\"cdland\" AS 'Land', \"va-211\".\"datum-lna\" AS 'Leverdatum', \"va-210\".\"opm-30\" AS 'Referentie'," +
                     " \"va-210\".\"datum-order\" AS 'Datum order', \"va-210\".\"SYS-DATE\" AS 'Datum laatste wijziging'," +
                     " \"va-210\".\"cdgebruiker\" AS 'Gebruiker (L)', \"va-211\".\"nrordrgl\" AS 'Regel', \"va-211\".\"aantbest\" AS 'Aantal besteld'," +
                     " \"va-211\".\"aanttelev\" AS 'Aantal geleverd', \"va-211\".\"cdprodukt\" AS 'Product', \"af-801\".\"tekst\" AS 'Omschrijving'," +
@@ -1861,7 +1879,41 @@ public class OrderServiceImp implements OrderService {
                                     fieldsCheckMap.getOrDefault("backOrder", false) ||
                                     (!existingOrderDto.getDeliveryDate().equals(deliveryDate2) && !deliveryDate2.isEmpty())) {
                                 try {
+                                    logger.info("orderDto updating: " + orderDto.getOrderNumber() + ", " + orderDto.getRegel() + ", " + orderDto.getBackOrder() + ", " + orderDto.getSme());
                                     this.updateOrder(orderDto, orderDto.getId(), false);
+
+
+                                    if (fieldsCheckMap.getOrDefault("backOrder", false)) {
+                                        logger.info("yes backorder changed: " + orderDto.getOrderNumber());
+                                        if (existingOrderDto.getSme().equals("B")) {
+                                            logger.info("orderDto sme updating: " + orderDto.getOrderNumber() + ", " + orderDto.getRegel() + ", " + orderDto.getBackOrder() + ", " + orderDto.getSme());
+
+
+                                            OrderSME orderSME = this.orderSMERepo.findByOrderNumberAndRegel(orderDto.getOrderNumber(), orderDto.getRegel());
+                                            if (orderSME != null) {
+                                                orderDto.setSme("R");
+                                                this.updateOrder(orderDto, orderDto.getId(), true);
+                                            } else {
+                                                orderDto.setSme("");
+                                                this.updateOrder(orderDto, orderDto.getId(), true);
+                                            }
+                                        }
+
+                                        if (existingOrderDto.getSpu().equals("B")) {
+                                            orderDto.setSpu("");
+                                            this.updateOrder(orderDto, orderDto.getId(), true);
+
+                                            OrderSPU orderSPU = this.orderSPURepo.findByOrderNumberAndRegel(orderDto.getOrderNumber(), orderDto.getRegel());
+                                            if (orderSPU != null) {
+                                                orderDto.setSpu("R");
+                                                this.updateOrder(orderDto, orderDto.getId(), true);
+                                            } else {
+                                                orderDto.setSpu("");
+                                                this.updateOrder(orderDto, orderDto.getId(), true);
+                                            }
+                                        }
+                                    }
+
                                     System.out.println(existingOrderDto.getDeliveryDate() + ", " + deliveryDate2);
                                     System.out.println("UPDATING : " + orderDto.getId());
                                 } catch (ObjectOptimisticLockingFailureException | StaleStateException e) {
@@ -2037,7 +2089,7 @@ public class OrderServiceImp implements OrderService {
         String orderType = orderDto.getOrderType();
         List<OrderDepartment> depList = new ArrayList();
         String wheelOrder = orderDto.getCdProdGrp();
-        String pattern = ".*(182|183|184|410|421|440|441|820|821|822|823|824|825|826|850|851).*";
+        String pattern = ".*(182|183|184|401|410|421|440|441|820|821|822|823|824|825|826|850|851).*";
         Pattern compiledPattern = Pattern.compile(pattern);
         Matcher matcher = compiledPattern.matcher(wheelOrder);
         if (matcher.find()) {
@@ -2047,7 +2099,7 @@ public class OrderServiceImp implements OrderService {
             depList.add(new OrderDepartment(3, "SPU", "", this.dtoToOrder(orderDto)));
         }
 
-        if (orderDto.getCdProdGrp().contains("400") || orderDto.getCdProdGrp().contains("401") ||
+        if (orderDto.getCdProdGrp().contains("400") ||
                 orderDto.getCdProdGrp().contains("402") || orderDto.getCdProdGrp().contains("403") ||
                 orderDto.getCdProdGrp().contains("404") || orderDto.getCdProdGrp().contains("405") ||
                 orderDto.getCdProdGrp().contains("406") || orderDto.getCdProdGrp().contains("407") ||
@@ -2552,10 +2604,108 @@ public class OrderServiceImp implements OrderService {
         return textMap;
     }
 
+    @Override
+    public List<OrderDto> updateAllTekst(String orderNumOrIds) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userName = (authentication != null) ? authentication.getName() : "startup";
+
+        if (!userName.equals("startup")) {
+            if (orderNumOrIds != null && orderNumOrIds.startsWith("V")) {
+
+                List<Order> orders = ordersMap.values().stream()
+                        .filter(o -> o.getOrderNumber().equals(orderNumOrIds))
+                        .map(this::dtoToOrder).collect(Collectors.toList());
+
+                for (Order order : orders) {
+                    if (order.getTekst() == null) {
+                        order.setTekst("");
+                    }
+                    order.setTekst(updateTekst(order.getTekst(), userName));
+                    Order updatedOrder = orderRepo.save(order);
+                    OrderDto updatedOrderDto = modelMapper.map(updatedOrder, OrderDto.class);
+                    this.ordersMap.put(updatedOrderDto.getOrderNumber() + "," + updatedOrderDto.getRegel(), updatedOrderDto);
+
+                }
+            } else {
+
+                List<Integer> idList = new ArrayList();
+                String[] idArray = orderNumOrIds.split(",");
+                String[] var7 = idArray;
+                int var8 = idArray.length;
+
+                for (int var9 = 0; var9 < var8; ++var9) {
+                    String id = var7[var9];
+                    String trimmedId = id.trim();
+                    if (!trimmedId.isEmpty()) {
+                        int parsedId = Integer.parseInt(trimmedId);
+                        idList.add(parsedId);
+                    }
+                }
+//            String placeholders = idList.stream().map(id -> "?").collect(Collectors.joining(", "));
+//            String sql = "SELECT * FROM orders WHERE id IN (" + placeholders + ")";
+//            List<Order> orders = jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(Order.class), idList.toArray());
+                for (int id : idList) {
+                    Optional<OrderDto> orderDto = ordersMap.values().stream().filter(o -> o.getId() == id).findFirst();
+                    if (orderDto.isPresent()) {
+                        OrderDto orderDto1 = orderDto.get();
+                        if (orderDto1.getTekst() == null) {
+                            orderDto1.setTekst("");
+                        }
+                        Order order = dtoToOrder(orderDto1);
+                        order.setTekst(updateTekst(order.getTekst(), userName));
+                        Order updatedOrder = orderRepo.save(order);
+                        OrderDto updatedOrderDto = modelMapper.map(updatedOrder, OrderDto.class);
+                        this.ordersMap.put(updatedOrderDto.getOrderNumber() + "," + updatedOrderDto.getRegel(), updatedOrderDto);
+                    }
+                }
+            }
+        }
+
+        this.orderDtoList = new ArrayList();
+        Iterator var13 = this.ordersMap.entrySet().iterator();
+
+        while (var13.hasNext()) {
+            Map.Entry<String, OrderDto> entry = (Map.Entry) var13.next();
+            OrderDto orderDto2 = (OrderDto) entry.getValue();
+            orderDto2.getDepartments().sort(Comparator.comparingInt(OrderDepartment::getDepId));
+            this.orderDtoList.add(orderDto2);
+        }
+
+        return this.orderDtoList;
+    }
+
+    public void updateOneTekst(Order order) {
+
+        if (order.getTekst() == null) {
+            order.setTekst("");
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userName = authentication.getName();
+
+        order.setTekst(updateTekst(order.getTekst(), userName));
+
+
+    }
+
+    public static String updateTekst(String originalTekst, String currentUser) {
+        LocalDateTime now = LocalDateTime.now();
+        String date = now.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        String time = now.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+
+        String newHeader = String.format("Datum: %s  Tijd: %s  Gebruiker: %s", date, time, currentUser);
+
+        Pattern pattern = Pattern.compile("^Datum:.*?Gebruiker: \\S+", Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(originalTekst.trim());
+
+        if (matcher.find()) {
+            return matcher.replaceFirst(newHeader);
+        } else {
+            return newHeader + "\n" + originalTekst;
+        }
+    }
+
     public Map<String, OrderDto> updateTextForOrdersInner() {
         try {
-
-
             List<String> formattedOrders = new ArrayList<>();
             for (Map.Entry<String, OrderDto> entry : ordersMap.entrySet()) {
                 String orderNumbers = entry.getValue().getOrderNumber();
@@ -2742,6 +2892,7 @@ public class OrderServiceImp implements OrderService {
                         "MAO".equals(entry.getValue().getOrderType())) {
 
                     String orderNumber = entry.getValue().getOrderNumber();
+                    logger.info("added into monsub fetch: " + orderNumber);
                     formattedOrders.add("'" + orderNumber + "'");
                 }
             }
@@ -2766,11 +2917,6 @@ public class OrderServiceImp implements OrderService {
                 try {
                     Connection connection = getConnection();
                     connection.clearWarnings();
-
-//                    try (Statement isolationStmt = connection.createStatement()) {
-//                        isolationStmt.execute("SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED");
-//                        logger.info("Isolation level set to READ UNCOMMITTED");
-//                    }
 
                     statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
 

@@ -4,6 +4,7 @@ package com.web.appts.controllers;
 import com.web.appts.DTO.CustomOrderDto;
 import com.web.appts.DTO.DeleteCustOrderDto;
 import com.web.appts.DTO.OrderDto;
+import com.web.appts.entities.Order;
 import com.web.appts.services.OrderService;
 
 import java.io.ByteArrayOutputStream;
@@ -120,9 +121,10 @@ public class OrderController {
     @PutMapping({"/update/colors/{orderNumber}/{orderDep}/{flowVal}"})
     public ResponseEntity<List<OrderDto>> updatingOrderColors(@RequestBody String orderStatus, @PathVariable("orderNumber") String orderNumber, @PathVariable("orderDep") String orderDep, @PathVariable("flowVal") String flowVal) {
         List<OrderDto> updatedOrders = this.orderService.updateOrderColors(orderNumber, orderDep, orderStatus, flowVal);
-        this.sortUsingDate(updatedOrders);
-        this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrders);
-        return ResponseEntity.ok(updatedOrders);
+        List<OrderDto> updatedOrdersWithTekst = this.orderService.updateAllTekst(orderNumber);
+        this.sortUsingDate(updatedOrdersWithTekst);
+        this.messagingTemplate.convertAndSend("/topic/orderUpdate", updatedOrdersWithTekst);
+        return ResponseEntity.ok(updatedOrdersWithTekst);
     }
 
 //    private void sortUsingDate(List<OrderDto> orderDto) {

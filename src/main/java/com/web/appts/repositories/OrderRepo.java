@@ -15,6 +15,14 @@ public interface OrderRepo extends JpaRepository<Order, Integer> {
 
 	List<Order> findByOrderNumber(String paramString);
 
+	@Query(value = "SELECT * FROM orders WHERE verkooporder = :orderNumOrIds", nativeQuery = true)
+	@Modifying(clearAutomatically = true)
+	List<Order> findFreshOrders(@Param("orderNumOrIds") String orderNumOrIds);
+
+	@Query(value = "SELECT * FROM orders WHERE id IN :ids", nativeQuery = true)
+	@Modifying(clearAutomatically = true)
+	List<Order> findFreshAllById(@Param("ids") List<Integer> ids);
+
 	@Modifying
 	@Query("UPDATE Order o SET o.tra = :newValue WHERE o.id IN :ids")
 	int updateFieldForRIds(@Param("newValue") String newValue, @Param("ids") List<Integer> ids);

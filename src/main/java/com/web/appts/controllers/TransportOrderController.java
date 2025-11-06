@@ -191,23 +191,6 @@ public class TransportOrderController {
         }
     }
 
-    //	private void sortUsingDate(List<OrderDto> orderDto) {
-//		DateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
-//		orderDto.sort(Comparator.comparing((order) -> {
-//			String deliveryDate = order.getDeliveryDate();
-//			return deliveryDate.isEmpty() ? order.getCreationDate() : deliveryDate;
-//		}, (date1, date2) -> {
-//			try {
-//				Date parsedDate1 = dateFormat.parse(date1);
-//				Date parsedDate2 = dateFormat.parse(date2);
-//				return parsedDate2.compareTo(parsedDate1);
-//			} catch (ParseException var5) {
-//				ParseException e = var5;
-//				e.printStackTrace();
-//				return 0;
-//			}
-//		}));
-//	}
     private void sortUsingDate(List<OrderDto> orderDto) {
         DateFormat format1 = new SimpleDateFormat("MM/dd/yyyy");
         DateFormat format2 = new SimpleDateFormat("yyyy-MM-dd");

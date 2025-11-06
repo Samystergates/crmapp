@@ -8,7 +8,10 @@ import javax.persistence.*;
 
 @Entity
 @Table(
-        name = "mon_sub_orders"
+        name = "mon_sub_orders",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"Verkooporder", "Regel", "Product"})
+        }
 )
 @Cache(
         usage = CacheConcurrencyStrategy.READ_WRITE

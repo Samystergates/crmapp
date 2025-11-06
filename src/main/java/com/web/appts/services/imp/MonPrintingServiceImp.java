@@ -144,9 +144,15 @@ public class MonPrintingServiceImp {
         PdfPCell cell3 = new PdfPCell();
         Paragraph paragraphR1 = new Paragraph(String.format("%-10s%-10s", "Verkooporder: ", ((OrderDto) list.get(0)).getOrderNumber()), font4);
         Paragraph paragraphR2 = new Paragraph(String.format("%-10s%-10s", "Behandelaar: ", ((OrderDto) list.get(0)).getUser()), font4);
+
         String date = list.get(0).getDeliveryDate();
-        LocalDate parsedDate = LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        String formattedDate = parsedDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        String formattedDate = "";
+
+        if (date != null && !date.trim().isEmpty()) {
+            LocalDate parsedDate = LocalDate.parse(date, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            formattedDate = parsedDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        }
+
         Paragraph paragraphR3 = new Paragraph(String.format("%-10s%-10s", "Leverdatum: ", formattedDate), font4);
         paragraphR1.setAlignment(2);
         paragraphR2.setAlignment(2);
@@ -212,7 +218,20 @@ public class MonPrintingServiceImp {
                     cell1 = this.createCell(((OrderDto) orderList.get(i)).getRegel(), font2);
                     cell3 = this.createCell(((OrderDto) orderList.get(i)).getProduct(), font2);
                     if (orderList.get(i).getTekst() != null && !orderList.get(i).getTekst().isEmpty()) {
-                        cell4 = this.createCellWithNewLine(((OrderDto) orderList.get(i)).getOmsumin(), orderList.get(i).getTekst(), font2);
+                        String tekst = orderList.get(i).getTekst();
+
+                        // If starts with "Datum:", remove that first line
+                        if (tekst.trim().startsWith("Datum:")) {
+                            // Split by newline and skip the first line
+                            String[] lines = tekst.split("\\r?\\n", 2);
+                            if (lines.length > 1) {
+                                tekst = lines[1].trim(); // keep only content after the first line
+                            } else {
+                                tekst = ""; // if only one line, clear it
+                            }
+                        }
+
+                        cell4 = this.createCellWithNewLine(orderList.get(i).getOmsumin(), tekst, font2);
                     } else {
                         cell4 = this.createCellOms(((OrderDto) orderList.get(i)).getOmsumin(), font2);
                     }
@@ -421,67 +440,6 @@ public class MonPrintingServiceImp {
         columnText.addElement(table);
         columnText.go();
     }
-
-//    private void addOptions(PdfWriter writer, Document document, List<OrderDto> orderList) throws DocumentException {
-//
-//        Font font3 = new Font(FontFamily.HELVETICA, 10.0F, 1);
-//        Paragraph labelParagraph0 = new Paragraph("Product eindcontrole:", font3);
-//        PdfPTable table = new PdfPTable(6);
-//        table.setWidthPercentage(75);
-//        table.setHorizontalAlignment(Element.ALIGN_LEFT);
-//        table.setWidths(new float[]{4,2,2,2,2,5});
-//
-//        table.addCell(createTextCell("Band(en) schoon: "));
-//        table.addCell(createTextCell(""));
-//        table.addCell(createCheckboxCell(false));
-//        table.addCell(createTextCell("JA"));
-//        table.addCell(createTextCell(""));
-//        table.addCell(createTextCell(""));
-//
-//        PdfPCell spacerCell1 = new PdfPCell(new Phrase(""));
-//        spacerCell1.setColspan(6);
-//        spacerCell1.setFixedHeight(10f);
-//        spacerCell1.setBorder(Rectangle.NO_BORDER);
-//        table.addCell(spacerCell1);
-//
-//
-//        table.addCell(createTextCell(""));
-//        table.addCell(createTextCell(""));
-//        table.addCell(createCheckboxCell(false));
-//        table.addCell(createTextCell("NEE"));
-//        table.addCell(createCheckboxCell(false));
-//        table.addCell(createTextCell("Schoon gemaakt."));
-//
-//        PdfPCell spacerCell2 = new PdfPCell(new Phrase(""));
-//        spacerCell2.setColspan(6);
-//        spacerCell2.setFixedHeight(10f);
-//        spacerCell2.setBorder(Rectangle.NO_BORDER);
-//        table.addCell(spacerCell2);
-//
-//        table.addCell(createTextCell("Beschadigingen: "));
-//        table.addCell(createTextCell(""));
-//        table.addCell(createCheckboxCell(false));
-//        table.addCell(createTextCell("NEE"));
-//        table.addCell(createTextCell(""));
-//        table.addCell(createTextCell(""));
-//
-//        PdfPCell spacerCell3 = new PdfPCell(new Phrase(""));
-//        spacerCell3.setColspan(6);
-//        spacerCell3.setFixedHeight(10f);
-//        spacerCell3.setBorder(Rectangle.NO_BORDER);
-//        table.addCell(spacerCell3);
-//
-//        table.addCell(createTextCell(""));
-//        table.addCell(createTextCell(""));
-//        table.addCell(createCheckboxCell(false));
-//        table.addCell(createTextCell("JA"));
-//        table.addCell(createCheckboxCell(false));
-//        table.addCell(createTextCell("Bijgewerkt"));
-//
-//        table.setSpacingAfter(15.0F);
-//        document.add(labelParagraph0);
-//        document.add(table);
-//    }
 
     private PdfPCell createTextCell(String text) {
         Font smallFont = new Font(Font.FontFamily.HELVETICA, 11); // Set font size

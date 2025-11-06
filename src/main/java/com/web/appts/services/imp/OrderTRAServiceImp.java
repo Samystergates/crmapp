@@ -164,7 +164,11 @@ public class OrderTRAServiceImp implements OrderTRAService {
 	}
 
 	public Boolean updateOrderTRAColors(String orderTRAIds, Long id) {
-		return this.orderServiceImp.updateTraColors(orderTRAIds, id);
+		Boolean isUpdated = this.orderServiceImp.updateTraColors(orderTRAIds, id);
+		if(isUpdated){
+			orderServiceImp.updateAllTekst(orderTRAIds);
+		}
+		return isUpdated;
 	}
 
 	public byte[] generateTRAPdf(OrderTRADto orderTRADto) {

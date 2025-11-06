@@ -49,6 +49,8 @@ public interface OrderService {
 
 	Map<String, OrderDto> updateTextForOrders();
 
+	List<OrderDto> updateAllTekst(String orderNumOrIds);
+
 	void markExpired();
 
 	Boolean updateTraColors(String ids, Long id);
